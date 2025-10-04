@@ -25,7 +25,7 @@ struct Render_Vertex {
   vec2_f32 position;
   color8_t color;
   vec2_f32 uv;
-  vec2_f32 circ_mask;
+  vec2_i16 circ_mask;
   f32      tex_id;
 };
 
@@ -38,8 +38,7 @@ struct Render_Buffer {
   usize idx_count;
 };
 
-typedef u8 Shader_Uniform;
-enum {
+Enum(u8, Shader_Uniform) {
   Uniform_Textures = 0,
   Uniform_ProjMatrix,
   Uniform_Count
@@ -68,6 +67,7 @@ internal_lnk void gfx_prep(GFX_State *gfx);
 internal_lnk void gfx_flush(GFX_State *gfx);
 
 internal_lnk void gfx_push_rect(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, color8_t color);
-
+internal_lnk void gfx_push_rect_rounded(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, color8_t color, f32 radii[4], vec4_f32 uv, f32 tex_id);
+internal_lnk void gfx_push_rect_rounded_simple(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, color8_t color, f32 radius);
 
 #endif

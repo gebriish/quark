@@ -1,8 +1,18 @@
+#!/usr/bin/env bash
+
 BUILD="./bin"
+SRC="src/main.c"
 BIN="quark"
 
-rm -rf $BUILD
-mkdir $BUILD
+CC="clang"
+CSTD="-std=gnu11"
 
-clang src/main.c -o "$BUILD/$BIN" -std=gnu11 -lm -lX11 -lXrandr -lGL
+CFLAGS="$CSTD"
+INCLUDES="-I/usr/include/freetype2"
+LIBS="-lm -lX11 -lXrandr -lGL -lfreetype"
 
+rm -rf "$BUILD"
+mkdir -p "$BUILD"
+
+echo "Compiling $SRC -> $BUILD/$BIN"
+$CC $SRC -o "$BUILD/$BIN" $CFLAGS $INCLUDES $LIBS

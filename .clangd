@@ -4,3 +4,4 @@ CompileFlags:
     - -w
     - -x
     - c
+    - -I/usr/include/freetype2

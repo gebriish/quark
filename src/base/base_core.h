@@ -19,6 +19,8 @@
 #define global        static
 #define local_persist static
 
+#define Enum(type, name) typedef type name; enum
+
 #define KB(n)  (((usize)(n)) << 10)
 #define MB(n)  (((usize)(n)) << 20)
 #define GB(n)  (((usize)(n)) << 30)
@@ -26,6 +28,7 @@
 #define Min(A,B) (((A)<(B))?(A):(B))
 #define Max(A,B) (((A)>(B))?(A):(B))
 #define Clamp(A,X,B) (((X)<(A))?(A):((X)>(B))?(B):(X))
+#define Lerp(a, b, t) ((a) + ((b) - (a)) * t)
 
 #if COMPILER_MSVC
 # define AlignOf(T) __alignof(T)
@@ -82,6 +85,7 @@
 
 #define AlignPow2(x,b)     (((x) + (b) - 1)&(~((b) - 1)))
 
+
 ////////////////////////////////
 // ~geb: Type shorthands
 
@@ -102,8 +106,22 @@ typedef i8       bool;
 typedef float    f32;
 typedef double   f64;
 
-//StaticAssert(sizeof(f32) == 4, "float32 size not correct");
-//StaticAssert(sizeof(f64) == 8, "float64 size not correct");
+#define U8_MAX  0xFF
+#define U16_MAX 0xFFFF
+#define U32_MAX 0xFFFFFFFF
+#define U64_MAX 0xFFFFFFFFFFFFFFFF
+
+#define I8_MIN  (-128)
+#define I8_MAX  127
+#define I16_MIN (-32768)
+#define I16_MAX 32767
+#define I32_MIN (-2147483648)
+#define I32_MAX 2147483647
+#define I64_MIN (-9223372036854775807LL - 1)
+#define I64_MAX 9223372036854775807LL
+
+StaticAssert(sizeof(f32) == 4, "float32 size not correct");
+StaticAssert(sizeof(f64) == 8, "float64 size not correct");
 
 #if ARCH_64BIT
 typedef u64 usize;
@@ -113,14 +131,39 @@ typedef u32 usize;
 typedef i32 isize;
 #endif
 
+////////////////////////////////
+// ~geb: Math 
+
 typedef struct {
   f32 x, y;
 } vec2_f32;
+
+typedef struct {
+  i16 x, y;
+} vec2_i16;
 
 typedef union {
   struct { f32 x, y, z, w; };
   struct { f32 r, g, b, a; };
 } vec4_f32;
+
+internal_lnk force_inline f32 
+smooth_damp(f32 current, f32 target, f32 time, f32 dt)
+{
+  if (dt <= 0 || time <= 0) return target;
+
+  f32 rate = 2.0 / time;
+  f32 x = rate * dt;
+
+  f32 factor = 0;
+  if (x < 0.0001) {
+    factor = x * (1.0 - x*0.5 + x*x/6.0 - x*x*x/24.0);
+  } else {
+    factor = 1.0 - exp(-x);
+  }
+
+  return Lerp(current, target, factor);
+}
 
 #if DEBUG_BUILD
 # define _log_base(stream, level, fmt, ...)                       \

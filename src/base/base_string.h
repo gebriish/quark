@@ -26,6 +26,7 @@ internal_lnk String8  str8(u8 *raw, usize len);
 internal_lnk String8  str8_slice(String8 string, usize i, usize len);
 internal_lnk rune_itr str8_decode_utf8(u8 *raw, usize len);
 internal_lnk usize    str8_codepoint_count(String8 str);
+internal_lnk String8  str8_cstr_copy(Arena *arena, String8 string);
 
 #define STR_FMT "%.*s"
 

@@ -156,3 +156,14 @@ str8_codepoint_count(String8 str) {
   
   return count;
 }
+
+internal_lnk String8
+str8_cstr_copy(Arena *arena, String8 string)
+{
+  String8 result = {0};
+  result.raw = arena_push_array(arena, u8, string.len + 1);
+  MemCopy(result.raw, string.raw, string.len);
+  result.raw[string.len] = '\0';
+  result.len = string.len;
+  return result;
+}

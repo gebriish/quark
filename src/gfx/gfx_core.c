@@ -80,7 +80,7 @@ gfx_init(Arena *arena, GFX_State *gfx)
   glVertexAttribPointer(2, 2, GL_FLOAT, false, VTX_SIZE, (void*) offsetof(Render_Vertex, uv));
   glEnableVertexAttribArray(2);
 
-  glVertexAttribPointer(3, 2, GL_FLOAT, false, VTX_SIZE, (void*) offsetof(Render_Vertex, circ_mask));
+  glVertexAttribPointer(3, 2, GL_SHORT, true, VTX_SIZE, (void*) offsetof(Render_Vertex, circ_mask));
   glEnableVertexAttribArray(3);
 
   glVertexAttribPointer(4, 1, GL_FLOAT, false, VTX_SIZE, (void*) offsetof(Render_Vertex, tex_id));
@@ -196,50 +196,232 @@ internal_lnk void
 gfx_push_rect(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, color8_t color)
 {
   if (gfx->render_buffer.vtx_count + 4 > MAX_VERTEX_COUNT ||
-      gfx->render_buffer.idx_count + 6 > MAX_VERTEX_COUNT)
+    gfx->render_buffer.idx_count + 6 > MAX_VERTEX_COUNT)
   {
     gfx_flush(gfx);
     gfx_prep(gfx);
   }
+
   u32 base_idx = gfx->render_buffer.vtx_count;
   Render_Vertex *vtx = gfx->render_buffer.vertices + base_idx;
   u32 *idx = gfx->render_buffer.indices + gfx->render_buffer.idx_count;
-  vec2_f32 min = pos;
-  vec2_f32 max = {pos.x + size.x, pos.y + size.y};
 
-  color = hex_color(color);
-  
-  vtx[0].position = min;
-  vtx[0].color = color;
-  vtx[0].uv = (vec2_f32){0.0f, 0.0f};
-  vtx[0].circ_mask = (vec2_f32){0.0f, 0.0f};
-  vtx[0].tex_id = 0.0f;
-  
-  vtx[1].position = (vec2_f32){max.x, min.y};
-  vtx[1].color = color;
-  vtx[1].uv = (vec2_f32){1.0f, 0.0f};
-  vtx[1].circ_mask = (vec2_f32){0.0f, 0.0f};
-  vtx[1].tex_id = 0.0f;
+  f32 x0 = pos.x, y0 = pos.y;
+  f32 x1 = pos.x + size.x, y1 = pos.y + size.y;
+  color8_t final_color = hex_color(color);
 
-  vtx[2].position = max;
-  vtx[2].color = color;
-  vtx[2].uv = (vec2_f32){1.0f, 1.0f};
-  vtx[2].circ_mask = (vec2_f32){0.0f, 0.0f};
-  vtx[2].tex_id = 0.0f;
-  
-  vtx[3].position = (vec2_f32){min.x, max.y};
-  vtx[3].color = color;
-  vtx[3].uv = (vec2_f32){0.0f, 1.0f};
-  vtx[3].circ_mask = (vec2_f32){0.0f, 0.0f};
-  vtx[3].tex_id = 0.0f;
-  
-  idx[0] = base_idx + 0;
+  vtx[0] = (Render_Vertex){
+    .position = {x0, y0},
+    .color = final_color,
+    .uv = {0.0f, 0.0f},
+    .circ_mask = {0, 0},
+    .tex_id = 0.0f
+  };
+
+  vtx[1] = (Render_Vertex){
+    .position = {x1, y0},
+    .color = final_color,
+    .uv = {1.0f, 0.0f},
+    .circ_mask = {0, 0},
+    .tex_id = 0.0f
+  };
+
+  vtx[2] = (Render_Vertex){
+    .position = {x1, y1},
+    .color = final_color,
+    .uv = {1.0f, 1.0f},
+    .circ_mask = {0, 0},
+    .tex_id = 0.0f
+  };
+
+  vtx[3] = (Render_Vertex){
+    .position = {x0, y1},
+    .color = final_color,
+    .uv = {0.0f, 1.0f},
+    .circ_mask = {0, 0},
+    .tex_id = 0.0f
+  };
+
+  idx[0] = base_idx;
   idx[1] = base_idx + 1;
   idx[2] = base_idx + 2;
   idx[3] = base_idx + 2;
   idx[4] = base_idx + 3;
-  idx[5] = base_idx + 0;
-  
+  idx[5] = base_idx;
+
   gfx->render_buffer.vtx_count += 4;
   gfx->render_buffer.idx_count += 6;
+}
+
+internal_lnk void
+gfx_push_rect_rounded(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, color8_t color, 
+                       f32 radii[4], vec4_f32 uv, f32 tex_id)
+{
+  if (size.x <= 0.0f || size.y <= 0.0f) return;
+  
+  f32 r[4] = {radii[0], radii[1], radii[2], radii[3]};
+  
+  f32 top_sum = r[0] + r[1];
+  f32 bot_sum = r[2] + r[3];
+  f32 lft_sum = r[2] + r[0];
+  f32 rgt_sum = r[1] + r[3];
+  
+  if (top_sum > size.x) { f32 s = size.x / top_sum; r[0] *= s; r[1] *= s; }
+  if (bot_sum > size.x) { f32 s = size.x / bot_sum; r[2] *= s; r[3] *= s; }
+  if (lft_sum > size.y) { f32 s = size.y / lft_sum; r[2] *= s; r[0] *= s; }
+  if (rgt_sum > size.y) { f32 s = size.y / rgt_sum; r[1] *= s; r[3] *= s; }
+  
+  if (r[0] <= 0.5f && r[1] <= 0.5f && r[2] <= 0.5f && r[3] <= 0.5f) {
+    // gfx_push_rect(gfx, pos, size, color, uv, tex_id);
+    // For completeness, but, not now though
+  }
+  
+  u8 rounded_mask = 0;
+  u8 rounded_count = 0;
+  for (i32 i = 0; i < 4; i++) {
+    if (r[i] > 0.5f) {
+      rounded_mask |= (1 << i);
+      rounded_count++;
+    }
+  }
+  
+  u32 outline_vertices = 4 + rounded_count;  
+  u32 corner_vertices = rounded_count * 3;   
+  u32 total_vertices = outline_vertices + corner_vertices;
+  u32 total_indices = (outline_vertices - 2) * 3 + rounded_count * 3;
+  
+  if (gfx->render_buffer.vtx_count + total_vertices > MAX_VERTEX_COUNT ||
+      gfx->render_buffer.idx_count + total_indices > MAX_VERTEX_COUNT) {
+    gfx_flush(gfx);
+    gfx_prep(gfx);
+  }
+  
+  u32 base_idx = gfx->render_buffer.vtx_count;
+  Render_Vertex *vtx = &gfx->render_buffer.vertices[base_idx];
+  u32 *idx = &gfx->render_buffer.indices[gfx->render_buffer.idx_count];
+  
+  color = hex_color(color);
+  f32 inv_w = 1.0f / size.x;
+  f32 inv_h = 1.0f / size.y;
+  f32 uv_w = uv.z - uv.x;
+  f32 uv_h = uv.w - uv.y;
+  
+  vec2_f32 corners[4] = {
+    {pos.x, pos.y},
+    {pos.x + size.x, pos.y},
+    {pos.x + size.x, pos.y + size.y},
+    {pos.x, pos.y + size.y}
+  };
+  
+  static const vec2_f32 cw[4] = {
+    {1.0f, 0.0f}, {0.0f, 1.0f}, {-1.0f, 0.0f}, {0.0f, -1.0f}
+  };
+  static const vec2_f32 ccw[4] = {
+    {0.0f, 1.0f}, {-1.0f, 0.0f}, {0.0f, -1.0f}, {1.0f, 0.0f}
+  };
+  
+  u32 v_idx = 0;
+  for (i32 i = 0; i < 4; i++) {
+    vec2_f32 corner = corners[i];
+    f32 radius = r[i];
+    
+    if (radius <= 0.5f) {
+      vtx[v_idx].position = corner;
+      f32 local_x = corner.x - pos.x;
+      f32 local_y = corner.y - pos.y;
+      vtx[v_idx].uv.x = local_x * inv_w * uv_w + uv.x;
+      vtx[v_idx].uv.y = local_y * inv_h * uv_h + uv.y;
+      vtx[v_idx].color = color;
+      vtx[v_idx].circ_mask = (vec2_i16){0, 0};
+      vtx[v_idx].tex_id = tex_id;
+      v_idx++;
+    } else {
+      vec2_f32 p1 = {corner.x + ccw[i].x * radius, corner.y + ccw[i].y * radius};
+      vec2_f32 p2 = {corner.x + cw[i].x * radius, corner.y + cw[i].y * radius};
+      
+      f32 lx1 = p1.x - pos.x;
+      f32 ly1 = p1.y - pos.y;
+      vtx[v_idx].position = p1;
+      vtx[v_idx].uv.x = lx1 * inv_w * uv_w + uv.x;
+      vtx[v_idx].uv.y = ly1 * inv_h * uv_h + uv.y;
+      vtx[v_idx].color = color;
+      vtx[v_idx].circ_mask = (vec2_i16){0, 0};
+      vtx[v_idx].tex_id = tex_id;
+      v_idx++;
+      
+      f32 lx2 = p2.x - pos.x;
+      f32 ly2 = p2.y - pos.y;
+      vtx[v_idx].position = p2;
+      vtx[v_idx].uv.x = lx2 * inv_w * uv_w + uv.x;
+      vtx[v_idx].uv.y = ly2 * inv_h * uv_h + uv.y;
+      vtx[v_idx].color = color;
+      vtx[v_idx].circ_mask = (vec2_i16){0, 0};
+      vtx[v_idx].tex_id = tex_id;
+      v_idx++;
+    }
+  }
+  
+  u32 idx_count = 0;
+  for (u32 i = 1; i < outline_vertices - 1; i++) {
+    idx[idx_count++] = base_idx;
+    idx[idx_count++] = base_idx + i + 1;
+    idx[idx_count++] = base_idx + i;
+  }
+  
+  u32 corner_vtx_base = v_idx;
+  for (i32 i = 0; i < 4; i++) {
+    if (!(rounded_mask & (1 << i))) continue;
+    
+    vec2_f32 corner = corners[i];
+    f32 radius = r[i];
+    
+    vec2_f32 p0 = corner;
+    vec2_f32 p1 = {corner.x + ccw[i].x * radius, corner.y + ccw[i].y * radius};
+    vec2_f32 p2 = {corner.x + cw[i].x * radius, corner.y + cw[i].y * radius};
+    
+    f32 lx0 = p0.x - pos.x;
+    f32 ly0 = p0.y - pos.y;
+    vtx[v_idx].position = p0;
+    vtx[v_idx].uv.x = lx0 * inv_w * uv_w + uv.x;
+    vtx[v_idx].uv.y = ly0 * inv_h * uv_h + uv.y;
+    vtx[v_idx].color = color;
+    vtx[v_idx].circ_mask = (vec2_i16){I16_MAX, I16_MAX};
+    vtx[v_idx].tex_id = tex_id;
+    
+    f32 lx1 = p1.x - pos.x;
+    f32 ly1 = p1.y - pos.y;
+    vtx[v_idx + 1].position = p1;
+    vtx[v_idx + 1].uv.x = lx1 * inv_w * uv_w + uv.x;
+    vtx[v_idx + 1].uv.y = ly1 * inv_h * uv_h + uv.y;
+    vtx[v_idx + 1].color = color;
+    vtx[v_idx + 1].circ_mask = (vec2_i16){0, I16_MAX};
+    vtx[v_idx + 1].tex_id = tex_id;
+    
+    f32 lx2 = p2.x - pos.x;
+    f32 ly2 = p2.y - pos.y;
+    vtx[v_idx + 2].position = p2;
+    vtx[v_idx + 2].uv.x = lx2 * inv_w * uv_w + uv.x;
+    vtx[v_idx + 2].uv.y = ly2 * inv_h * uv_h + uv.y;
+    vtx[v_idx + 2].color = color;
+    vtx[v_idx + 2].circ_mask = (vec2_i16){I16_MAX, 0};
+    vtx[v_idx + 2].tex_id = tex_id;
+    
+    idx[idx_count++] = base_idx + v_idx;
+    idx[idx_count++] = base_idx + v_idx + 1;
+    idx[idx_count++] = base_idx + v_idx + 2;
+    
+    v_idx += 3;
+  }
+  
+  gfx->render_buffer.vtx_count += total_vertices;
+  gfx->render_buffer.idx_count += total_indices;
+}
+
+internal_lnk void
+gfx_push_rect_rounded_simple(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, 
+                              color8_t color, f32 radius)
+{
+  f32 radii[4] = {radius, radius, radius, radius};
+  vec4_f32 uv = {0.0f, 0.0f, 1.0f, 1.0f};
+  gfx_push_rect_rounded(gfx, pos, size, color, radii, uv, 0.0f);
 }
