@@ -2,6 +2,8 @@
 
 #include "../thirdparty/glad/glad.c"
 
+#include <stddef.h> // for offsetof
+
 #define VTX_SIZE sizeof(Render_Vertex)
 
 const char* VERTEX_SHADER = 
@@ -69,19 +71,19 @@ gfx_init(Arena *arena, GFX_State *gfx)
   glBindBuffer(GL_ARRAY_BUFFER, gfx->vbo);
   glBufferData(GL_ARRAY_BUFFER, MAX_VERTEX_COUNT * VTX_SIZE, NULL, GL_DYNAMIC_DRAW);
 
-  glVertexAttribPointer(0, 2, GL_FLOAT, false, VTX_SIZE, (void*) OffsetOf(Render_Vertex, position));
+  glVertexAttribPointer(0, 2, GL_FLOAT, false, VTX_SIZE, (void*) offsetof(Render_Vertex, position));
   glEnableVertexAttribArray(0);
 
-  glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, true, VTX_SIZE, (void*) OffsetOf(Render_Vertex, color));
+  glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, true, VTX_SIZE, (void*) offsetof(Render_Vertex, color));
   glEnableVertexAttribArray(1);
 
-  glVertexAttribPointer(2, 2, GL_FLOAT, false, VTX_SIZE, (void*) OffsetOf(Render_Vertex, uv));
+  glVertexAttribPointer(2, 2, GL_FLOAT, false, VTX_SIZE, (void*) offsetof(Render_Vertex, uv));
   glEnableVertexAttribArray(2);
 
-  glVertexAttribPointer(3, 2, GL_FLOAT, false, VTX_SIZE, (void*) OffsetOf(Render_Vertex, circ_mask));
+  glVertexAttribPointer(3, 2, GL_FLOAT, false, VTX_SIZE, (void*) offsetof(Render_Vertex, circ_mask));
   glEnableVertexAttribArray(3);
 
-  glVertexAttribPointer(4, 1, GL_FLOAT, false, VTX_SIZE, (void*) OffsetOf(Render_Vertex, tex_id));
+  glVertexAttribPointer(4, 1, GL_FLOAT, false, VTX_SIZE, (void*) offsetof(Render_Vertex, tex_id));
   glEnableVertexAttribArray(4);
 
   glGenBuffers(1, &gfx->ibo);
@@ -144,10 +146,11 @@ gfx_resize_target(GFX_State *gfx, i32 w, i32 h)
   glViewport(0, 0, w, h);
   f32 proj[16] = {
     2.0f/w,  0.0f,     0.0f,  0.0f,
-    0.0f,    2.0f/h,   0.0f,  0.0f,
+    0.0f,   -2.0f/h,   0.0f,  0.0f,
     0.0f,    0.0f,    -1.0f,  0.0f,
-    -1.0f,  -1.0f,     0.0f,  1.0f
+    -1.0f,   1.0f,     0.0f,  1.0f
   };
+
   glUniformMatrix4fv(gfx->uniform_loc[Uniform_ProjMatrix], 1, false, proj);
   gfx->viewport.w = w;
   gfx->viewport.h = h;

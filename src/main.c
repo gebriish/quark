@@ -30,7 +30,7 @@ int main()
   hints->minor = 3;
   RGFW_setGlobalHints_OpenGL(hints);
 
-  RGFW_window* window = RGFW_createWindow("LearnOpenGL", 0, 0, 1000, 625, RGFW_windowCenter | RGFW_windowOpenGL);
+  RGFW_window* window = RGFW_createWindow("LearnOpenGL", 0, 0, 1000, 625, RGFW_windowCenter | RGFW_windowOpenGL | RGFW_windowHide );
   if (window == NULL)
   {
     printf("Failed to create RGFW window\n");
@@ -49,9 +49,9 @@ int main()
   gfx_resize_target(&gfx, 1000, 625);
 
   RGFW_window_setUserPtr(window, (void *)&gfx);
-
   RGFW_setWindowResizedCallback(resize_callback);
 
+  RGFW_window_show(window);
   Time_Stamp curr_time = time_now(), last_time = 0;
 
   while (RGFW_window_shouldClose(window) == RGFW_FALSE) {
@@ -62,10 +62,11 @@ int main()
     RGFW_event event;
     while (RGFW_window_checkEvent(window, &event));
 
+    i32 x, y;
+    RGFW_window_getMouse(window, &x, &y);
+
     gfx_begin_frame(&gfx, 0x131313ff);
-    gfx_push_rect(&gfx, (vec2_f32){100, 100}, (vec2_f32){150, 150}, 0xff0000ff);    // Red
-    gfx_push_rect(&gfx, (vec2_f32){350, 100}, (vec2_f32){150, 150}, 0x00ff00ff);    // Green
-    gfx_push_rect(&gfx, (vec2_f32){225, 300}, (vec2_f32){150, 150}, 0x0000ffff);    // Blue
+    gfx_push_rect(&gfx, (vec2_f32){x, y}, (vec2_f32){150, 150}, 0xff0000ff);
     gfx_end_frame(&gfx);
 
     RGFW_window_swapBuffers_OpenGL(window);

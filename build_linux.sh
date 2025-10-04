@@ -1,5 +1,5 @@
 BUILD="./bin"
-BIN="editor"
+BIN="quark"
 
 rm -rf $BUILD
 mkdir $BUILD

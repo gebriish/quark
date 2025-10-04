@@ -15,7 +15,7 @@ time_now()
 {
   LARGE_INTEGER counter;
   QueryPerformanceCounter(&counter);
-  return (TimeStamp)counter.QuadPart;
+  return (Time_Stamp)counter.QuadPart;
 }
 
 internal_lnk u64

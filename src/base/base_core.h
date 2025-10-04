@@ -43,7 +43,7 @@
   (((x) & (u32)0x00FF0000u) >> 8)  | \
   (((x) & (u32)0xFF000000u) >> 24) )
 
-#define OffsetOf(type, member) ((usize) &(((type *)0)->member))
+#define OffsetOf(s,m) ((size_t)&(((s*)0)->m))
 
 #if COMPILER_CLANG || COMPILER_GCC
 # define force_inline inline __attribute__((always_inline))
@@ -101,8 +101,9 @@ typedef i8       bool;
 
 typedef float    f32;
 typedef double   f64;
-StaticAssert(sizeof(f32) == 4, "float32 size not correct");
-StaticAssert(sizeof(f64) == 8, "float64 size not correct");
+
+//StaticAssert(sizeof(f32) == 4, "float32 size not correct");
+//StaticAssert(sizeof(f64) == 8, "float64 size not correct");
 
 #if ARCH_64BIT
 typedef u64 usize;
