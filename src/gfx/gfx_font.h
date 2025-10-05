@@ -8,7 +8,7 @@
 #include FT_FREETYPE_H
 #include FT_GLYPH_H
 
-Enum(u32, Font_RasterFlag) {
+Enum(Font_RasterFlag, u32) {
   Font_RasterSmooth = (1 << 0),
   Font_RasterHint   = (1 << 1),
 };
@@ -21,12 +21,22 @@ typedef struct {
   f32 capital_height;
 } Font_Metrics;
 
-typedef struct Font_RasterResult Font_RasterResult;
-struct Font_RasterResult
-{
-  vec2_i16 atlas_dim;
-  void *atlas;
-  f32 advance;
+typedef struct Glyph_Info Glyph_Info;
+struct Glyph_Info {
+  vec2_i16 position;
+  vec2_i16 size;
+  vec2_i16 bearing;
+  i16 advance;
+};
+
+typedef struct Font_Atlas Font_Atlas;
+struct Font_Atlas {
+  u8 *image;
+  vec2_u16 dim;
+  Glyph_Info *glyphs;
+  u32 *keys;
+  u32 capacity;
+  u32 count;
 };
 
 typedef struct Font_State Font_State;
@@ -34,10 +44,14 @@ struct Font_State {
   Arena *arena;
   FT_Library library;
   FT_Face face;
+  Font_Atlas atlas;
 };
 
 global Font_State *fnt_state = NULL;
 
 internal_lnk void font_init(String8 path);
+internal_lnk void font_close();
+internal_lnk Font_Metrics font_get_metrics();
+internal_lnk void font_generate_atlas(u32 font_size, String8 characters);
 
 #endif

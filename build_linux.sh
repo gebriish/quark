@@ -4,7 +4,7 @@ BUILD="./bin"
 SRC="src/main.c"
 BIN="quark"
 
-CC="clang"
+CC="gcc"
 CSTD="-std=gnu11"
 
 CFLAGS="$CSTD"

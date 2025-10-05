@@ -19,7 +19,7 @@
 #define global        static
 #define local_persist static
 
-#define Enum(type, name) typedef type name; enum
+#define Enum(name, type) typedef type name; enum
 
 #define KB(n)  (((usize)(n)) << 10)
 #define MB(n)  (((usize)(n)) << 20)
@@ -29,6 +29,8 @@
 #define Max(A,B) (((A)>(B))?(A):(B))
 #define Clamp(A,X,B) (((X)<(A))?(A):((X)>(B))?(B):(X))
 #define Lerp(a, b, t) ((a) + ((b) - (a)) * t)
+
+#define Abs_i64(v) (i64)llabs(v)
 
 #if COMPILER_MSVC
 # define AlignOf(T) __alignof(T)
@@ -63,6 +65,7 @@
 
 #define MemCopy(dst, src, size)  memmove((dst), (src), (size))
 #define MemZero(dst, size)        memset((dst), 0x00, (size))
+#define MemZeroStruct(dst)        memset((dst), 0x00, (sizeof(*dst)))
 #define MemCompare(a, b, size)    memcmp((a), (b), (size))
 #define MemStrlen(ptr)            strlen(ptr)
 
@@ -142,6 +145,10 @@ typedef struct {
   i16 x, y;
 } vec2_i16;
 
+typedef struct {
+  u16 x, y;
+} vec2_u16;
+
 typedef union {
   struct { f32 x, y, z, w; };
   struct { f32 r, g, b, a; };
@@ -214,6 +221,8 @@ internal_lnk Temp   temp_begin(Arena *arena);
 internal_lnk void   temp_end(Temp temp);
 
 #define arena_push_struct(a, T)   (T *) arena_push((a), sizeof(T), AlignOf(T), true)
+#define arena_push_array_zeroed(a, T, c) (T *) arena_push((a), sizeof(T) * (c), AlignOf(T), true)
 #define arena_push_array(a, T, c) (T *) arena_push((a), sizeof(T) * (c), AlignOf(T), false)
+
 
 #endif

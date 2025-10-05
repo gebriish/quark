@@ -13,6 +13,8 @@
 #define MAX_VERTEX_COUNT  MAX_TRIANGLES * 3
 #define MAX_TEXTURES      16
 
+#define WHITE_TEXTURE     0
+
 typedef u32 color8_t; // 0xRRGGBBAA
 
 #define color_r(x) (((x) >> 24) & 0xFF)
@@ -34,24 +36,71 @@ struct Render_Buffer {
   Render_Vertex *vertices;
   u32 *indices;
 
-  usize vtx_count;
-  usize idx_count;
+  u32 vtx_count;
+  u32 idx_count;
 };
 
-Enum(u8, Shader_Uniform) {
+Enum(Shader_Uniform, u8) {
   Uniform_Textures = 0,
   Uniform_ProjMatrix,
   Uniform_Count
 };
 
+typedef struct Texture Texture;
+struct Texture {
+  u32 gl_id;
+  u32 next; // freelist pointer to next ~internal id~
+};
+
+typedef struct Texture_Data Texture_Data;
+struct Texture_Data {
+  u8 *data;
+  i32 width, height;
+  i32 channels;
+};
+
+Enum(Texture_Kind, u8) {
+  TextureKind_Normal = 0,
+  TextureKind_GreyScale,
+  TextureKind_Count
+};
+
 typedef struct GFX_State GFX_State;
 struct GFX_State {
+  i32 uniform_loc[Uniform_Count];
+  struct { i32 w, h; } viewport;
+
+
+  // Geometry
+  Render_Buffer render_buffer;
   u32 vao, vbo, ibo;
   u32 program;
-  i32 uniform_loc[Uniform_Count];
 
-  Render_Buffer render_buffer;
-  struct { i32 w, h; } viewport;
+  // Texture
+  Texture texture_slots[MAX_TEXTURES];
+  u32 texture_count;
+  u32 texture_freelist;
+};
+
+
+//////////////////////////////////
+// ~geb: interface parameters
+
+typedef struct {
+  f32 top_left;
+  f32 top_right;
+  f32 bottom_right;
+  f32 bottom_left;
+} Rect_Radii;
+
+typedef struct Rect_Params Rect_Params;
+struct Rect_Params {
+  vec2_f32 position;
+  vec2_f32 size;
+  color8_t color;
+  Rect_Radii radii;
+  vec4_f32 uv;
+  u32 tex_id;
 };
 
 //////////////////////////////////
@@ -67,7 +116,22 @@ internal_lnk void gfx_prep(GFX_State *gfx);
 internal_lnk void gfx_flush(GFX_State *gfx);
 
 internal_lnk void gfx_push_rect(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, color8_t color);
-internal_lnk void gfx_push_rect_rounded(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, color8_t color, f32 radii[4], vec4_f32 uv, f32 tex_id);
-internal_lnk void gfx_push_rect_rounded_simple(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, color8_t color, f32 radius);
+internal_lnk void gfx_push_rect_rounded(GFX_State *gfx, Rect_Params *params);
+
+
+internal_lnk u32 gfx_texture_upload(GFX_State *gfx, Texture_Data data, Texture_Kind type);
+
+
+//////////////////////////////////
+// ~geb: shorthand macros
+
+#define push_rect_rounded(gfx, ...) \
+gfx_push_rect_rounded(gfx, &(Rect_Params){ \
+  .size = {32, 32}, \
+  .color = 0xffffffff, \
+  .uv = {0,0,1,1}, \
+  .tex_id = 0, \
+  __VA_ARGS__ \
+})
 
 #endif

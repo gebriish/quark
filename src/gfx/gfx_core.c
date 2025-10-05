@@ -47,8 +47,7 @@ const char* FRAGMENT_SHADER =
   "    float dist = length(Frag_CircCoords) - 1.0;"
   "    float edge_width = fwidth(dist) * 0.5;"
   "    float alpha = 1.0 - smoothstep(-edge_width, edge_width, dist);"
-  //"    vec4 base = frag_color * texture(textures[tex_id], frag_uv);"
-  "    vec4 base = Frag_Color;"
+  "    vec4 base = Frag_Color * texture(Textures[tex_id], Frag_UV);"
   "    Out_Color = vec4(base.rgb, base.a * alpha);"
   "}";
 
@@ -56,6 +55,7 @@ internal_lnk bool
 gfx_init(Arena *arena, GFX_State *gfx)
 {
   Assert(gfx);
+  MemZeroStruct(gfx);
 
   gfx->render_buffer.vertices = arena_push_array(arena, Render_Vertex, MAX_VERTEX_COUNT);
   gfx->render_buffer.indices  = arena_push_array(arena, u32, MAX_VERTEX_COUNT);
@@ -136,6 +136,21 @@ gfx_init(Arena *arena, GFX_State *gfx)
 
   gfx->uniform_loc[Uniform_Textures] = glGetUniformLocation(gfx->program, "Textures");
   gfx->uniform_loc[Uniform_ProjMatrix] = glGetUniformLocation(gfx->program, "ProjMatrix");
+
+
+  i32 samplers[MAX_TEXTURES] = {0};
+  for (i32 i=0; i<MAX_TEXTURES; i++) { samplers[i] = i; } 
+
+  glUniform1iv(gfx->uniform_loc[Uniform_Textures], MAX_TEXTURES, samplers);
+
+  u32 white_pixel = 0xffffffff;
+  Texture_Data data_white = {
+    .data = (u8 *)&white_pixel,
+    .width = 1,
+    .height = 1,
+    .channels = 4,
+  };
+  gfx_texture_upload(gfx, data_white, TextureKind_Normal);
 
   return true;
 }
@@ -254,27 +269,21 @@ gfx_push_rect(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, color8_t color)
 }
 
 internal_lnk void
-gfx_push_rect_rounded(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, color8_t color, 
-                       f32 radii[4], vec4_f32 uv, f32 tex_id)
+gfx_push_rect_rounded(GFX_State *gfx, Rect_Params *params)
 {
-  if (size.x <= 0.0f || size.y <= 0.0f) return;
-  
-  f32 r[4] = {radii[0], radii[1], radii[2], radii[3]};
-  
-  f32 top_sum = r[0] + r[1];
-  f32 bot_sum = r[2] + r[3];
-  f32 lft_sum = r[2] + r[0];
-  f32 rgt_sum = r[1] + r[3];
-  
-  if (top_sum > size.x) { f32 s = size.x / top_sum; r[0] *= s; r[1] *= s; }
-  if (bot_sum > size.x) { f32 s = size.x / bot_sum; r[2] *= s; r[3] *= s; }
-  if (lft_sum > size.y) { f32 s = size.y / lft_sum; r[2] *= s; r[0] *= s; }
-  if (rgt_sum > size.y) { f32 s = size.y / rgt_sum; r[1] *= s; r[3] *= s; }
-  
-  if (r[0] <= 0.5f && r[1] <= 0.5f && r[2] <= 0.5f && r[3] <= 0.5f) {
-    // gfx_push_rect(gfx, pos, size, color, uv, tex_id);
-    // For completeness, but, not now though
-  }
+  if (params->size.x <= 0.0f || params->size.y <= 0.0f) return;
+ 
+  vec2_f32 size = params->size;
+  vec4_f32 uv = params->uv;
+  vec2_f32 pos = params->position;
+  f32 tex_id = (f32)params->tex_id;
+
+  f32 r[4] = {
+    params->radii.top_left, 
+    params->radii.top_right, 
+    params->radii.bottom_right, 
+    params->radii.bottom_left
+  };
   
   u8 rounded_mask = 0;
   u8 rounded_count = 0;
@@ -299,8 +308,9 @@ gfx_push_rect_rounded(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, color8_t colo
   u32 base_idx = gfx->render_buffer.vtx_count;
   Render_Vertex *vtx = &gfx->render_buffer.vertices[base_idx];
   u32 *idx = &gfx->render_buffer.indices[gfx->render_buffer.idx_count];
+
   
-  color = hex_color(color);
+  color8_t color = hex_color(params->color);
   f32 inv_w = 1.0f / size.x;
   f32 inv_h = 1.0f / size.y;
   f32 uv_w = uv.z - uv.x;
@@ -346,7 +356,7 @@ gfx_push_rect_rounded(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, color8_t colo
       vtx[v_idx].uv.y = ly1 * inv_h * uv_h + uv.y;
       vtx[v_idx].color = color;
       vtx[v_idx].circ_mask = (vec2_i16){0, 0};
-      vtx[v_idx].tex_id = tex_id;
+      vtx[v_idx].tex_id = tex_id;;
       v_idx++;
       
       f32 lx2 = p2.x - pos.x;
@@ -417,11 +427,86 @@ gfx_push_rect_rounded(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, color8_t colo
   gfx->render_buffer.idx_count += total_indices;
 }
 
-internal_lnk void
-gfx_push_rect_rounded_simple(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, 
-                              color8_t color, f32 radius)
+
+internal_lnk u32 
+gfx_texture_upload(GFX_State *gfx, Texture_Data data, Texture_Kind type)
 {
-  f32 radii[4] = {radius, radius, radius, radius};
-  vec4_f32 uv = {0.0f, 0.0f, 1.0f, 1.0f};
-  gfx_push_rect_rounded(gfx, pos, size, color, radii, uv, 0.0f);
+  Assert(gfx && type >= 0 && type < TextureKind_Count);
+  Assert(data.data && data.channels <= 4 && data.channels >= 1 && data.width > 0 && data.height > 0);
+
+  u32 result = 0;
+  Texture *handle = NULL;
+
+  if (gfx->texture_freelist != 0) {
+    result = gfx->texture_freelist;
+    handle = &gfx->texture_slots[result];
+    gfx->texture_freelist = handle->next;
+  } else {
+    result = gfx->texture_count;
+    if (result >= MAX_TEXTURES) { 
+      return WHITE_TEXTURE;
+    }
+    gfx->texture_count += 1;
+  }
+
+  handle = &gfx->texture_slots[result];
+  *handle = (Texture){0};
+
+  glGenTextures(1, &handle->gl_id);
+
+  i32 internal_format;
+  u32 format;
+  switch (data.channels) {
+    case 1:
+      internal_format = GL_RED;
+      format = GL_RED;
+      break;  
+    case 2:
+      internal_format = GL_RG;
+      format = GL_RG;
+      break;  
+    case 3:
+      internal_format = GL_RGB;
+      format = GL_RGB;
+      break;  
+    case 4:
+      internal_format = GL_RGBA;
+      format = GL_RGBA;
+      break;  
+    default:
+      glDeleteTextures(1, &handle->gl_id);
+      handle->gl_id = 0;
+      handle->next = gfx->texture_freelist;
+      gfx->texture_freelist = result;
+      return WHITE_TEXTURE;
+  }
+
+  glActiveTexture(GL_TEXTURE0 + result);
+  glBindTexture(GL_TEXTURE_2D, handle->gl_id);
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  if (type == TextureKind_GreyScale && data.channels == 1) {
+    i32 swizzle[4] = {GL_ONE, GL_ONE, GL_ONE, GL_RED};
+    glTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_RGBA, swizzle);
+  }
+
+  glTexImage2D(
+    GL_TEXTURE_2D,
+    0, // level
+    internal_format,
+    data.width,
+    data.height,
+    0, // border
+    format,
+    GL_UNSIGNED_BYTE,
+    data.data
+  );
+
+  glGenerateMipmap(GL_TEXTURE_2D);
+
+  return result;
 }
