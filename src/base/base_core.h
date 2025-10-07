@@ -143,9 +143,13 @@ typedef struct {\
 } vec##N##_##T
 
 VecDef(2, f32, x, y);
+
+VecDef(2, i32, x, y);
+VecDef(2, u32, x, y);
 VecDef(2, i16, x, y);
 VecDef(2, u16, x, y);
 VecDef(2, i8,  x, y);
+VecDef(2, u8,  x, y);
 
 VecDef(4, f32, x, y, z, w);
 VecDef(4, u16, x, y, z, w);
