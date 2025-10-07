@@ -9,7 +9,7 @@
 #define GL_VERSION_MAJOR 3
 #define GL_VERSION_MINOR 3
 
-#define MAX_TRIANGLES     4096
+#define MAX_TRIANGLES     2048
 #define MAX_VERTEX_COUNT  MAX_TRIANGLES * 3
 #define MAX_TEXTURES      16
 
@@ -26,15 +26,15 @@ typedef struct Render_Vertex Render_Vertex;
 struct Render_Vertex {
   vec2_f32 position;
   color8_t color;
-  vec2_f32 uv;
-  vec2_i16 circ_mask;
-  f32      tex_id;
+  vec2_u16 uv;
+  vec2_i8  circ_mask;
+  u8      tex_id;
 };
 
 typedef struct Render_Buffer Render_Buffer;
 struct Render_Buffer {
   Render_Vertex *vertices;
-  u32 *indices;
+  u16 *indices;
 
   u32 vtx_count;
   u32 idx_count;
@@ -67,9 +67,11 @@ Enum(Texture_Kind, u8) {
 
 typedef struct GFX_State GFX_State;
 struct GFX_State {
+  Arena *allocator;
+  Arena *temp_allocator;
+
   i32 uniform_loc[Uniform_Count];
   struct { i32 w, h; } viewport;
-
 
   // Geometry
   Render_Buffer render_buffer;
@@ -81,7 +83,6 @@ struct GFX_State {
   u32 texture_count;
   u32 texture_freelist;
 };
-
 
 //////////////////////////////////
 // ~geb: interface parameters
@@ -100,13 +101,13 @@ struct Rect_Params {
   color8_t color;
   Rect_Radii radii;
   vec4_f32 uv;
-  u32 tex_id;
+  u8 tex_id;
 };
 
 //////////////////////////////////
 // ~geb: interface procs
 
-internal_lnk bool gfx_init(Arena *arena, GFX_State *gfx);
+internal_lnk bool gfx_init(Arena *allocator, Arena *temp_allocator, GFX_State *gfx);
 internal_lnk void gfx_resize_target(GFX_State *gfx, i32 w, i32 h);
 
 internal_lnk void gfx_begin_frame(GFX_State *gfx, color8_t color);
@@ -115,7 +116,7 @@ internal_lnk void gfx_end_frame(GFX_State *gfx);
 internal_lnk void gfx_prep(GFX_State *gfx);
 internal_lnk void gfx_flush(GFX_State *gfx);
 
-internal_lnk void gfx_push_rect(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, color8_t color);
+internal_lnk void gfx_push_rect(GFX_State *gfx, Rect_Params *params);
 internal_lnk void gfx_push_rect_rounded(GFX_State *gfx, Rect_Params *params);
 
 
@@ -127,6 +128,15 @@ internal_lnk u32 gfx_texture_upload(GFX_State *gfx, Texture_Data data, Texture_K
 
 #define push_rect_rounded(gfx, ...) \
 gfx_push_rect_rounded(gfx, &(Rect_Params){ \
+  .size = {32, 32}, \
+  .color = 0xffffffff, \
+  .uv = {0,0,1,1}, \
+  .tex_id = 0, \
+  __VA_ARGS__ \
+})
+
+#define push_rect(gfx, ...) \
+gfx_push_rect(gfx, &(Rect_Params){ \
   .size = {32, 32}, \
   .color = 0xffffffff, \
   .uv = {0,0,1,1}, \

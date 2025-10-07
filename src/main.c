@@ -19,25 +19,28 @@ int main()
   quark_new(&ctx);
   RGFW_window *window = ctx.window;
 
-  font_init(str8_lit("./jetbrains_mono.ttf"));
-  font_generate_atlas(
+  font_init(ctx.persist_arena, str8_lit("./jetbrains_mono.ttf"));
+  Font_Atlas atlas = font_generate_atlas(
+    ctx.persist_arena,
     20, 
     str8_lit(
       FONT_CHARSET
     )
   );
 
-  Font_Atlas *atlas = &fnt_state->atlas;
-
   Texture_Data data = {
-    .data = atlas->image,
-    .width = atlas->dim.x,
-    .height = atlas->dim.y,
+    .data = atlas.image,
+    .width = atlas.dim.x,
+    .height = atlas.dim.y,
     .channels = 1,
   };
   gfx_texture_upload(&ctx.gfx, data, TextureKind_GreyScale);
 
   Time_Stamp last_time = time_now();
+
+  arena_print_usage(ctx.persist_arena, "persist_arena");
+  arena_print_usage(ctx.frame_arena, "frame_arena");
+
   while (quark_running(&ctx)) {
     Time_Stamp frame_start = time_now();
     Time_Duration diff = time_diff(last_time, frame_start);
@@ -55,8 +58,8 @@ int main()
     y = smooth_damp(y, ty, 0.07, delta_time);
    
     gfx_begin_frame(&ctx.gfx, 0x131313ff);
-    push_rect_rounded(&ctx.gfx, .position = {x,y-10}, .radii = {5,5,5,5}, .size = {10,20}, .color=0x40ff40ff);
-    push_rect_rounded(&ctx.gfx, .position = {20,20}, .size = {atlas->dim.x, atlas->dim.y}, .color=0x99856aff, .tex_id = 1);
+    push_rect_rounded(&ctx.gfx, .position = {x,y-10}, .radii = {5,5,5,5}, .size = {100,100}, .color=0x40ff40ff);
+    push_rect(&ctx.gfx, .position = {20,20}, .size = {atlas.dim.x, atlas.dim.y}, .color=0x99856aff, .tex_id = 1);
     gfx_end_frame(&ctx.gfx);
     
     RGFW_window_swapBuffers_OpenGL(window);

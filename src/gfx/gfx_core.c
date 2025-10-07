@@ -52,13 +52,16 @@ const char* FRAGMENT_SHADER =
   "}";
 
 internal_lnk bool 
-gfx_init(Arena *arena, GFX_State *gfx)
+gfx_init(Arena *allocator, Arena *temp_allocator, GFX_State *gfx)
 {
   Assert(gfx);
   MemZeroStruct(gfx);
 
-  gfx->render_buffer.vertices = arena_push_array(arena, Render_Vertex, MAX_VERTEX_COUNT);
-  gfx->render_buffer.indices  = arena_push_array(arena, u32, MAX_VERTEX_COUNT);
+  gfx->allocator = allocator;
+  gfx->temp_allocator = temp_allocator;
+
+  gfx->render_buffer.vertices = arena_push_array(allocator, Render_Vertex, MAX_VERTEX_COUNT);
+  gfx->render_buffer.indices  = arena_push_array(allocator, u16, MAX_VERTEX_COUNT);
 
   glEnable(GL_BLEND);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -77,18 +80,18 @@ gfx_init(Arena *arena, GFX_State *gfx)
   glVertexAttribPointer(1, 4, GL_UNSIGNED_BYTE, true, VTX_SIZE, (void*) offsetof(Render_Vertex, color));
   glEnableVertexAttribArray(1);
 
-  glVertexAttribPointer(2, 2, GL_FLOAT, false, VTX_SIZE, (void*) offsetof(Render_Vertex, uv));
+  glVertexAttribPointer(2, 2, GL_UNSIGNED_SHORT, true, VTX_SIZE, (void*) offsetof(Render_Vertex, uv));
   glEnableVertexAttribArray(2);
 
-  glVertexAttribPointer(3, 2, GL_SHORT, true, VTX_SIZE, (void*) offsetof(Render_Vertex, circ_mask));
+  glVertexAttribPointer(3, 2, GL_BYTE, true, VTX_SIZE, (void*) offsetof(Render_Vertex, circ_mask));
   glEnableVertexAttribArray(3);
 
-  glVertexAttribPointer(4, 1, GL_FLOAT, false, VTX_SIZE, (void*) offsetof(Render_Vertex, tex_id));
+  glVertexAttribPointer(4, 1, GL_UNSIGNED_BYTE, false, VTX_SIZE, (void*) offsetof(Render_Vertex, tex_id));
   glEnableVertexAttribArray(4);
 
   glGenBuffers(1, &gfx->ibo);
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gfx->ibo);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, MAX_VERTEX_COUNT * sizeof(u32), NULL, GL_DYNAMIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, MAX_VERTEX_COUNT * sizeof(u16), NULL, GL_DYNAMIC_DRAW);
 
   gfx->program = glCreateProgram();
 
@@ -136,7 +139,6 @@ gfx_init(Arena *arena, GFX_State *gfx)
 
   gfx->uniform_loc[Uniform_Textures] = glGetUniformLocation(gfx->program, "Textures");
   gfx->uniform_loc[Uniform_ProjMatrix] = glGetUniformLocation(gfx->program, "ProjMatrix");
-
 
   i32 samplers[MAX_TEXTURES] = {0};
   for (i32 i=0; i<MAX_TEXTURES; i++) { samplers[i] = i; } 
@@ -204,11 +206,11 @@ gfx_flush(GFX_State *gfx)
 {
   glBufferSubData(GL_ARRAY_BUFFER, 0, gfx->render_buffer.vtx_count * VTX_SIZE, gfx->render_buffer.vertices);
   glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, gfx->render_buffer.idx_count * sizeof(u32), gfx->render_buffer.indices);
-  glDrawElements(GL_TRIANGLES, gfx->render_buffer.idx_count, GL_UNSIGNED_INT, NULL);
+  glDrawElements(GL_TRIANGLES, gfx->render_buffer.idx_count, GL_UNSIGNED_SHORT, NULL);
 }
 
 internal_lnk void
-gfx_push_rect(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, color8_t color)
+gfx_push_rect(GFX_State *gfx, Rect_Params *params)
 {
   if (gfx->render_buffer.vtx_count + 4 > MAX_VERTEX_COUNT ||
     gfx->render_buffer.idx_count + 6 > MAX_VERTEX_COUNT)
@@ -218,8 +220,19 @@ gfx_push_rect(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, color8_t color)
   }
 
   u32 base_idx = gfx->render_buffer.vtx_count;
+
   Render_Vertex *vtx = gfx->render_buffer.vertices + base_idx;
-  u32 *idx = gfx->render_buffer.indices + gfx->render_buffer.idx_count;
+  u16 *idx = gfx->render_buffer.indices + gfx->render_buffer.idx_count;
+
+  vec2_f32 pos = params->position;
+  color8_t color = params->color;
+  vec2_f32 size = params->size;
+  vec4_u16 uv = {
+    params->uv.x * U16_MAX,
+    params->uv.y * U16_MAX,
+    params->uv.z * U16_MAX,
+    params->uv.w * U16_MAX,
+  };
 
   f32 x0 = pos.x, y0 = pos.y;
   f32 x1 = pos.x + size.x, y1 = pos.y + size.y;
@@ -228,33 +241,33 @@ gfx_push_rect(GFX_State *gfx, vec2_f32 pos, vec2_f32 size, color8_t color)
   vtx[0] = (Render_Vertex){
     .position = {x0, y0},
     .color = final_color,
-    .uv = {0.0f, 0.0f},
+    .uv = {uv.x, uv.y},
     .circ_mask = {0, 0},
-    .tex_id = 0.0f
+    .tex_id = params->tex_id
   };
 
   vtx[1] = (Render_Vertex){
     .position = {x1, y0},
     .color = final_color,
-    .uv = {1.0f, 0.0f},
+    .uv = {uv.z, uv.y},
     .circ_mask = {0, 0},
-    .tex_id = 0.0f
+    .tex_id = params->tex_id
   };
 
   vtx[2] = (Render_Vertex){
     .position = {x1, y1},
     .color = final_color,
-    .uv = {1.0f, 1.0f},
+    .uv = {uv.z, uv.w},
     .circ_mask = {0, 0},
-    .tex_id = 0.0f
+    .tex_id = params->tex_id
   };
 
   vtx[3] = (Render_Vertex){
     .position = {x0, y1},
     .color = final_color,
-    .uv = {0.0f, 1.0f},
+    .uv = {uv.x, uv.w},
     .circ_mask = {0, 0},
-    .tex_id = 0.0f
+    .tex_id = params->tex_id
   };
 
   idx[0] = base_idx;
@@ -274,9 +287,14 @@ gfx_push_rect_rounded(GFX_State *gfx, Rect_Params *params)
   if (params->size.x <= 0.0f || params->size.y <= 0.0f) return;
  
   vec2_f32 size = params->size;
-  vec4_f32 uv = params->uv;
+  vec4_u16 uv = {
+    params->uv.x * U16_MAX,
+    params->uv.y * U16_MAX,
+    params->uv.z * U16_MAX,
+    params->uv.w * U16_MAX,
+  };
   vec2_f32 pos = params->position;
-  f32 tex_id = (f32)params->tex_id;
+  u8 tex_id = params->tex_id;
 
   f32 r[4] = {
     params->radii.top_left, 
@@ -307,7 +325,7 @@ gfx_push_rect_rounded(GFX_State *gfx, Rect_Params *params)
   
   u32 base_idx = gfx->render_buffer.vtx_count;
   Render_Vertex *vtx = &gfx->render_buffer.vertices[base_idx];
-  u32 *idx = &gfx->render_buffer.indices[gfx->render_buffer.idx_count];
+  u16 *idx = &gfx->render_buffer.indices[gfx->render_buffer.idx_count];
 
   
   color8_t color = hex_color(params->color);
@@ -342,7 +360,7 @@ gfx_push_rect_rounded(GFX_State *gfx, Rect_Params *params)
       vtx[v_idx].uv.x = local_x * inv_w * uv_w + uv.x;
       vtx[v_idx].uv.y = local_y * inv_h * uv_h + uv.y;
       vtx[v_idx].color = color;
-      vtx[v_idx].circ_mask = (vec2_i16){0, 0};
+      vtx[v_idx].circ_mask = (vec2_i8){0, 0};
       vtx[v_idx].tex_id = tex_id;
       v_idx++;
     } else {
@@ -355,7 +373,7 @@ gfx_push_rect_rounded(GFX_State *gfx, Rect_Params *params)
       vtx[v_idx].uv.x = lx1 * inv_w * uv_w + uv.x;
       vtx[v_idx].uv.y = ly1 * inv_h * uv_h + uv.y;
       vtx[v_idx].color = color;
-      vtx[v_idx].circ_mask = (vec2_i16){0, 0};
+      vtx[v_idx].circ_mask = (vec2_i8){0, 0};
       vtx[v_idx].tex_id = tex_id;;
       v_idx++;
       
@@ -365,7 +383,7 @@ gfx_push_rect_rounded(GFX_State *gfx, Rect_Params *params)
       vtx[v_idx].uv.x = lx2 * inv_w * uv_w + uv.x;
       vtx[v_idx].uv.y = ly2 * inv_h * uv_h + uv.y;
       vtx[v_idx].color = color;
-      vtx[v_idx].circ_mask = (vec2_i16){0, 0};
+      vtx[v_idx].circ_mask = (vec2_i8){0, 0};
       vtx[v_idx].tex_id = tex_id;
       v_idx++;
     }
@@ -395,7 +413,7 @@ gfx_push_rect_rounded(GFX_State *gfx, Rect_Params *params)
     vtx[v_idx].uv.x = lx0 * inv_w * uv_w + uv.x;
     vtx[v_idx].uv.y = ly0 * inv_h * uv_h + uv.y;
     vtx[v_idx].color = color;
-    vtx[v_idx].circ_mask = (vec2_i16){I16_MAX, I16_MAX};
+    vtx[v_idx].circ_mask = (vec2_i8){I8_MAX, I8_MAX};
     vtx[v_idx].tex_id = tex_id;
     
     f32 lx1 = p1.x - pos.x;
@@ -404,7 +422,7 @@ gfx_push_rect_rounded(GFX_State *gfx, Rect_Params *params)
     vtx[v_idx + 1].uv.x = lx1 * inv_w * uv_w + uv.x;
     vtx[v_idx + 1].uv.y = ly1 * inv_h * uv_h + uv.y;
     vtx[v_idx + 1].color = color;
-    vtx[v_idx + 1].circ_mask = (vec2_i16){0, I16_MAX};
+    vtx[v_idx + 1].circ_mask = (vec2_i8){0, I8_MAX};
     vtx[v_idx + 1].tex_id = tex_id;
     
     f32 lx2 = p2.x - pos.x;
@@ -413,7 +431,7 @@ gfx_push_rect_rounded(GFX_State *gfx, Rect_Params *params)
     vtx[v_idx + 2].uv.x = lx2 * inv_w * uv_w + uv.x;
     vtx[v_idx + 2].uv.y = ly2 * inv_h * uv_h + uv.y;
     vtx[v_idx + 2].color = color;
-    vtx[v_idx + 2].circ_mask = (vec2_i16){I16_MAX, 0};
+    vtx[v_idx + 2].circ_mask = (vec2_i8){I8_MAX, 0};
     vtx[v_idx + 2].tex_id = tex_id;
     
     idx[idx_count++] = base_idx + v_idx;
@@ -496,11 +514,11 @@ gfx_texture_upload(GFX_State *gfx, Texture_Data data, Texture_Kind type)
 
   glTexImage2D(
     GL_TEXTURE_2D,
-    0, // level
+    0,
     internal_format,
     data.width,
     data.height,
-    0, // border
+    0,
     format,
     GL_UNSIGNED_BYTE,
     data.data

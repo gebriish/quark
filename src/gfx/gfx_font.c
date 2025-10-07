@@ -1,43 +1,41 @@
 #include "gfx_font.h"
 
+global Font_State *
+  _font_state = NULL;
 
 internal_lnk void
-font_init(String8 path)
+font_init(Arena *allocator, String8 path)
 {
-  Arena *arena = arena_alloc(MB(5));
-  fnt_state = arena_push_struct(arena, Font_State);
-  fnt_state->arena = arena;
-  FT_Init_FreeType(&fnt_state->library);
+  _font_state = arena_push_struct(allocator, Font_State);
 
-  Temp scratch = temp_begin(arena);
-  String8 c_path = str8_cstr_copy(arena, path);
+  FT_Init_FreeType(&_font_state->library);
+
+  Temp scratch = temp_begin(allocator);
+  String8 c_path = str8_cstr_copy(allocator, path);
   FT_Face face = 0;
-  FT_New_Face(fnt_state->library, (char *)c_path.raw, 0, &face);
+  FT_New_Face(_font_state->library, (char *)c_path.raw, 0, &face);
   temp_end(scratch);
 
-  fnt_state->face = face;
+  _font_state->face = face;
 }
-
 
 internal_lnk void
 font_close()
 {
-  Assert(fnt_state && fnt_state->face);
-  FT_Done_Face(fnt_state->face);
-  FT_Done_FreeType(fnt_state->library);
+  Assert(_font_state && _font_state->face);
+  FT_Done_Face(_font_state->face);
+  FT_Done_FreeType(_font_state->library);
 
-  arena_release(fnt_state->arena);
-  fnt_state = 0;
+  _font_state = NULL;
 }
-
 
 internal_lnk Font_Metrics
 font_get_metrics()
 {
-  Assert(fnt_state && fnt_state->face);
+  Assert(_font_state && _font_state->face);
 
   Font_Metrics result = {0};
-  FT_Face face = fnt_state->face;
+  FT_Face face = _font_state->face;
 
   result.design_units_per_em =  (f32)(face->units_per_EM);
   result.ascent              =  (f32)(face->ascender);
@@ -48,13 +46,12 @@ font_get_metrics()
   return result;
 }
 
-
-internal_lnk void
-font_generate_atlas(u32 font_size, String8 characters)
+internal_lnk Font_Atlas
+font_generate_atlas(Arena *allocator, u32 font_size, String8 characters)
 {
-  Assert(fnt_state && fnt_state->face);
+  Assert(_font_state && _font_state->face);
 
-  FT_Face face = fnt_state->face;
+  FT_Face face = _font_state->face;
 
   FT_Set_Pixel_Sizes(face, 0, font_size);
 
@@ -68,7 +65,7 @@ font_generate_atlas(u32 font_size, String8 characters)
   u32 max_row_height = 0;
   str8_foreach(characters, itr, i) {
     u32 codepoint = itr.codepoint;
-    if (FT_Load_Char(face, codepoint, FT_LOAD_RENDER)) continue;
+    if (FT_Load_Char(face, codepoint, FT_LOAD_DEFAULT)) continue;
 
     FT_GlyphSlot g = face->glyph;
     if (x + g->bitmap.width + padding > atlas_width) {
@@ -81,7 +78,7 @@ font_generate_atlas(u32 font_size, String8 characters)
   }
   atlas_height = y + max_row_height + padding;
 
-  u8 *atlas_image = arena_push_array_zeroed(fnt_state->arena, u8, atlas_width * atlas_height);
+  u8 *atlas_image = arena_push_array_zeroed(allocator, u8, atlas_width * atlas_height);
 
   x = padding;
   y = padding;
@@ -113,6 +110,5 @@ font_generate_atlas(u32 font_size, String8 characters)
   Font_Atlas atlas = {0};
   atlas.image = atlas_image;
   atlas.dim = (vec2_u16){.x = (u16)atlas_width, .y = (u16)atlas_height};
-
-  fnt_state->atlas = atlas;
+  return atlas;
 }

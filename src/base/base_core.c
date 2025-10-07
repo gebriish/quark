@@ -24,12 +24,11 @@ arena_release(Arena *arena)
   free(arena);
 }
 
-
 internal_lnk void *
-arena_push(Arena *arena, usize size, usize align, bool zero)
+arena_push_(Arena *arena, Alloc_Params *params)
 {
-  usize used_pre = AlignPow2(arena->used, align);
-  usize used_pst = used_pre + size;
+  usize used_pre = AlignPow2(arena->used, params->align);
+  usize used_pst = used_pre + params->size;
   
   AssertAlways(used_pst <= arena->capacity && "Arena ran out of memory");
 
@@ -38,20 +37,29 @@ arena_push(Arena *arena, usize size, usize align, bool zero)
   void *result = (u8 *)arena + used_pre;
   arena->used = used_pst;
 
-  if (zero) {
-    MemZero(result, size);
+  if (params->zero) {
+    MemZero(result, params->size);
   }
+
+#if DEBUG_BUILD
+  printf("[arena] alloc %6zu bytes%s -> %p\n"
+         "        at %s:%d (%s)\n",
+         params->size,
+         params->zero ? " [zero]" : "",
+         result,
+         params->caller_file,
+         params->caller_line,
+         params->caller_proc);
+#endif
 
   return result;
 }
-
 
 internal_lnk usize
 arena_pos(Arena *arena)
 {
   return arena->used;
 }
-
 
 internal_lnk void 
 arena_pop(Arena *arena)
@@ -66,7 +74,6 @@ arena_pop_to(Arena *arena, usize pos)
   arena->last_used = pos;
   arena->used = pos;
 }
-
 
 internal_lnk void 
 arena_clear(Arena *arena)

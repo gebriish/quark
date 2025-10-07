@@ -137,22 +137,18 @@ typedef i32 isize;
 ////////////////////////////////
 // ~geb: Math 
 
-typedef struct {
-  f32 x, y;
-} vec2_f32;
+#define VecDef(N, T, ...) \
+typedef struct {\
+  T __VA_ARGS__;\
+} vec##N##_##T
 
-typedef struct {
-  i16 x, y;
-} vec2_i16;
+VecDef(2, f32, x, y);
+VecDef(2, i16, x, y);
+VecDef(2, u16, x, y);
+VecDef(2, i8,  x, y);
 
-typedef struct {
-  u16 x, y;
-} vec2_u16;
-
-typedef union {
-  struct { f32 x, y, z, w; };
-  struct { f32 r, g, b, a; };
-} vec4_f32;
+VecDef(4, f32, x, y, z, w);
+VecDef(4, u16, x, y, z, w);
 
 internal_lnk force_inline f32 
 smooth_damp(f32 current, f32 target, f32 time, f32 dt)
@@ -202,6 +198,18 @@ struct Arena {
   usize capacity;
 };
 
+typedef struct Alloc_Params Alloc_Params;
+struct Alloc_Params {
+  usize size;
+  usize align;
+  bool zero;
+#if DEBUG_BUILD
+  const char *caller_proc;
+  const char *caller_file;
+  int         caller_line;
+#endif
+};
+
 typedef struct Temp Temp;
 struct Temp {
   Arena *arena;
@@ -211,11 +219,33 @@ struct Temp {
 internal_lnk Arena *arena_alloc(usize capacity);
 internal_lnk void   arena_release(Arena *arena);
 
-internal_lnk void  *arena_push(Arena *arena, usize size, usize align, bool zero);
+internal_lnk void  *arena_push_(Arena *arena, Alloc_Params *params);
 internal_lnk void   arena_pop(Arena *arena);
 internal_lnk void   arena_pop_to(Arena *arena, usize pos);
 internal_lnk void   arena_clear(Arena *arena);
 internal_lnk usize  arena_pos(Arena *arena);
+
+internal_lnk force_inline void
+arena_print_usage(Arena *arena, const char *name)
+{
+#if DEBUG_BUILD
+  if (!arena) {
+    printf("Arena(%s): NULL\n", name ? name : "unnamed");
+    return;
+  }
+
+  f64 used_pct = 0;
+  if (arena->capacity > 0) {
+    used_pct = ((f64)arena->used / (f64)arena->capacity) * 100.0;
+  }
+
+  printf("Arena(%s):\n", name ? name : "unnamed");
+  printf("  used:       %zu bytes\n", arena->used);
+  printf("  last_used:  %zu bytes\n", arena->last_used);
+  printf("  capacity:   %zu bytes\n", arena->capacity);
+  printf("  usage:      %.2f%%\n", used_pct);
+#endif
+}
 
 internal_lnk Temp   temp_begin(Arena *arena);
 internal_lnk void   temp_end(Temp temp);
@@ -224,5 +254,19 @@ internal_lnk void   temp_end(Temp temp);
 #define arena_push_array_zeroed(a, T, c) (T *) arena_push((a), sizeof(T) * (c), AlignOf(T), true)
 #define arena_push_array(a, T, c) (T *) arena_push((a), sizeof(T) * (c), AlignOf(T), false)
 
+#if DEBUG_BUILD
+  #define _ARENA_DEBUG_FIELDS_ , .caller_proc = __func__, .caller_file = __FILE__, .caller_line = __LINE__
+#else
+  #define _ARENA_DEBUG_FIELDS_
+#endif
+
+#define arena_push(ar, s, al, zr)                                     \
+  arena_push_(ar, &(Alloc_Params){                                    \
+    .size  = s,                                                      \
+    .align = al,                                                      \
+    .zero  = zr                                                       \
+  _ARENA_DEBUG_FIELDS_                                                \
+  })
+  
 
 #endif

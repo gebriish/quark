@@ -28,14 +28,14 @@ quark_new(Quark_Context *context)
   }
   context->window = window;
   RGFW_window_makeCurrentContext_OpenGL(window);
-  RGFW_window_swapInterval_OpenGL(window, 0);
+  RGFW_window_swapInterval_OpenGL(window, 1);
 
   if (!gladLoadGLLoader((GLADloadproc)RGFW_getProcAddress_OpenGL)) {
     LogError("Failed to initialize GLAD\n");
     return;
   }
 
-  if (!gfx_init(context->persist_arena, &context->gfx)) {
+  if (!gfx_init(context->persist_arena, context->frame_arena, &context->gfx)) {
     LogError("Failed to Initialize GFX");
     return;
   }
