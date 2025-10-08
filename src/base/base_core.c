@@ -1,4 +1,4 @@
-////////////////////////////////
+///////////////////////////////
 // ~geb: Arena Allocator 
 
 #include "base_core.h"
@@ -42,11 +42,9 @@ arena_push_(Arena *arena, Alloc_Params *params)
   }
 
 #if DEBUG_BUILD
-  printf("[arena] alloc %6zu bytes%s -> %p\n"
-         "        at %s:%d (%s)\n",
+  printf("arena_push %6zu bytes%s at %s:%d (%s)\n",
          params->size,
          params->zero ? " [zero]" : "",
-         result,
          params->caller_file,
          params->caller_line,
          params->caller_proc);
@@ -97,5 +95,28 @@ temp_end(Temp temp)
 {
   Arena *arena = temp.arena;
   arena->used = temp.pos;
+}
+
+
+internal_lnk void
+arena_print_usage(Arena *arena, const char *name)
+{
+#if DEBUG_BUILD
+  if (!arena) {
+    printf("Arena(%s): NULL\n", name ? name : "unnamed");
+    return;
+  }
+
+  f64 used_pct = 0;
+  if (arena->capacity > 0) {
+    used_pct = ((f64)arena->used / (f64)arena->capacity) * 100.0;
+  }
+
+  printf("Arena(%s):\n", name ? name : "unnamed");
+  printf("  used:       %zu bytes\n", arena->used);
+  printf("  last_used:  %zu bytes\n", arena->last_used);
+  printf("  capacity:   %zu bytes\n", arena->capacity);
+  printf("  usage:      %.2f%%\n", used_pct);
+#endif
 }
 

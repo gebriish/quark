@@ -4,10 +4,10 @@ BUILD="./bin"
 SRC="src/main.c"
 BIN="quark"
 
-CC="gcc"
+CC="clang"
 CSTD="-std=gnu11"
 
-CFLAGS="$CSTD"
+CFLAGS="$CSTD -Wno-initializer-overrides -Wconversion -Wsign-conversion -Wfloat-conversion"
 INCLUDES="-I/usr/include/freetype2"
 LIBS="-lm -lX11 -lXrandr -lGL -lfreetype"
 

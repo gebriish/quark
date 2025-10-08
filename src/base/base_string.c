@@ -30,10 +30,10 @@ str8(u8 *raw, usize len)
 }
 
 internal_lnk String8 
-str8_slice(String8 string, usize i, usize len)
+str8_slice(String8 string, usize start, usize end_exclusive)
 {
-  if (i > string.len) { return (String8) {0}; }
-  return str8(string.raw + i, Min(len, string.len - i));
+  AssertAlways(start >= 0 && end_exclusive <= string.len && end_exclusive > start);
+  return str8(string.raw + start, Min(string.len, end_exclusive - start));
 }
 
 internal_lnk rune_itr 
@@ -74,7 +74,7 @@ str8_decode_utf8(u8 *raw, usize len) {
         break;
       }
       
-      rune cp = ((b1 & 0x1F) << 6) | (b2 & 0x3F);
+      rune cp = (rune)(((b1 & 0x1F) << 6) | (b2 & 0x3F));
       
       if (cp < 0x80) {
         result.codepoint = UNICODE_REPLACEMENT;
@@ -96,9 +96,8 @@ str8_decode_utf8(u8 *raw, usize len) {
         break;
       }
       
-      rune cp = ((b1 & 0x0F) << 12) | ((b2 & 0x3F) << 6) | (b3 & 0x3F);
+      rune cp = (rune)(((b1 & 0x0F) << 12) | ((b2 & 0x3F) << 6) | (b3 & 0x3F));
       
-      // for overlong encoding and surrogate pairs
       if (cp < 0x800 || (cp >= 0xD800 && cp <= 0xDFFF)) {
         result.codepoint = UNICODE_REPLACEMENT;
         result.consumed = 1;
@@ -120,10 +119,9 @@ str8_decode_utf8(u8 *raw, usize len) {
         break;
       }
       
-      rune cp = ((b1 & 0x07) << 18) | ((b2 & 0x3F) << 12) | 
-                ((b3 & 0x3F) << 6) | (b4 & 0x3F);
+      rune cp = (rune)(((b1 & 0x07) << 18) | ((b2 & 0x3F) << 12) | 
+                ((b3 & 0x3F) << 6) | (b4 & 0x3F));
       
-      // for overlong encoding and valid Unicode range
       if (cp < 0x10000 || cp > 0x10FFFF) {
         result.codepoint = UNICODE_REPLACEMENT;
         result.consumed = 1;
@@ -166,4 +164,10 @@ str8_cstr_copy(Arena *arena, String8 string)
   result.raw[string.len] = '\0';
   result.len = string.len;
   return result;
+}
+
+internal_lnk bool
+rune_is_space(rune cp)
+{
+  return cp == ' ' || cp == '\t' || cp == '\r';
 }

@@ -9,7 +9,7 @@
 #define GL_VERSION_MAJOR 3
 #define GL_VERSION_MINOR 3
 
-#define MAX_TRIANGLES     2048
+#define MAX_TRIANGLES     4098
 #define MAX_VERTEX_COUNT  MAX_TRIANGLES * 3
 #define MAX_TEXTURES      16
 
@@ -28,7 +28,7 @@ struct Render_Vertex {
   color8_t color;
   vec2_u16 uv;
   vec2_i8  circ_mask;
-  u8      tex_id;
+  u8       tex_id;
 };
 
 typedef struct Render_Buffer Render_Buffer;
@@ -119,8 +119,9 @@ internal_lnk void gfx_flush(GFX_State *gfx);
 internal_lnk void gfx_push_rect(GFX_State *gfx, Rect_Params *params);
 internal_lnk void gfx_push_rect_rounded(GFX_State *gfx, Rect_Params *params);
 
-
-internal_lnk u32 gfx_texture_upload(GFX_State *gfx, Texture_Data data, Texture_Kind type);
+internal_lnk u32  gfx_texture_upload(GFX_State *gfx, Texture_Data data, Texture_Kind type);
+internal_lnk bool gfx_texture_update(GFX_State *gfx, u32 id, i32 w, i32 h, i32 channels, u8 *data);
+internal_lnk bool gfx_texture_unload(GFX_State *gfx, u32 id);
 
 
 //////////////////////////////////

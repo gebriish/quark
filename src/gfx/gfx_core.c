@@ -1,12 +1,13 @@
 #include "gfx_core.h"
 
+#include "../base/base_string.h"
 #include "../thirdparty/glad/glad.c"
 
 #include <stddef.h> // for offsetof
 
 #define VTX_SIZE sizeof(Render_Vertex)
 
-const char* VERTEX_SHADER = 
+global String8 VERTEX_SHADER_SRC = str8_lit (
   "#version 330 core\n"
 
   "layout (location = 0) in vec2 Position;"
@@ -29,9 +30,10 @@ const char* VERTEX_SHADER =
   "    Frag_TexID = TexID;"
 
   "    gl_Position = ProjMatrix * vec4(Position, 0, 1);"
-  "}";
+  "}"
+);
 
-const char* FRAGMENT_SHADER = 
+global String8 FRAGMENT_SHADER_SRC = str8_lit(
   "#version 330 core\n"
   "in vec2 Frag_UV;"
   "in vec2 Frag_CircCoords;"
@@ -49,7 +51,8 @@ const char* FRAGMENT_SHADER =
   "    float alpha = 1.0 - smoothstep(-edge_width, edge_width, dist);"
   "    vec4 base = Frag_Color * texture(Textures[tex_id], Frag_UV);"
   "    Out_Color = vec4(base.rgb, base.a * alpha);"
-  "}";
+  "}"
+);
 
 internal_lnk bool 
 gfx_init(Arena *allocator, Arena *temp_allocator, GFX_State *gfx)
@@ -96,7 +99,7 @@ gfx_init(Arena *allocator, Arena *temp_allocator, GFX_State *gfx)
   gfx->program = glCreateProgram();
 
   u32 vtx_shader = glCreateShader(GL_VERTEX_SHADER);;
-  glShaderSource(vtx_shader, 1, &VERTEX_SHADER, NULL);
+  glShaderSource(vtx_shader, 1, (const GLchar *const*)&VERTEX_SHADER_SRC.raw, NULL);
   glCompileShader(vtx_shader);
 
   i32 success;
@@ -110,7 +113,7 @@ gfx_init(Arena *allocator, Arena *temp_allocator, GFX_State *gfx)
   }
 
   u32 frg_shader = glCreateShader(GL_FRAGMENT_SHADER);
-  glShaderSource(frg_shader, 1, &FRAGMENT_SHADER, NULL);
+  glShaderSource(frg_shader, 1, (const GLchar *const*)&FRAGMENT_SHADER_SRC.raw, NULL);
   glCompileShader(frg_shader);
 
   glGetShaderiv(frg_shader, GL_COMPILE_STATUS, &success);
@@ -162,8 +165,8 @@ gfx_resize_target(GFX_State *gfx, i32 w, i32 h)
 {
   glViewport(0, 0, w, h);
   f32 proj[16] = {
-    2.0f/w,  0.0f,     0.0f,  0.0f,
-    0.0f,   -2.0f/h,   0.0f,  0.0f,
+    2.0f/(f32)w,  0.0f,     0.0f,  0.0f,
+    0.0f,   -2.0f/(f32)h,   0.0f,  0.0f,
     0.0f,    0.0f,    -1.0f,  0.0f,
     -1.0f,   1.0f,     0.0f,  1.0f
   };
@@ -176,7 +179,12 @@ gfx_resize_target(GFX_State *gfx, i32 w, i32 h)
 internal_lnk void
 gfx_begin_frame(GFX_State *gfx, color8_t color)
 {
-  glClearColor(color_r(color)/255.0, color_g(color)/255.0, color_b(color)/255.0, color_a(color)/255.0);
+  glClearColor(
+    (f32)color_r(color)/255.0f, 
+    (f32)color_g(color)/255.0f, 
+    (f32)color_b(color)/255.0f,
+    (f32)color_a(color)/255.0f
+  );
   glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
   gfx_prep(gfx);
@@ -206,7 +214,7 @@ gfx_flush(GFX_State *gfx)
 {
   glBufferSubData(GL_ARRAY_BUFFER, 0, gfx->render_buffer.vtx_count * VTX_SIZE, gfx->render_buffer.vertices);
   glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, gfx->render_buffer.idx_count * sizeof(u32), gfx->render_buffer.indices);
-  glDrawElements(GL_TRIANGLES, gfx->render_buffer.idx_count, GL_UNSIGNED_SHORT, NULL);
+  glDrawElements(GL_TRIANGLES, (int)(gfx->render_buffer.idx_count), GL_UNSIGNED_SHORT, NULL);
 }
 
 internal_lnk void
@@ -219,7 +227,7 @@ gfx_push_rect(GFX_State *gfx, Rect_Params *params)
     gfx_prep(gfx);
   }
 
-  u32 base_idx = gfx->render_buffer.vtx_count;
+  u16 base_idx = (u16)(gfx->render_buffer.vtx_count);
 
   Render_Vertex *vtx = gfx->render_buffer.vertices + base_idx;
   u16 *idx = gfx->render_buffer.indices + gfx->render_buffer.idx_count;
@@ -228,10 +236,10 @@ gfx_push_rect(GFX_State *gfx, Rect_Params *params)
   color8_t color = params->color;
   vec2_f32 size = params->size;
   vec4_u16 uv = {
-    params->uv.x * U16_MAX,
-    params->uv.y * U16_MAX,
-    params->uv.z * U16_MAX,
-    params->uv.w * U16_MAX,
+    (u16)(params->uv.x * U16_MAX),
+    (u16)(params->uv.y * U16_MAX),
+    (u16)(params->uv.z * U16_MAX),
+    (u16)(params->uv.w * U16_MAX),
   };
 
   f32 x0 = pos.x, y0 = pos.y;
@@ -285,162 +293,170 @@ internal_lnk void
 gfx_push_rect_rounded(GFX_State *gfx, Rect_Params *params)
 {
   if (params->size.x <= 0.0f || params->size.y <= 0.0f) return;
- 
+
   vec2_f32 size = params->size;
-  vec4_u16 uv = {
-    params->uv.x * U16_MAX,
-    params->uv.y * U16_MAX,
-    params->uv.z * U16_MAX,
-    params->uv.w * U16_MAX,
-  };
   vec2_f32 pos = params->position;
   u8 tex_id = params->tex_id;
+  color8_t color = hex_color(params->color);
+
+  f32 inv_width = 1.0f / size.x;
+  f32 inv_height = 1.0f / size.y;
+  f32 uv_base_x = params->uv.x;
+  f32 uv_base_y = params->uv.y;
+  f32 uv_scale_x = (params->uv.z - params->uv.x) * inv_width;
+  f32 uv_scale_y = (params->uv.w - params->uv.y) * inv_height;
 
   f32 r[4] = {
-    params->radii.top_left, 
-    params->radii.top_right, 
-    params->radii.bottom_right, 
+    params->radii.top_left,
+    params->radii.top_right,
+    params->radii.bottom_right,
     params->radii.bottom_left
   };
-  
+
+  // Adjust radii to prevent overlapping corners
+  // Top side (top-left + top-right)
+  f32 top_sum = r[0] + r[1];
+  if (top_sum > size.x) {
+    f32 scale = size.x / top_sum;
+    r[0] *= scale;
+    r[1] *= scale;
+  }
+
+  // Bottom side (bottom-left + bottom-right)
+  f32 bottom_sum = r[3] + r[2];
+  if (bottom_sum > size.x) {
+    f32 scale = size.x / bottom_sum;
+    r[3] *= scale;
+    r[2] *= scale;
+  }
+
+  // Left side (top-left + bottom-left)
+  f32 left_sum = r[0] + r[3];
+  if (left_sum > size.y) {
+    f32 scale = size.y / left_sum;
+    r[0] *= scale;
+    r[3] *= scale;
+  }
+
+  // Right side (top-right + bottom-right)
+  f32 right_sum = r[1] + r[2];
+  if (right_sum > size.y) {
+    f32 scale = size.y / right_sum;
+    r[1] *= scale;
+    r[2] *= scale;
+  }
+
   u8 rounded_mask = 0;
   u8 rounded_count = 0;
-  for (i32 i = 0; i < 4; i++) {
-    if (r[i] > 0.5f) {
-      rounded_mask |= (1 << i);
-      rounded_count++;
-    }
-  }
-  
-  u32 outline_vertices = 4 + rounded_count;  
-  u32 corner_vertices = rounded_count * 3;   
+
+  rounded_mask |= (r[0] > 0.5f) << 0;
+  rounded_mask |= (r[1] > 0.5f) << 1;
+  rounded_mask |= (r[2] > 0.5f) << 2;
+  rounded_mask |= (r[3] > 0.5f) << 3;
+
+  rounded_count = (rounded_mask & 1) + ((rounded_mask >> 1) & 1) + 
+    ((rounded_mask >> 2) & 1) + ((rounded_mask >> 3) & 1);
+
+  u32 outline_vertices = 4 + rounded_count;
+  u32 corner_vertices = rounded_count * 3;
   u32 total_vertices = outline_vertices + corner_vertices;
   u32 total_indices = (outline_vertices - 2) * 3 + rounded_count * 3;
-  
+
   if (gfx->render_buffer.vtx_count + total_vertices > MAX_VERTEX_COUNT ||
-      gfx->render_buffer.idx_count + total_indices > MAX_VERTEX_COUNT) {
+    gfx->render_buffer.idx_count + total_indices > MAX_VERTEX_COUNT) {
     gfx_flush(gfx);
     gfx_prep(gfx);
   }
-  
-  u32 base_idx = gfx->render_buffer.vtx_count;
+
+  u16 base_idx = (u16)gfx->render_buffer.vtx_count;
   Render_Vertex *vtx = &gfx->render_buffer.vertices[base_idx];
   u16 *idx = &gfx->render_buffer.indices[gfx->render_buffer.idx_count];
 
-  
-  color8_t color = hex_color(params->color);
-  f32 inv_w = 1.0f / size.x;
-  f32 inv_h = 1.0f / size.y;
-  f32 uv_w = uv.z - uv.x;
-  f32 uv_h = uv.w - uv.y;
-  
-  vec2_f32 corners[4] = {
-    {pos.x, pos.y},
-    {pos.x + size.x, pos.y},
-    {pos.x + size.x, pos.y + size.y},
-    {pos.x, pos.y + size.y}
-  };
-  
   static const vec2_f32 cw[4] = {
-    {1.0f, 0.0f}, {0.0f, 1.0f}, {-1.0f, 0.0f}, {0.0f, -1.0f}
+    { 1.0f,  0.0f}, { 0.0f,  1.0f}, {-1.0f,  0.0f}, { 0.0f, -1.0f}
   };
   static const vec2_f32 ccw[4] = {
-    {0.0f, 1.0f}, {-1.0f, 0.0f}, {0.0f, -1.0f}, {1.0f, 0.0f}
+    { 0.0f,  1.0f}, {-1.0f,  0.0f}, { 0.0f, -1.0f}, { 1.0f,  0.0f}
   };
-  
-  u32 v_idx = 0;
+
+  f32 right = pos.x + size.x;
+  f32 bottom = pos.y + size.y;
+  vec2_f32 corners[4] = {
+    {pos.x, pos.y},      // top-left
+    {right, pos.y},      // top-right
+    {right, bottom},     // bottom-right
+    {pos.x, bottom}      // bottom-left
+  };
+
+#define WRITE_VERTEX(v_ptr, px, py, cmask) do { \
+  f32 lx = (px) - pos.x; \
+  f32 ly = (py) - pos.y; \
+  (v_ptr)->position.x = (px); \
+  (v_ptr)->position.y = (py); \
+  (v_ptr)->uv.x = (u16)((uv_base_x + lx * uv_scale_x) * U16_MAX); \
+  (v_ptr)->uv.y = (u16)((uv_base_y + ly * uv_scale_y) * U16_MAX); \
+  (v_ptr)->color = color; \
+  (v_ptr)->circ_mask = (cmask); \
+  (v_ptr)->tex_id = tex_id; \
+} while(0)
+
+  u16 v_idx = 0;
+
   for (i32 i = 0; i < 4; i++) {
     vec2_f32 corner = corners[i];
     f32 radius = r[i];
-    
-    if (radius <= 0.5f) {
-      vtx[v_idx].position = corner;
-      f32 local_x = corner.x - pos.x;
-      f32 local_y = corner.y - pos.y;
-      vtx[v_idx].uv.x = local_x * inv_w * uv_w + uv.x;
-      vtx[v_idx].uv.y = local_y * inv_h * uv_h + uv.y;
-      vtx[v_idx].color = color;
-      vtx[v_idx].circ_mask = (vec2_i8){0, 0};
-      vtx[v_idx].tex_id = tex_id;
+
+    if (!(rounded_mask & (1 << i))) {
+      WRITE_VERTEX(&vtx[v_idx], corner.x, corner.y, ((vec2_i8){0, 0}));
       v_idx++;
     } else {
-      vec2_f32 p1 = {corner.x + ccw[i].x * radius, corner.y + ccw[i].y * radius};
-      vec2_f32 p2 = {corner.x + cw[i].x * radius, corner.y + cw[i].y * radius};
-      
-      f32 lx1 = p1.x - pos.x;
-      f32 ly1 = p1.y - pos.y;
-      vtx[v_idx].position = p1;
-      vtx[v_idx].uv.x = lx1 * inv_w * uv_w + uv.x;
-      vtx[v_idx].uv.y = ly1 * inv_h * uv_h + uv.y;
-      vtx[v_idx].color = color;
-      vtx[v_idx].circ_mask = (vec2_i8){0, 0};
-      vtx[v_idx].tex_id = tex_id;;
+      f32 dx_ccw = ccw[i].x * radius;
+      f32 dy_ccw = ccw[i].y * radius;
+      f32 dx_cw = cw[i].x * radius;
+      f32 dy_cw = cw[i].y * radius;
+
+      WRITE_VERTEX(&vtx[v_idx], corner.x + dx_ccw, corner.y + dy_ccw, ((vec2_i8){0, 0}));
       v_idx++;
-      
-      f32 lx2 = p2.x - pos.x;
-      f32 ly2 = p2.y - pos.y;
-      vtx[v_idx].position = p2;
-      vtx[v_idx].uv.x = lx2 * inv_w * uv_w + uv.x;
-      vtx[v_idx].uv.y = ly2 * inv_h * uv_h + uv.y;
-      vtx[v_idx].color = color;
-      vtx[v_idx].circ_mask = (vec2_i8){0, 0};
-      vtx[v_idx].tex_id = tex_id;
+      WRITE_VERTEX(&vtx[v_idx], corner.x + dx_cw, corner.y + dy_cw, ((vec2_i8){0, 0}));
       v_idx++;
     }
   }
-  
+
   u32 idx_count = 0;
-  for (u32 i = 1; i < outline_vertices - 1; i++) {
-    idx[idx_count++] = base_idx;
+  u16 fan_center = base_idx;
+  for (u16 i = 1; i < outline_vertices - 1; i++) {
+    idx[idx_count++] = fan_center;
     idx[idx_count++] = base_idx + i + 1;
     idx[idx_count++] = base_idx + i;
   }
-  
-  u32 corner_vtx_base = v_idx;
+
   for (i32 i = 0; i < 4; i++) {
     if (!(rounded_mask & (1 << i))) continue;
-    
+
     vec2_f32 corner = corners[i];
     f32 radius = r[i];
-    
-    vec2_f32 p0 = corner;
-    vec2_f32 p1 = {corner.x + ccw[i].x * radius, corner.y + ccw[i].y * radius};
-    vec2_f32 p2 = {corner.x + cw[i].x * radius, corner.y + cw[i].y * radius};
-    
-    f32 lx0 = p0.x - pos.x;
-    f32 ly0 = p0.y - pos.y;
-    vtx[v_idx].position = p0;
-    vtx[v_idx].uv.x = lx0 * inv_w * uv_w + uv.x;
-    vtx[v_idx].uv.y = ly0 * inv_h * uv_h + uv.y;
-    vtx[v_idx].color = color;
-    vtx[v_idx].circ_mask = (vec2_i8){I8_MAX, I8_MAX};
-    vtx[v_idx].tex_id = tex_id;
-    
-    f32 lx1 = p1.x - pos.x;
-    f32 ly1 = p1.y - pos.y;
-    vtx[v_idx + 1].position = p1;
-    vtx[v_idx + 1].uv.x = lx1 * inv_w * uv_w + uv.x;
-    vtx[v_idx + 1].uv.y = ly1 * inv_h * uv_h + uv.y;
-    vtx[v_idx + 1].color = color;
-    vtx[v_idx + 1].circ_mask = (vec2_i8){0, I8_MAX};
-    vtx[v_idx + 1].tex_id = tex_id;
-    
-    f32 lx2 = p2.x - pos.x;
-    f32 ly2 = p2.y - pos.y;
-    vtx[v_idx + 2].position = p2;
-    vtx[v_idx + 2].uv.x = lx2 * inv_w * uv_w + uv.x;
-    vtx[v_idx + 2].uv.y = ly2 * inv_h * uv_h + uv.y;
-    vtx[v_idx + 2].color = color;
-    vtx[v_idx + 2].circ_mask = (vec2_i8){I8_MAX, 0};
-    vtx[v_idx + 2].tex_id = tex_id;
-    
-    idx[idx_count++] = base_idx + v_idx;
-    idx[idx_count++] = base_idx + v_idx + 1;
-    idx[idx_count++] = base_idx + v_idx + 2;
-    
-    v_idx += 3;
+
+    f32 dx_ccw = ccw[i].x * radius;
+    f32 dy_ccw = ccw[i].y * radius;
+    f32 dx_cw = cw[i].x * radius;
+    f32 dy_cw = cw[i].y * radius;
+
+    WRITE_VERTEX(&vtx[v_idx], corner.x, corner.y, ((vec2_i8){I8_MAX, I8_MAX}));
+    u16 center_v = v_idx++;
+
+    WRITE_VERTEX(&vtx[v_idx], corner.x + dx_ccw, corner.y + dy_ccw, ((vec2_i8){0, I8_MAX}));
+    u16 edge1_v = v_idx++;
+
+    WRITE_VERTEX(&vtx[v_idx], corner.x + dx_cw, corner.y + dy_cw, ((vec2_i8){I8_MAX, 0}));
+    u16 edge2_v = v_idx++;
+
+    idx[idx_count++] = base_idx + center_v;
+    idx[idx_count++] = base_idx + edge1_v;
+    idx[idx_count++] = base_idx + edge2_v;
   }
-  
+
+  #undef WRITE_VERTEX
+
   gfx->render_buffer.vtx_count += total_vertices;
   gfx->render_buffer.idx_count += total_indices;
 }
@@ -528,3 +544,44 @@ gfx_texture_upload(GFX_State *gfx, Texture_Data data, Texture_Kind type)
 
   return result;
 }
+
+
+internal_lnk bool 
+gfx_texture_update(GFX_State *gfx, u32 id, i32 w, i32 h, i32 channels, u8 *data)
+{
+  Assert(gfx && data && w > 0 && h > 0 && channels > 0);
+
+  if (id >= gfx->texture_count) {
+    return false;
+  }
+  
+  Texture *handle = &gfx->texture_slots[id];
+  if (handle->gl_id == 0) {
+    return false;
+  }
+  
+  u32 format;
+  switch (channels) {
+    case 1: format = GL_RED; break;
+    case 2: format = GL_RG; break;
+    case 3: format = GL_RGB; break;
+    case 4: format = GL_RGBA; break;
+    default: return false;
+  }
+  
+  glActiveTexture(GL_TEXTURE0 + id);
+  glBindTexture(GL_TEXTURE_2D, handle->gl_id);
+  glTexSubImage2D(
+    GL_TEXTURE_2D,
+    0,
+    0, 0,
+    w,
+    h,
+    format,
+    GL_UNSIGNED_BYTE,
+    data
+  );
+  glGenerateMipmap(GL_TEXTURE_2D);
+  return true;
+}
+

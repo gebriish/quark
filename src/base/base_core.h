@@ -159,14 +159,14 @@ smooth_damp(f32 current, f32 target, f32 time, f32 dt)
 {
   if (dt <= 0 || time <= 0) return target;
 
-  f32 rate = 2.0 / time;
+  f32 rate = 2.0f / time;
   f32 x = rate * dt;
 
   f32 factor = 0;
-  if (x < 0.0001) {
-    factor = x * (1.0 - x*0.5 + x*x/6.0 - x*x*x/24.0);
+  if (x < 0.0001f) {
+    factor = x * (1.0f - x*0.5f + x*x/6.0f - x*x*x/24.0f);
   } else {
-    factor = 1.0 - exp(-x);
+    factor = 1.0f - expf(-x);
   }
 
   return Lerp(current, target, factor);
@@ -228,28 +228,7 @@ internal_lnk void   arena_pop(Arena *arena);
 internal_lnk void   arena_pop_to(Arena *arena, usize pos);
 internal_lnk void   arena_clear(Arena *arena);
 internal_lnk usize  arena_pos(Arena *arena);
-
-internal_lnk force_inline void
-arena_print_usage(Arena *arena, const char *name)
-{
-#if DEBUG_BUILD
-  if (!arena) {
-    printf("Arena(%s): NULL\n", name ? name : "unnamed");
-    return;
-  }
-
-  f64 used_pct = 0;
-  if (arena->capacity > 0) {
-    used_pct = ((f64)arena->used / (f64)arena->capacity) * 100.0;
-  }
-
-  printf("Arena(%s):\n", name ? name : "unnamed");
-  printf("  used:       %zu bytes\n", arena->used);
-  printf("  last_used:  %zu bytes\n", arena->last_used);
-  printf("  capacity:   %zu bytes\n", arena->capacity);
-  printf("  usage:      %.2f%%\n", used_pct);
-#endif
-}
+internal_lnk void   arena_print_usage(Arena *arena, const char *name);
 
 internal_lnk Temp   temp_begin(Arena *arena);
 internal_lnk void   temp_end(Temp temp);

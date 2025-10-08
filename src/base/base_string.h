@@ -23,10 +23,12 @@ struct String8 {
 #define str8_fmt(x) ((i32)x.len), (x.raw)
 
 internal_lnk String8  str8(u8 *raw, usize len);
-internal_lnk String8  str8_slice(String8 string, usize i, usize len);
+internal_lnk String8  str8_slice(String8 string, usize start, usize end);
 internal_lnk rune_itr str8_decode_utf8(u8 *raw, usize len);
 internal_lnk usize    str8_codepoint_count(String8 str);
 internal_lnk String8  str8_cstr_copy(Arena *arena, String8 string);
+
+internal_lnk bool     rune_is_space(rune codepoint);
 
 #define STR_FMT "%.*s"
 
@@ -35,14 +37,5 @@ internal_lnk String8  str8_cstr_copy(Arena *arena, String8 string);
     for (rune_itr itr_name = str8_decode_utf8((str).raw + offset_name, (str).len - offset_name); \
          offset_name < (str).len && itr_name.consumed != 0; \
          offset_name += itr_name.consumed, itr_name.consumed = 0)
-
-#define FONT_CHARSET \
-  "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~" /* ASCII */ \
-  "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞß" \
-  "àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ" /* Latin-1 Supplement */ \
-  "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ" \
-  "αβγδεζηθικλμνξοπρστυφχψω" /* Greek */ \
-  "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ" \
-  "абвгдежзийклмнопрстуфхцчшщъыьэюя" /* Cyrillic */ \
 
 #endif
