@@ -9,7 +9,7 @@ CSTD="-std=gnu11"
 
 CFLAGS="$CSTD -Wno-initializer-overrides -Wconversion -Wsign-conversion -Wfloat-conversion"
 INCLUDES="-I/usr/include/freetype2"
-LIBS="-lm -lX11 -lXrandr -lGL -lfreetype"
+LIBS="-lm -lGL -lfreetype -lglfw3"
 
 rm -rf "$BUILD"
 mkdir -p "$BUILD"

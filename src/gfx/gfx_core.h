@@ -107,28 +107,28 @@ struct Rect_Params {
 //////////////////////////////////
 // ~geb: interface procs
 
-internal_lnk bool gfx_init(Arena *allocator, Arena *temp_allocator, GFX_State *gfx);
-internal_lnk void gfx_resize_target(GFX_State *gfx, i32 w, i32 h);
+internal bool gfx_init(Arena *allocator, Arena *temp_allocator, GFX_State *gfx, void *opengl_proc_loader);
+internal void gfx_resize_target(i32 w, i32 h);
 
-internal_lnk void gfx_begin_frame(GFX_State *gfx, color8_t color);
-internal_lnk void gfx_end_frame(GFX_State *gfx);
+internal void gfx_begin_frame(color8_t color);
+internal void gfx_end_frame();
 
-internal_lnk void gfx_prep(GFX_State *gfx);
-internal_lnk void gfx_flush(GFX_State *gfx);
+internal void gfx_prep();
+internal void gfx_flush();
 
-internal_lnk void gfx_push_rect(GFX_State *gfx, Rect_Params *params);
-internal_lnk void gfx_push_rect_rounded(GFX_State *gfx, Rect_Params *params);
+internal void gfx_push_rect(Rect_Params *params);
+internal void gfx_push_rect_rounded(Rect_Params *params);
 
-internal_lnk u32  gfx_texture_upload(GFX_State *gfx, Texture_Data data, Texture_Kind type);
-internal_lnk bool gfx_texture_update(GFX_State *gfx, u32 id, i32 w, i32 h, i32 channels, u8 *data);
-internal_lnk bool gfx_texture_unload(GFX_State *gfx, u32 id);
+internal u32  gfx_texture_upload(Texture_Data data, Texture_Kind type);
+internal bool gfx_texture_update(u32 id, i32 w, i32 h, i32 channels, u8 *data);
+internal bool gfx_texture_unload(u32 id);
 
 
 //////////////////////////////////
 // ~geb: shorthand macros
 
-#define push_rect_rounded(gfx, ...) \
-gfx_push_rect_rounded(gfx, &(Rect_Params){ \
+#define push_rect_rounded(...) \
+gfx_push_rect_rounded(&(Rect_Params){ \
   .size = {32, 32}, \
   .color = 0xffffffff, \
   .uv = {0,0,1,1}, \
@@ -136,8 +136,8 @@ gfx_push_rect_rounded(gfx, &(Rect_Params){ \
   __VA_ARGS__ \
 })
 
-#define push_rect(gfx, ...) \
-gfx_push_rect(gfx, &(Rect_Params){ \
+#define push_rect(...) \
+gfx_push_rect(&(Rect_Params){ \
   .size = {32, 32}, \
   .color = 0xffffffff, \
   .uv = {0,0,1,1}, \

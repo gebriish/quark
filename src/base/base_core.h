@@ -15,7 +15,7 @@
 ////////////////////////////////
 // ~geb: Useful macros
 
-#define internal_lnk  static
+#define internal      static
 #define global        static
 #define local_persist static
 
@@ -24,7 +24,7 @@
 #define KB(n)  (((usize)(n)) << 10)
 #define MB(n)  (((usize)(n)) << 20)
 #define GB(n)  (((usize)(n)) << 30)
- 
+
 #define Min(A,B) (((A)<(B))?(A):(B))
 #define Max(A,B) (((A)>(B))?(A):(B))
 #define Clamp(A,X,B) (((X)<(A))?(A):((X)>(B))?(B):(X))
@@ -43,10 +43,10 @@
 #endif
 
 #define ByteSwapU32(x) (             \
-  (((x) & (u32)0x000000FFu) << 24) | \
-  (((x) & (u32)0x0000FF00u) << 8)  | \
-  (((x) & (u32)0x00FF0000u) >> 8)  | \
-  (((x) & (u32)0xFF000000u) >> 24) )
+	(((x) & (u32)0x000000FFu) << 24) | \
+	(((x) & (u32)0x0000FF00u) << 8)  | \
+	(((x) & (u32)0x00FF0000u) >> 8)  | \
+	(((x) & (u32)0xFF000000u) >> 24) )
 
 #define OffsetOf(s,m) ((size_t)&(((s*)0)->m))
 
@@ -139,7 +139,7 @@ typedef i32 isize;
 
 #define VecDef(N, T, ...) \
 typedef struct {\
-  T __VA_ARGS__;\
+	T __VA_ARGS__;\
 } vec##N##_##T
 
 VecDef(2, f32, x, y);
@@ -154,30 +154,30 @@ VecDef(2, u8,  x, y);
 VecDef(4, f32, x, y, z, w);
 VecDef(4, u16, x, y, z, w);
 
-internal_lnk force_inline f32 
+internal force_inline f32 
 smooth_damp(f32 current, f32 target, f32 time, f32 dt)
 {
-  if (dt <= 0 || time <= 0) return target;
+	if (dt <= 0 || time <= 0) return target;
 
-  f32 rate = 2.0f / time;
-  f32 x = rate * dt;
+	f32 rate = 2.0f / time;
+	f32 x = rate * dt;
 
-  f32 factor = 0;
-  if (x < 0.0001f) {
-    factor = x * (1.0f - x*0.5f + x*x/6.0f - x*x*x/24.0f);
-  } else {
-    factor = 1.0f - expf(-x);
-  }
+	f32 factor = 0;
+	if (x < 0.0001f) {
+		factor = x * (1.0f - x*0.5f + x*x/6.0f - x*x*x/24.0f);
+	} else {
+		factor = 1.0f - expf(-x);
+	}
 
-  return Lerp(current, target, factor);
+	return Lerp(current, target, factor);
 }
 
 #if DEBUG_BUILD
 # define _log_base(stream, level, fmt, ...)                       \
-  do {                                                           \
-    fprintf(stream, "[%s] %s:%d (%s): " fmt "\n",                \
-            level, __FILE__, __LINE__, __func__, ##__VA_ARGS__); \
-  } while (0)
+do {                                                           \
+	fprintf(stream, "[%s] %s:%d (%s): " fmt "\n",                \
+		 level, __FILE__, __LINE__, __func__, ##__VA_ARGS__); \
+} while (0)
 
 # define LogError(fmt, ...)  _log_base(stderr, "ERROR", fmt, ##__VA_ARGS__)
 # define LogWarn(fmt,  ...)  _log_base(stderr, "WARN ", fmt, ##__VA_ARGS__)
@@ -197,59 +197,60 @@ smooth_damp(f32 current, f32 target, f32 time, f32 dt)
 
 typedef struct Arena Arena;
 struct Arena {
-  usize last_used;
-  usize used;
-  usize capacity;
+	usize last_used;
+	usize used;
+	usize capacity;
 };
 
 typedef struct Alloc_Params Alloc_Params;
 struct Alloc_Params {
-  usize size;
-  usize align;
-  bool zero;
+	usize size;
+	usize align;
+	bool zero;
 #if DEBUG_BUILD
-  const char *caller_proc;
-  const char *caller_file;
-  int         caller_line;
+	const char *caller_proc;
+	const char *caller_file;
+	int         caller_line;
 #endif
 };
 
 typedef struct Temp Temp;
 struct Temp {
-  Arena *arena;
-  usize pos;
+	Arena *arena;
+	usize pos;
 };
 
-internal_lnk Arena *arena_alloc(usize capacity);
-internal_lnk void   arena_release(Arena *arena);
+internal Arena *arena_alloc(usize capacity);
+internal Arena *arena_realloc_(Arena *arena, usize new_capacity);
+internal void   arena_release(Arena *arena);
 
-internal_lnk void  *arena_push_(Arena *arena, Alloc_Params *params);
-internal_lnk void   arena_pop(Arena *arena);
-internal_lnk void   arena_pop_to(Arena *arena, usize pos);
-internal_lnk void   arena_clear(Arena *arena);
-internal_lnk usize  arena_pos(Arena *arena);
-internal_lnk void   arena_print_usage(Arena *arena, const char *name);
+internal void  *arena_push_(Arena *arena, Alloc_Params *params);
+internal void   arena_pop(Arena *arena);
+internal void   arena_pop_to(Arena *arena, usize pos);
+internal void   arena_clear(Arena *arena);
+internal usize  arena_pos(Arena *arena);
+internal void   arena_print_usage(Arena *arena, const char *name);
 
-internal_lnk Temp   temp_begin(Arena *arena);
-internal_lnk void   temp_end(Temp temp);
+internal Temp   temp_begin(Arena *arena);
+internal void   temp_end(Temp temp);
 
 #define arena_push_struct(a, T)   (T *) arena_push((a), sizeof(T), AlignOf(T), true)
 #define arena_push_array_zeroed(a, T, c) (T *) arena_push((a), sizeof(T) * (c), AlignOf(T), true)
 #define arena_push_array(a, T, c) (T *) arena_push((a), sizeof(T) * (c), AlignOf(T), false)
 
 #if DEBUG_BUILD
-  #define _ARENA_DEBUG_FIELDS_ , .caller_proc = __func__, .caller_file = __FILE__, .caller_line = __LINE__
+#define _ARENA_DEBUG_FIELDS_ , .caller_proc = __func__, .caller_file = __FILE__, .caller_line = __LINE__
 #else
-  #define _ARENA_DEBUG_FIELDS_
+#define _ARENA_DEBUG_FIELDS_
 #endif
 
 #define arena_push(ar, s, al, zr)                                     \
-  arena_push_(ar, &(Alloc_Params){                                    \
-    .size  = s,                                                      \
-    .align = al,                                                      \
-    .zero  = zr                                                       \
-  _ARENA_DEBUG_FIELDS_                                                \
-  })
-  
+arena_push_(ar, &(Alloc_Params){                                    \
+	.size  = s,                                                       \
+	.align = al,                                                      \
+	.zero  = zr                                                       \
+	_ARENA_DEBUG_FIELDS_                                                \
+})
+
 
 #endif

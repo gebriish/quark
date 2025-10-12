@@ -5,85 +5,74 @@
 #include "../base/base_hash.h"
 #include "../base/base_string.h"
 
+#undef internal
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include FT_GLYPH_H
-
+#define internal static
 
 typedef struct Glyph_Info Glyph_Info;
 struct Glyph_Info {
-  vec2_i16 position;
-  vec2_u8 size;
-  vec2_i8 bearing;
-  i16 advance;
+	vec2_i16 position;
+	i16 advance;
+	vec2_u8 size;
+	vec2_i8 bearing;
 };
 
 Map32_Define(glyph_map, Glyph_Info)
 
 typedef struct {
-  f32 design_units_per_em;
-  f32 ascent;
-  f32 descent;
-  f32 line_gap;
-  f32 capital_height;
-  u32 font_size;
+	f32 design_units_per_em;
+	f32 ascent;
+	f32 descent;
+	f32 line_gap;
+	f32 capital_height;
+	u32 font_size;
 } Font_Metrics;
 
 typedef struct Font_Atlas Font_Atlas;
 struct Font_Atlas {
-  u8 *image;
-  glyph_map *code_to_glyph;
-  vec2_u16 dim;
-  Font_Metrics metrics;
+	u8 *image;
+	glyph_map *code_to_glyph;
+	vec2_u16 dim;
+	Font_Metrics metrics;
+	u32 tex_id;
 };
 
 typedef struct Font_State Font_State;
 struct Font_State {
-  FT_Library library;
-  FT_Face face;
+	FT_Library library;
+	FT_Face face;
 };
 
-internal_lnk void font_init(Arena *allocator, String8 path);
-internal_lnk void font_close();
+internal void font_init(Arena *allocator, String8 path);
+internal void font_close();
 
-internal_lnk Font_Metrics font_get_metrics(u32 font_size);
-internal_lnk Font_Atlas   font_generate_atlas(Arena *allocator, Arena *scratch, u32 font_size, String8 characters);
+internal Font_Metrics font_get_metrics(u32 font_size);
+internal Font_Atlas   font_generate_atlas(Arena *allocator, Arena *scratch, u32 font_size, String8 characters);
 
-internal_lnk force_inline f32
+internal force_inline f32
 font_metrics_line_height(Font_Metrics *metrics)
 {
-  return metrics->ascent + metrics->descent + metrics->line_gap;
+	return metrics->ascent + metrics->descent + metrics->line_gap;
 }
 
-internal_lnk force_inline f32
+internal force_inline f32
 font_metrics_baseline_offset(Font_Metrics *metrics)
 {
-  return metrics->ascent;
+	return metrics->ascent;
 }
 
-internal_lnk force_inline f32
+internal force_inline f32
 font_metrics_scale_factor(Font_Metrics *metrics, f32 desired_size)
 {
-  return desired_size / (f32)metrics->font_size;
+	return desired_size / (f32)metrics->font_size;
 }
 
 #define FONT_CHARSET \
-  /* ASCII */ \
-  "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~" \
-  /* Latin-1 Supplement */ \
-  "¡¢£¤¥¦§¨©ª«¬­®¯°±²³´µ¶·¸¹º»¼½¾¿" \
-  "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖ×ØÙÚÛÜÝÞß" \
-  "àáâãäåæçèéêëìíîïðñòóôõö÷øùúûüýþÿ" \
-  /* Latin Extended-A */ \
-  "ĀāĂăĄąĆćĈĉĊċČčĎďĐđĒēĔĕĖėĘęĚěĜĝĞğĠġĢģĤĥĦħĨĩĪīĬĭĮįİı" \
-  "ĲĳĴĵĶķĸĹĺĻļĽľĿŀŁłŃńŅņŇňŉŊŋŌōŎŏŐőŒœŔŕŖŗŘřŚśŜŝŞşŠšŢţŤťŦŧ" \
-  "ŨũŪūŬŭŮůŰűŲųŴŵŶŷŸŹźŻżŽžſ" \
-  /* Greek and Coptic */ \
-  "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ" \
-  "αβγδεζηθικλμνξοπρστυφχψω" \
-  "ΆΈΉΊΌΎΏΪΫάέήίΰαβγδεζηθικλμνξοπρστυφχψωϊϋόύώ" \
-  /* Cyrillic */ \
-  "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ" \
-  "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
+"!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~" \
+"ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ" \
+"αβγδεζηθικλμνξοπρστυφχψω" \
+"ΆΈΉΊΌΎΏΪΫάέήίΰαβγδεζηθικλμνξοπρστυφχψωϊϋόύώ" \
 
 #endif

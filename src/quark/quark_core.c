@@ -1,20 +1,23 @@
 #include "quark_core.h"
 
 
-internal_lnk void
+internal void
 quark_new(Quark_Context *context)
 {
-  Assert(context && "quark context ptr is null");
+	Assert(context && "quark context ptr is null");
 
-  context->persist_arena = arena_alloc(MB(5));
-  context->transient_arena   = arena_alloc(MB(5));
+	context->persist_arena = arena_alloc(MB(5));
+	context->transient_arena   = arena_alloc(MB(5));
+
+	//context->buffer_manager = buffer_manager_new();
 }
 
-internal_lnk void
+internal void
 quark_delete(Quark_Context *context)
 {
-  Assert(context && "quark context ptr is null");
-  
-  arena_release(context->persist_arena);
-  arena_release(context->transient_arena);
+	Assert(context && "quark context ptr is null");
+
+	arena_release(context->persist_arena);
+	arena_release(context->transient_arena);
 }
+

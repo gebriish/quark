@@ -1,0 +1,22 @@
+------------------------------
+          Quark
+------------------------------
+
+Quark is a lightweight GPU rendered text editor.
+*This is an early-stage project*
+
+------------------
+Build Instructions
+------------------
+Prerequisites:
+- Clang/GCC
+
+Linux / macOS:
+1. Make sure glfw3 is compiled and setup
+2. Build:
+       ./build_<platform>.sh
+
+Windows:
+	Support is currently not there
+	but trivial to add.
+
