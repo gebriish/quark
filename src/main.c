@@ -20,30 +20,32 @@ global u8            font_atlas_id;
 
 int main(void)
 {
-	{ // ~geb: Layer initializations
-		quark_new(&quark_ctx);
-		quark_window = quark_window_open();
-		gfx_init(quark_ctx.persist_arena, quark_ctx.transient_arena, &gfx_state, quark_get_ogl_proc_addr);
-		font_init(quark_ctx.persist_arena, str8_lit("./res/fonts/jetbrains_mono.ttf"));
-	
-		{ // ~geb: Font texture atlas generation
-			font_atlas = font_generate_atlas(
-				quark_ctx.persist_arena,
-				quark_ctx.transient_arena,
-				20,
-				str8_lit(FONT_CHARSET)
-			);
+	// ~geb: Layer initializations
+	quark_new(&quark_ctx);
+	quark_window = quark_window_open();
+	gfx_init(quark_ctx.persist_arena, quark_ctx.transient_arena, &gfx_state, quark_get_ogl_proc_addr);
+	font_init(quark_ctx.persist_arena, str8_lit("./res/fonts/jetbrains_mono.ttf"));
 
-			Texture_Data data = {
-				.data = font_atlas.image,
-				.width = font_atlas.dim.x,
-				.height = font_atlas.dim.y,
-				.channels = 4,
-			};
-			font_atlas_id = (u8)gfx_texture_upload(data, TextureKind_Normal);
-			font_atlas.image = NULL; // will be cleared
-		}
+	{
+		// ~geb: Font texture atlas generation
+		font_atlas = font_generate_atlas(
+			quark_ctx.persist_arena,
+			quark_ctx.transient_arena,
+			20,
+			str8_lit(FONT_CHARSET)
+		);
+
+		Texture_Data data = {
+			.data = font_atlas.image,
+			.width = font_atlas.dim.x,
+			.height = font_atlas.dim.y,
+			.channels = 4,
+		};
+		font_atlas_id = (u8)gfx_texture_upload(data, TextureKind_Normal);
+		font_atlas.image = NULL; // will be cleared
 	}
+
+	arena_print_usage(quark_ctx.persist_arena, "persist_arena");
 
 	while (quark_window_is_open(quark_window)) {
 		local_persist Time_Stamp last_time = {0};
@@ -58,9 +60,10 @@ int main(void)
 			}
 		}
 
-		gfx_begin_frame(0x121212ff);
-		push_rect(.size = {(f32)font_atlas.dim.x, (f32)font_atlas.dim.y}, .tex_id = font_atlas_id, .color = 0x99856aff);
+		gfx_begin_frame(0x131313ff);
+		push_rect(.size = {(f32)font_atlas.dim.x,(f32)font_atlas.dim.y}, .tex_id = font_atlas_id);
 		gfx_end_frame();
+
 
 		quark_window_swap_buff(quark_window);
 		arena_clear(quark_ctx.transient_arena);

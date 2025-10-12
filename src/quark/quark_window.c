@@ -9,10 +9,6 @@ resize_callback(GLFWwindow* window, int w, int h) {
 }
 
 internal void 
-key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
-}
-
-internal void 
 char_callback(GLFWwindow* window, unsigned int codepoint) {
     g_input_data.codepoint = codepoint;
 }
@@ -39,7 +35,6 @@ quark_window_open() {
     glfwSwapInterval(0);
 
     glfwSetFramebufferSizeCallback(window, resize_callback);
-    glfwSetKeyCallback(window, key_callback);
     glfwSetCharCallback(window, char_callback);
 
     return window;

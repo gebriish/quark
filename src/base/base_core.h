@@ -197,6 +197,9 @@ do {                                                           \
 
 typedef struct Arena Arena;
 struct Arena {
+	Arena *previous; // previous w.r.t this node
+	Arena *current;  // current arena in chain
+
 	usize last_used;
 	usize used;
 	usize capacity;
@@ -221,7 +224,6 @@ struct Temp {
 };
 
 internal Arena *arena_alloc(usize capacity);
-internal Arena *arena_realloc_(Arena *arena, usize new_capacity);
 internal void   arena_release(Arena *arena);
 
 internal void  *arena_push_(Arena *arena, Alloc_Params *params);
