@@ -23,10 +23,12 @@ struct String8 {
 #define str8_fmt(x) ((i32)x.len), (x.raw)
 
 internal String8  str8(u8 *raw, usize len);
-internal String8  str8_slice(String8 string, usize start, usize end);
+internal String8  str8_slice(String8 string, usize start, usize end_exclusive);
+internal String8  str8_cstr_slice(const char* cstring, isize start, isize end_exclusive);
 internal rune_itr str8_decode_utf8(u8 *raw, usize len);
 internal usize    str8_codepoint_count(String8 str);
 internal String8  str8_cstr_copy(Arena *arena, String8 string);
+internal String8  str8_copy_cstr(Arena *arena, const char *cstring);
 
 internal bool     rune_is_space(rune codepoint);
 

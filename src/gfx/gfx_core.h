@@ -94,6 +94,8 @@ typedef struct {
   f32 bottom_left;
 } Rect_Radii;
 
+#define rect_radius(x) (Rect_Radii) {x,x,x,x}
+
 typedef struct Rect_Params Rect_Params;
 struct Rect_Params {
   vec2_f32 position;

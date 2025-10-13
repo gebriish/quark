@@ -2,6 +2,7 @@
 #define QUARK_WINDOW_H
 
 #include "../base/base_core.h"
+#include "../base/base_string.h"
 
 #include <GLFW/glfw3.h>
 
@@ -9,7 +10,9 @@ typedef GLFWwindow* Quark_Window;
 
 typedef struct Input_Data Input_Data;
 struct Input_Data {
-	u32 codepoint;
+	u32      codepoint;
+	String8  clipboard_str;
+	vec2_f32 mouse_pointer;
 };
 
 internal Quark_Window quark_window_open();

@@ -47,85 +47,103 @@ font_get_metrics(u32 font_size)
 }
 
 internal Font_Atlas
-font_generate_atlas(Arena *allocator, Arena *scratch, u32 font_size, String8 characters)
+font_generate_atlas(Arena *allocator, u32 font_size, String8 characters)
 {
-	Assert(_font_state && _font_state->face);
-	FT_Face face = _font_state->face;
-	FT_Set_Pixel_Sizes(face, 0, font_size);
+    Assert(_font_state && _font_state->face);
+    FT_Face face = _font_state->face;
+    FT_Set_Pixel_Sizes(face, 0, font_size);
 
-	u32 padding = 1;
-	u32 atlas_width = 512;
-	u32 atlas_height = 512;
+    u32 padding = 1;
+    u32 atlas_width = 512;
+    u32 atlas_height = 512;
 
-	usize codepoint_count = 0;
-	u32 x = padding, y = padding, max_row_height = 0;
+    usize codepoint_count = 0;
+    u32 x = padding, y = padding, max_row_height = 0;
 
-	str8_foreach(characters, itr, i) {
-		if (FT_Load_Char(face, itr.codepoint, FT_LOAD_RENDER | FT_LOAD_TARGET_LCD)) continue;
-		FT_GlyphSlot g = face->glyph;
+    // First pass: calculate atlas height
+    str8_foreach(characters, itr, i) {
+        if (FT_Load_Char(face, itr.codepoint, FT_LOAD_RENDER)) continue;
+        FT_GlyphSlot g = face->glyph;
 
-		u32 glyph_width = g->bitmap.width / 3;
-		if (x + glyph_width + padding > atlas_width) {
-			x = padding;
-			y += max_row_height + padding;
-			max_row_height = 0;
-		}
-		x += glyph_width + padding;
-		max_row_height = Max(max_row_height, g->bitmap.rows);
-		codepoint_count += 1;
-	}
-	atlas_height = y + max_row_height + padding;
+        u32 glyph_width = g->bitmap.width;
+        if (x + glyph_width + padding > atlas_width) {
+            x = padding;
+            y += max_row_height + padding;
+            max_row_height = 0;
+        }
+        x += glyph_width + padding;
+        max_row_height = Max(max_row_height, g->bitmap.rows);
+        codepoint_count += 1;
+    }
+    atlas_height = y + max_row_height + padding;
 
-	u8 *atlas_image = arena_push_array_zeroed(scratch, u8, atlas_width * atlas_height * 4);
-	glyph_map *code_to_glyph = glyph_map_new(allocator, codepoint_count);
+    glyph_map *code_to_glyph = glyph_map_new(allocator, codepoint_count);
 
-	x = padding, y = padding, max_row_height = 0;
-	str8_foreach(characters, itr, i) {
-		u32 codepoint = itr.codepoint;
-		if (FT_Load_Char(face, codepoint, FT_LOAD_RENDER | FT_LOAD_TARGET_LCD)) continue;
-		FT_GlyphSlot g = face->glyph;
+    // Second pass: store glyph info
+    x = padding; y = padding; max_row_height = 0;
+    str8_foreach(characters, itr, i) {
+        u32 codepoint = itr.codepoint;
+        if (FT_Load_Char(face, codepoint, FT_LOAD_RENDER)) continue;
+        FT_GlyphSlot g = face->glyph;
 
-		u32 glyph_width = g->bitmap.width / 3;
-		if (x + glyph_width + padding > atlas_width) {
-			x = padding;
-			y += max_row_height + padding;
-			max_row_height = 0;
-		}
+        u32 glyph_width = g->bitmap.width;
+        if (x + glyph_width + padding > atlas_width) {
+            x = padding;
+            y += max_row_height + padding;
+            max_row_height = 0;
+        }
 
-		for (u32 row = 0; row < g->bitmap.rows; ++row) {
-			for (u32 col = 0; col < glyph_width; ++col) {
-				u8 *dst = &atlas_image[(y + row) * atlas_width * 4 + (x + col) * 4];
-				u8 *src = &g->bitmap.buffer[row * (u32)g->bitmap.pitch + col * 3];
+        Glyph_Info info = {
+            .position = {(i16)x, (i16)y},
+            .size = {(u8)glyph_width, (u8)g->bitmap.rows},
+            .bearing = {(i8)g->bitmap_left, (i8)g->bitmap_top},
+            .advance = (i16)(g->advance.x >> 6)
+        };
+        glyph_map_insert(code_to_glyph, codepoint, info);
 
-				dst[0] = src[0];
-				dst[1] = src[1];
-				dst[2] = src[2];
+        x += glyph_width + padding;
+        max_row_height = Max(max_row_height, g->bitmap.rows);
+    }
 
-				u8 alpha = Max(src[0], Max(src[1], src[2]));
-				dst[3] = alpha;
-			}
-		}
+    Font_Metrics metrics = font_get_metrics(font_size);
+    Font_Atlas atlas = {
+        .dim = {(u16)atlas_width, (u16)atlas_height},
+        .code_to_glyph = code_to_glyph,
+        .metrics = metrics
+    };
 
-		Glyph_Info info = {
-			.position = {(i16)x, (i16)y},
-			.size = {(u8)glyph_width, (u8)g->bitmap.rows},
-			.bearing = {(i8)g->bitmap_left, (i8)g->bitmap_top},
-			.advance = (i16)(g->advance.x >> 6)
-		};
-		glyph_map_insert(code_to_glyph, codepoint, info);
+    return atlas;
+}
 
-		x += glyph_width + padding;
-		max_row_height = Max(max_row_height, g->bitmap.rows);
-	}
+internal u8 *
+font_rasterize_atlas(Arena *scratch, Font_Atlas *atlas)
+{
+    Assert(_font_state && _font_state->face);
+    FT_Face face = _font_state->face;
+    FT_Set_Pixel_Sizes(face, 0, atlas->metrics.font_size);
 
-	Font_Metrics metrics = font_get_metrics(font_size);
+    u32 atlas_width  = atlas->dim.x;
+    u32 atlas_height = atlas->dim.y;
+    u8 *atlas_image  = arena_push_array_zeroed(scratch, u8, atlas_width * atlas_height);
 
-	Font_Atlas atlas = {
-		.image = atlas_image,
-		.dim = {(u16)atlas_width, (u16)atlas_height},
-		.code_to_glyph = code_to_glyph,
-		.metrics = metrics
-	};
+    glyph_map *map = atlas->code_to_glyph;
+    for (int i = 0; i < map->capacity; ++i) {
+        glyph_map_Entry *entry = &map->entries[i];
+        if (!entry->occupied) continue;
 
-	return atlas;
+        rune codepoint = (rune)entry->key;
+        Glyph_Info *info = &entry->value;
+
+        if (FT_Load_Char(face, codepoint, FT_LOAD_RENDER)) continue;
+        FT_GlyphSlot g = face->glyph;
+
+        for (u32 row = 0; row < g->bitmap.rows; ++row) {
+            for (u32 col = 0; col < g->bitmap.width; ++col) {
+                u8 *dst = &atlas_image[((u32)info->position.y + row) * atlas_width + ((u32)info->position.x + col)];
+                dst[0] = g->bitmap.buffer[row * (u32)g->bitmap.pitch + col];
+            }
+        }
+    }
+
+    return atlas_image;
 }

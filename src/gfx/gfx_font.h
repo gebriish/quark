@@ -32,11 +32,9 @@ typedef struct {
 
 typedef struct Font_Atlas Font_Atlas;
 struct Font_Atlas {
-	u8 *image;
 	glyph_map *code_to_glyph;
 	vec2_u16 dim;
 	Font_Metrics metrics;
-	u32 tex_id;
 };
 
 typedef struct Font_State Font_State;
@@ -49,7 +47,9 @@ internal void font_init(Arena *allocator, String8 path);
 internal void font_close();
 
 internal Font_Metrics font_get_metrics(u32 font_size);
-internal Font_Atlas   font_generate_atlas(Arena *allocator, Arena *scratch, u32 font_size, String8 characters);
+
+internal Font_Atlas font_generate_atlas(Arena *allocator, u32 font_size, String8 characters);
+internal u8 *font_rasterize_atlas(Arena *scratch, Font_Atlas *atlas);
 
 internal force_inline f32
 font_metrics_line_height(Font_Metrics *metrics)
@@ -72,7 +72,6 @@ font_metrics_scale_factor(Font_Metrics *metrics, f32 desired_size)
 #define FONT_CHARSET \
 "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~" \
 "ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ" \
-"αβγδεζηθικλμνξοπρστυφχψω" \
 "ΆΈΉΊΌΎΏΪΫάέήίΰαβγδεζηθικλμνξοπρστυφχψωϊϋόύώ" \
 
 #endif

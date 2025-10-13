@@ -85,9 +85,8 @@
 #endif
 
 #define StaticAssert(expr, str) _Static_assert(expr, str)
-
 #define AlignPow2(x,b)     (((x) + (b) - 1)&(~((b) - 1)))
-
+#define NoOp               ((void)0)
 
 ////////////////////////////////
 // ~geb: Type shorthands
@@ -197,9 +196,6 @@ do {                                                           \
 
 typedef struct Arena Arena;
 struct Arena {
-	Arena *previous; // previous w.r.t this node
-	Arena *current;  // current arena in chain
-
 	usize last_used;
 	usize used;
 	usize capacity;
@@ -224,6 +220,7 @@ struct Temp {
 };
 
 internal Arena *arena_alloc(usize capacity);
+internal Arena *arena_realloc_(Arena *arena, usize new_capacity);
 internal void   arena_release(Arena *arena);
 
 internal void  *arena_push_(Arena *arena, Alloc_Params *params);
@@ -247,12 +244,17 @@ internal void   temp_end(Temp temp);
 #endif
 
 #define arena_push(ar, s, al, zr)                                     \
-arena_push_(ar, &(Alloc_Params){                                    \
-	.size  = s,                                                       \
-	.align = al,                                                      \
-	.zero  = zr                                                       \
+arena_push_(ar, &(Alloc_Params){                                      \
+	.size  = s,                                                         \
+	.align = al,                                                        \
+	.zero  = zr                                                         \
 	_ARENA_DEBUG_FIELDS_                                                \
 })
 
+
+////////////////////////////////
+// ~geb: Loop Constructs 
+
+#define DeferScope(begin, end) for(int _i_  = ((begin), 0); !_i_; _i_ += 1, (end))
 
 #endif

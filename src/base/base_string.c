@@ -36,6 +36,18 @@ str8_slice(String8 string, usize start, usize end_exclusive)
 	return str8(string.raw + start, Min(string.len, end_exclusive - start));
 }
 
+
+internal String8
+str8_cstr_slice(const char* cstring, isize start, isize end_exclusive)
+{
+	usize len = MemStrlen(cstring);
+	AssertAlways(start >= 0 && end_exclusive <= len && end_exclusive > start);
+	if (end_exclusive < 0) {
+		end_exclusive = (isize) len;
+	}
+	return str8((u8 *)(cstring + start), Min(len, (usize)(end_exclusive - start)));
+}
+
 internal rune_itr 
 str8_decode_utf8(u8 *raw, usize len) {
 	rune_itr result = {0};
@@ -166,8 +178,21 @@ str8_cstr_copy(Arena *arena, String8 string)
 	return result;
 }
 
+internal String8
+str8_copy_cstr(Arena *arena, const char *cstring)
+{
+	usize string_len = MemStrlen(cstring);
+	String8 result;
+	result.raw = arena_push(arena, string_len + 1, AlignOf(u8), false);
+	result.len = string_len;
+	MemCopy(result.raw, cstring, string_len);
+	result.raw[string_len] = 0;
+	return result;
+}
+
 internal bool
 rune_is_space(rune cp)
 {
 	return cp == ' ' || cp == '\t' || cp == '\r';
 }
+
