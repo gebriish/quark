@@ -118,13 +118,12 @@ internal void gfx_end_frame();
 internal void gfx_prep();
 internal void gfx_flush();
 
-internal void gfx_push_rect(Rect_Params *params);
-internal void gfx_push_rect_rounded(Rect_Params *params);
-
 internal u32  gfx_texture_upload(Texture_Data data, Texture_Kind type);
 internal bool gfx_texture_update(u32 id, i32 w, i32 h, i32 channels, u8 *data);
 internal bool gfx_texture_unload(u32 id);
 
+internal void gfx_push_rect(Rect_Params *params);
+internal void gfx_push_rect_rounded(Rect_Params *params);
 
 //////////////////////////////////
 // ~geb: shorthand macros
@@ -135,7 +134,7 @@ gfx_push_rect_rounded(&(Rect_Params){ \
   .color = 0xffffffff, \
   .uv = {0,0,1,1}, \
   .tex_id = 0, \
-  __VA_ARGS__ \
+	__VA_ARGS__ \
 })
 
 #define push_rect(...) \

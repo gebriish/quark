@@ -4,7 +4,6 @@
 #include "../base/base_core.h"
 #include "../gfx/gfx_core.h"
 
-#include "quark_buffer.h"
 
 typedef struct Quark_Context Quark_Context;
 struct Quark_Context {

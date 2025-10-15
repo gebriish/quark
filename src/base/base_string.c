@@ -168,7 +168,7 @@ str8_codepoint_count(String8 str) {
 }
 
 internal String8
-str8_cstr_copy(Arena *arena, String8 string)
+str8_to_ctring(Arena *arena, String8 string)
 {
 	String8 result = {0};
 	result.raw = arena_push_array(arena, u8, string.len + 1);

@@ -14,34 +14,35 @@ arena_alloc(usize capacity)
 	arena->last_used = ARENA_HEADER_SIZE;
 	arena->used = ARENA_HEADER_SIZE;
 	arena->capacity = capacity;
+	arena->nested = false;
 	return arena;
 }
 
-internal Arena *arena_realloc_(Arena *arena, usize new_capacity)
+
+internal Arena *
+arena_nest(Arena *backing, usize capacity)
 {
-	if (!arena || arena->capacity >= new_capacity) return arena;
+	void *base = arena_push(backing, capacity, sizeof(void*), false);
 
-
-	u8 *base = malloc(new_capacity);
-	if (!base) {
-		LogError("Arena realloc Failed");
-		return arena;
-	}
-
-	MemCopy(base, arena, arena->used);
-
-	Arena *new_arena = (Arena *)base;
-	new_arena->capacity = new_capacity;
-
-	free(arena);
-
-	return new_arena;
+	Arena *arena = (Arena *) base;
+	arena->last_used = ARENA_HEADER_SIZE;
+	arena->used = ARENA_HEADER_SIZE;
+	arena->capacity = capacity;
+	arena->nested = true;
+	return arena;
 }
+
 
 internal void
 arena_release(Arena *arena)
 {
 	Assert(arena && "trying to release null arena");
+	if (arena->nested) {
+		LogWarn("Cannot release nested arena, clearing instead");
+		arena_clear(arena);
+		return;
+	}
+
 	free(arena);
 }
 

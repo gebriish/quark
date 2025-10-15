@@ -7,7 +7,7 @@ BIN="quark"
 CC="clang"
 CSTD="-std=gnu11"
 
-CFLAGS="$CSTD -Wno-initializer-overrides -Wconversion -Wsign-conversion -Wfloat-conversion"
+CFLAGS="$CSTD -Wconversion -Wsign-conversion -Wfloat-conversion -Wno-override-init"
 INCLUDES="-I/usr/include/freetype2"
 LIBS="-lm -lGL -lfreetype -lglfw3"
 

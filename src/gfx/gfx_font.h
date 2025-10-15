@@ -26,7 +26,6 @@ typedef struct {
 	f32 ascent;
 	f32 descent;
 	f32 line_gap;
-	f32 capital_height;
 	u32 font_size;
 } Font_Metrics;
 

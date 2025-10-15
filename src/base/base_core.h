@@ -199,6 +199,7 @@ struct Arena {
 	usize last_used;
 	usize used;
 	usize capacity;
+	bool  nested;
 };
 
 typedef struct Alloc_Params Alloc_Params;
@@ -220,7 +221,7 @@ struct Temp {
 };
 
 internal Arena *arena_alloc(usize capacity);
-internal Arena *arena_realloc_(Arena *arena, usize new_capacity);
+internal Arena *arena_nest(Arena *backing, usize capacity);
 internal void   arena_release(Arena *arena);
 
 internal void  *arena_push_(Arena *arena, Alloc_Params *params);

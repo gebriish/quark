@@ -35,7 +35,7 @@ quark_window_open()
 	}
 
 	glfwMakeContextCurrent(window);
-	glfwSwapInterval(1);
+	glfwSwapInterval(0);
 
 	glfwSetFramebufferSizeCallback(window, resize_callback);
 	glfwSetCharCallback(window, char_callback);
