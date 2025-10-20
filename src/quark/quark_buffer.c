@@ -24,17 +24,63 @@ gap_buffer_insert(Gap_Buffer *buffer, String8 string)
 	buffer->gap_size    -= string.len;
 }
 
-
 internal void
-gap_buffer_delete_rune(Gap_Buffer *buffer, u32 count)
+gap_buffer_move_gap_by(Gap_Buffer *buffer, u32 count, Cursor_Dir dir)
 {
 	Assert(buffer && buffer->data);
-	
-	while(count > 0 && buffer->gap_index > 0) {
-		do {
-			buffer->gap_index -= 1;
-			buffer->gap_size += 1;
-		} while(utf8_trail(buffer->data[buffer->gap_index]));
+
+	usize gap_start = buffer->gap_index;
+	usize gap_end = gap_start + buffer->gap_size;
+
+	if (dir == Cursor_Dir_Left) {
+		usize new_gap_pos = gap_start;
+		while (count > 0 && new_gap_pos > 0) {
+			new_gap_pos -= 1;
+			while (new_gap_pos > 0 && utf8_trail(buffer->data[new_gap_pos])) {
+				new_gap_pos -= 1;
+			}
+			count -= 1;
+		}
+		gap_buffer_move_gap(buffer, new_gap_pos);
+	}
+	else if (dir == Cursor_Dir_Right) {
+		usize new_gap_pos = gap_start;
+		while (count > 0 && gap_end < buffer->capacity) {
+			gap_end += 1;
+			new_gap_pos += 1;
+			while (gap_end < buffer->capacity && utf8_trail(buffer->data[gap_end])) {
+				gap_end += 1;
+				new_gap_pos += 1;
+			}
+			count -= 1;
+		}
+		gap_buffer_move_gap(buffer, new_gap_pos);
+	}
+}
+
+
+internal void
+gap_buffer_delete_rune(Gap_Buffer *buffer, u32 count, Cursor_Dir dir)
+{
+	Assert(buffer && buffer->data);
+
+	while (count > 0) {
+		if (dir == Cursor_Dir_Left) {
+			if (buffer->gap_index == 0) break;
+
+			do {
+				buffer->gap_index -= 1;
+				buffer->gap_size += 1;
+			} while (buffer->gap_index > 0 && utf8_trail(buffer->data[buffer->gap_index]));
+		}
+		else if (dir == Cursor_Dir_Right) {
+			if (buffer->gap_index + buffer->gap_size >= buffer->capacity) break;
+			do {
+				buffer->gap_size += 1;
+			} while (buffer->gap_index + buffer->gap_size < buffer->capacity &&
+			utf8_trail(buffer->data[buffer->gap_index + buffer->gap_size - 1]));
+		}
+
 		count -= 1;
 	}
 }

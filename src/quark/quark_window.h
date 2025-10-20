@@ -18,6 +18,7 @@ enum {
 	Special_Press_D          = (Special_Press_Flags)(1 << 5),
 	Special_Press_U          = (Special_Press_Flags)(1 << 6),
 	Special_Copy             = (Special_Press_Flags)(1 << 7),
+	Special_Press_Delete     = (Special_Press_Flags)(1 << 8),
 };
 
 typedef struct Input_Data Input_Data;
@@ -26,7 +27,6 @@ struct Input_Data {
 	String8  clipboard_str;
 	vec2_f32 mouse_pointer;
 	Special_Press_Flags special_press;
-	String8  clipboard_string;
 };
 
 internal Quark_Window quark_window_open();

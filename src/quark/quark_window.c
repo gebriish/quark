@@ -23,6 +23,7 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 		switch (key) {
 			case GLFW_KEY_ENTER:     s_flags |= Special_Press_Return;
 			case GLFW_KEY_BACKSPACE: s_flags |= Special_Press_Backspace;
+			case GLFW_KEY_DELETE:    s_flags |= Special_Press_Delete;
 			case GLFW_KEY_TAB:       s_flags |= Special_Press_Tab;
 			case GLFW_KEY_LEFT:      s_flags |= Special_Press_L;
 			case GLFW_KEY_RIGHT:     s_flags |= Special_Press_R;
@@ -59,7 +60,7 @@ quark_window_open()
 	}
 
 	glfwMakeContextCurrent(window);
-	glfwSwapInterval(0);
+	glfwSwapInterval(1);
 
 	glfwSetFramebufferSizeCallback(window, resize_callback);
 	glfwSetCharCallback(window, char_callback);
@@ -100,15 +101,6 @@ quark_gather_input(Quark_Window window)
 		f64 cx, cy;
 		glfwGetCursorPos(glfw_handle, &cx, &cy);
 		g_input_data.mouse_pointer = (vec2_f32){ (f32) cx, (f32) cy };
-	}
-
-	{
-		const char *cstr = glfwGetClipboardString(glfw_handle);
-		String8 clipboard_string = str8_lit("");
-		if (cstr) {
-			clipboard_string = str8_cstr_slice(cstr, 0, -1);
-		}
-		g_input_data.clipboard_string = clipboard_string;
 	}
 
 

@@ -4,16 +4,8 @@
 #include "../base/base_core.h"
 #include "../base/base_string.h"
 
-
 /////////////////////////////////////
 // ~geb: Gap buffer
-
-typedef struct Cursor Cursor;
-struct Cursor {
-	usize row;
-	usize line;
-	usize byte;
-};
 
 typedef struct Gap_Buffer Gap_Buffer;
 struct Gap_Buffer {
@@ -26,9 +18,18 @@ struct Gap_Buffer {
 	Gap_Buffer *next; // linked list of buffers
 };
 
+typedef u32 Cursor_Dir;
+enum {
+	Cursor_Dir_Left,
+	Cursor_Dir_Right,
+	Cursor_Dir_Up,
+	Cursor_Dir_Down,
+};
+
 internal void gap_buffer_insert(Gap_Buffer *buffer, String8 string);
-internal void gap_buffer_delete_rune(Gap_Buffer *buffer, u32 count);
-internal void gap_buffer_move_gap(Gap_Buffer *buffer, usize byte_index);
+internal void gap_buffer_delete_rune(Gap_Buffer *buffer, u32 count, Cursor_Dir dir);
+internal void gap_buffer_move_gap(Gap_Buffer *buffer, usize byte);
+internal void gap_buffer_move_gap_by(Gap_Buffer *buffer, u32 count, Cursor_Dir dir);
 
 /////////////////////////////////////
 // ~geb: Gap buffer Manager

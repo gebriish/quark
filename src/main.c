@@ -28,7 +28,7 @@ int main(void)
 		// ~geb: Font texture atlas generation
 		font_atlas = font_generate_atlas(
 			quark_ctx.persist_arena,
-			20,
+			18,
 			str8_lit(FONT_CHARSET)
 		);
 		u8 *image = font_rasterize_atlas(quark_ctx.transient_arena, &font_atlas);
@@ -62,15 +62,22 @@ int main(void)
 		if (s_flags & Special_Press_Return) {
 			gap_buffer_insert(buff, str8_lit("\n"));
 		}else if(s_flags & Special_Press_Backspace) {
-			gap_buffer_delete_rune(buff, 1);
+			gap_buffer_delete_rune(buff, 1, Cursor_Dir_Left);
+		}else if(s_flags & Special_Press_Delete) {
+			gap_buffer_delete_rune(buff, 1, Cursor_Dir_Right);
 		}else if(s_flags & Special_Press_Tab) {
 			gap_buffer_insert(buff, str8_lit("\t"));
 		}else if(s_flags & Special_Press_L) {
-			gap_buffer_move_gap(buff, buff->gap_index - 1);
+			gap_buffer_move_gap_by(buff, 1, Cursor_Dir_Left);
 		}else if(s_flags & Special_Press_R) {
-			gap_buffer_move_gap(buff, buff->gap_index + 1);
+			gap_buffer_move_gap_by(buff, 1, Cursor_Dir_Right);
 		}else if(s_flags & Special_Copy) {
-			gap_buffer_insert(buff, frame_input.clipboard_string);
+			const char *cstr = glfwGetClipboardString((GLFWwindow *)quark_window);
+			String8 clipboard_string = str8_lit("");
+			if (cstr) {
+				clipboard_string = str8_cstr_slice(cstr, 0, -1);
+			}
+			gap_buffer_insert(buff, clipboard_string);
 		}else if (frame_input.codepoint) {
 			u8 mem[4] = {0};
 			String8 encoded_rune = str8_encode_rune(frame_input.codepoint, mem);
@@ -87,7 +94,7 @@ int main(void)
 		};
 
 		gfx_begin_frame(0x131313ff); 
-	
+
 		f32 x = 0, y = 0;
 		f32 atlas_w = (f32)font_atlas.dim.x;
 		f32 atlas_h = (f32)font_atlas.dim.y;
@@ -104,16 +111,6 @@ int main(void)
 		local_persist vec2_f32 cursor_pos = {0};
 		local_persist vec2_f32 target_cursor_pos;
 
-		cursor_pos.x = smooth_damp(cursor_pos.x, target_cursor_pos.x, 0.05f, (f32)delta_time);
-		cursor_pos.y = smooth_damp(cursor_pos.y, target_cursor_pos.y, 0.05f, (f32)delta_time);
-
-		push_rect_rounded(
-			.position = cursor_pos,
-			.color = 0xb8bb26ff,
-			.radii = rect_radius(99),
-			.size  = {mono_advance, height}
-		);
-
 		str8_foreach(gap_buff_str, itr, i) {
 			color8_t col = 0x928374ff;
 			if (i >= buff->gap_index && i < buff->gap_index + buff->gap_size) {
@@ -121,10 +118,23 @@ int main(void)
 					target_cursor_pos.x = x;
 					target_cursor_pos.y = y;
 				}
-				i = buff->gap_index + buff->gap_size - 1;
+				i = buff->gap_index + buff->gap_size - itr.consumed;
+
+				cursor_pos.x = smooth_damp(cursor_pos.x, target_cursor_pos.x, 0.05f, (f32)delta_time);
+				cursor_pos.y = smooth_damp(cursor_pos.y, target_cursor_pos.y, 0.05f, (f32)delta_time);
+
+				push_rect_rounded(
+					.position = cursor_pos,
+					.color = 0xb8bb26ff,
+					.radii = rect_radius(99),
+					.size  = {mono_advance, height}
+				);
 				continue;
 			}
-			if (i == buff->gap_index + buff->gap_size) col = 0x131313ff;
+			if (i == buff->gap_index + buff->gap_size) {
+				col = 0x131313ff;
+			}
+
 			rune codepoint = itr.codepoint;
 
 			if (codepoint == '\n') {
