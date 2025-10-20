@@ -11,17 +11,27 @@ gap_buffer_insert(Gap_Buffer *buffer, String8 string)
 	if (string.len == 0) return;
 
 	if (string.len > buffer->gap_size) {
-		usize new_capacity = buffer->capacity * 2;
-		buffer->data = realloc(buffer->data, new_capacity);
-		return;
+		usize new_capacity = Max(buffer->capacity * 2, buffer->capacity + string.len);
+		u8 *new_data = malloc(new_capacity);
+
+		MemMove(new_data, buffer->data, buffer->gap_index);
+
+		usize after_gap_len = buffer->capacity - (buffer->gap_index + buffer->gap_size);
+		MemMove(new_data + new_capacity - after_gap_len, 
+					buffer->data + buffer->gap_index + buffer->gap_size, 
+					after_gap_len);
+
+		buffer->gap_size = new_capacity - buffer->gap_index - after_gap_len;
+
+		free(buffer->data);
+		buffer->data = new_data;
+		buffer->capacity = new_capacity;
 	}
 
 	usize gap_start = buffer->gap_index;
-	usize gap_end   = gap_start + buffer->gap_size;
-
 	MemMove(buffer->data + gap_start, string.raw, string.len);
-	buffer->gap_index   += string.len;
-	buffer->gap_size    -= string.len;
+	buffer->gap_index += string.len;
+	buffer->gap_size -= string.len;
 }
 
 internal void

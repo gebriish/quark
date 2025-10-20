@@ -198,13 +198,13 @@ gfx_begin_frame(color8_t color)
 	);
 	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
-	gfx_prep();
-
 	glUseProgram(_gfx_state->program);
 	glBindVertexArray(_gfx_state->vao);
 
 	glBindBuffer(GL_ARRAY_BUFFER, _gfx_state->vbo);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _gfx_state->ibo);
+
+	gfx_prep();
 }
 
 internal void
@@ -224,7 +224,7 @@ internal void
 gfx_flush()
 {
 	glBufferSubData(GL_ARRAY_BUFFER, 0, _gfx_state->render_buffer.vtx_count * VTX_SIZE, _gfx_state->render_buffer.vertices);
-	glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, _gfx_state->render_buffer.idx_count * sizeof(u32), _gfx_state->render_buffer.indices);
+	glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, _gfx_state->render_buffer.idx_count * sizeof(u16), _gfx_state->render_buffer.indices);  // Changed from sizeof(u32)
 	glDrawElements(GL_TRIANGLES, (int)(_gfx_state->render_buffer.idx_count), GL_UNSIGNED_SHORT, NULL);
 }
 

@@ -28,7 +28,7 @@ int main(void)
 		// ~geb: Font texture atlas generation
 		font_atlas = font_generate_atlas(
 			quark_ctx.persist_arena,
-			18,
+			16,
 			str8_lit(FONT_CHARSET)
 		);
 		u8 *image = font_rasterize_atlas(quark_ctx.transient_arena, &font_atlas);
@@ -98,7 +98,7 @@ int main(void)
 		f32 x = 0, y = 0;
 		f32 atlas_w = (f32)font_atlas.dim.x;
 		f32 atlas_h = (f32)font_atlas.dim.y;
-		f32 scale = (f32)font_atlas.metrics.font_size / font_atlas.metrics.design_units_per_em;
+		f32 scale = font_metrics_scale(&font_atlas.metrics);
 		f32 baseline_offset = font_atlas.metrics.ascent * scale;
 		f32 mono_advance = (f32)font_atlas.metrics.font_size * 0.7f;
 		f32 height = font_metrics_line_height(&font_atlas.metrics) * font_metrics_scale(&font_atlas.metrics);
@@ -136,10 +136,14 @@ int main(void)
 			}
 
 			rune codepoint = itr.codepoint;
+			if (codepoint == ' ') {
+				x += mono_advance;
+				continue;
+			}
 
 			if (codepoint == '\n') {
 				x = 0;
-				y += (font_atlas.metrics.ascent + font_atlas.metrics.descent + font_atlas.metrics.line_gap) * scale;
+				y += height;
 				continue;
 			}
 
@@ -153,7 +157,7 @@ int main(void)
 			if (!ok) {
 				col = 0xff0000ff;
 				ok = glyph_map_get(font_atlas.code_to_glyph, '?', &info);
-				if (!ok || codepoint == ' ') {
+				if (!ok) {
 					x += mono_advance;
 					continue;
 				}
