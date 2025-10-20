@@ -63,9 +63,9 @@ font_metrics_baseline_offset(Font_Metrics *metrics)
 }
 
 internal force_inline f32
-font_metrics_scale_factor(Font_Metrics *metrics, f32 desired_size)
+font_metrics_scale(Font_Metrics *metrics)
 {
-	return desired_size / (f32)metrics->font_size;
+	return (f32)metrics->font_size / metrics->design_units_per_em;
 }
 
 #define FONT_CHARSET \

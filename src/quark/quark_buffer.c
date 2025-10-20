@@ -4,23 +4,67 @@
 
 /////////////////////////////////////
 
-
-
 internal void 
 gap_buffer_insert(Gap_Buffer *buffer, String8 string)
 {
-	Assert(buffer);
-	
+	Assert(buffer && buffer->data);
+	if (string.len == 0) return;
+
+	if (string.len > buffer->gap_size) {
+		usize new_capacity = buffer->capacity * 2;
+		buffer->data = realloc(buffer->data, new_capacity);
+		return;
+	}
+
+	usize gap_start = buffer->gap_index;
+	usize gap_end   = gap_start + buffer->gap_size;
+
+	MemMove(buffer->data + gap_start, string.raw, string.len);
+	buffer->gap_index   += string.len;
+	buffer->gap_size    -= string.len;
 }
 
-internal void 
-gap_buffer_move_cursor(Gap_Buffer *buffer, Cursor_Move direction, int count)
+
+internal void
+gap_buffer_delete_rune(Gap_Buffer *buffer, u32 count)
 {
-	Assert(buffer);
-
+	Assert(buffer && buffer->data);
 	
+	while(count > 0 && buffer->gap_index > 0) {
+		do {
+			buffer->gap_index -= 1;
+			buffer->gap_size += 1;
+		} while(utf8_trail(buffer->data[buffer->gap_index]));
+		count -= 1;
+	}
 }
 
+internal void
+gap_buffer_move_gap(Gap_Buffer *buffer, usize byte_index)
+{
+	Assert(buffer && buffer->data);
+	
+	usize gap_start = buffer->gap_index;
+	usize gap_end_exclusive = gap_start + buffer->gap_size;
+	
+	if (byte_index > buffer->capacity - buffer->gap_size) { 
+		return; 
+	}
+	
+	if (byte_index < gap_start) {
+		usize move_size = gap_start - byte_index;
+		MemMove(buffer->data + gap_end_exclusive - move_size, 
+					buffer->data + byte_index, 
+					move_size);
+		buffer->gap_index = byte_index;
+	} else { // byte_index >= gap_end_exclusive
+		usize move_size = byte_index - gap_start;
+		MemMove(buffer->data + gap_start, 
+					buffer->data + gap_end_exclusive, 
+					move_size);
+		buffer->gap_index = byte_index;
+	}
+}
 
 /////////////////////////////////////
 
@@ -76,7 +120,7 @@ gap_buffer_new(Buffer_Manager *bm, usize buffer_size)
 		new_buffer->capacity = buffer_size;
 	}
 	
-	new_buffer->cursor_pos = 0;
+	new_buffer->gap_index = 0;
 	new_buffer->gap_size = new_buffer->capacity;
 	
 	new_buffer->next = bm->buffer_list;
@@ -109,7 +153,7 @@ gap_buffer_delete(Buffer_Manager *bm, Gap_Buffer *buffer)
 		bm->buffer_list = curr_buff->next;
 	}
 	
-	curr_buff->cursor_pos = 0;
+	curr_buff->gap_index = 0;
 	curr_buff->gap_size = curr_buff->capacity;
 	
 	curr_buff->next = bm->buffer_freelist;
@@ -125,7 +169,7 @@ buffer_manager_clear(Buffer_Manager *bm)
 	while (curr) {
 		Gap_Buffer *next = curr->next;
 		
-		curr->cursor_pos = 0;
+		curr->gap_index = 0;
 		curr->gap_size = curr->capacity;
 		
 		curr->next = bm->buffer_freelist;

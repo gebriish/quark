@@ -8,28 +8,27 @@
 /////////////////////////////////////
 // ~geb: Gap buffer
 
+typedef struct Cursor Cursor;
+struct Cursor {
+	usize row;
+	usize line;
+	usize byte;
+};
+
 typedef struct Gap_Buffer Gap_Buffer;
 struct Gap_Buffer {
 	u8 *data;
 
 	usize capacity;
+	usize gap_index;
 	usize gap_size;
-	usize cursor_pos;
 
 	Gap_Buffer *next; // linked list of buffers
 };
 
-typedef u32 Cursor_Move; 
-enum {
-	Cursor_Move_Left,
-	Cursor_Move_Right,
-	Cursor_Move_Down,
-	Cursor_Move_Up,
-};
-
 internal void gap_buffer_insert(Gap_Buffer *buffer, String8 string);
-internal void gap_buffer_move_cursor(Gap_Buffer *buffer, Cursor_Move direction, int count);
-
+internal void gap_buffer_delete_rune(Gap_Buffer *buffer, u32 count);
+internal void gap_buffer_move_gap(Gap_Buffer *buffer, usize byte_index);
 
 /////////////////////////////////////
 // ~geb: Gap buffer Manager

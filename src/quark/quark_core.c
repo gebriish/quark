@@ -20,4 +20,3 @@ quark_delete(Quark_Context *context)
 	arena_release(context->persist_arena);
 	arena_release(context->transient_arena);
 }
-

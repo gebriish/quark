@@ -29,8 +29,17 @@ internal rune_itr str8_decode_utf8(u8 *raw, usize len);
 internal usize    str8_codepoint_count(String8 str);
 internal String8  str8_to_ctring(Arena *arena, String8 string);
 internal String8  str8_copy_cstr(Arena *arena, const char *cstring);
+internal String8  str8_encode_rune(rune codepoint, u8 backing_mem[4]);
 
 internal bool     rune_is_space(rune codepoint);
+
+internal usize    utf8_codepoint_size(u8 lead);
+
+force_inline bool
+utf8_trail(u8 byte)
+{
+	return (byte & 0xC0) == 0x80;
+}
 
 #define STR_FMT "%.*s"
 

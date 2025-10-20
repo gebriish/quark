@@ -44,12 +44,11 @@ font_get_metrics(u32 font_size)
 	Font_Metrics result = {0};
 	result.font_size = font_size;
 
-	f32 scale = (f32)font_size / (f32)face->units_per_EM;
-
 	result.design_units_per_em = (f32)(face->units_per_EM);
 	result.ascent              = (f32) face->ascender;
 	result.descent             = -(f32)face->descender;
 	result.line_gap            = (f32)(face->height - face->ascender + face->descender);
+	result.font_size           = font_size;
 
 	return result;
 }
@@ -153,7 +152,7 @@ font_rasterize_atlas(Arena *scratch, Font_Atlas *atlas)
 		for (u32 row = 0; row < bmp->rows; ++row) {
 			u8 *src_row = src + row * (u32)bmp->pitch;
 			u8 *dst_row = atlas_image + (dst_y + row) * atlas_width + dst_x;
-			MemCopy(dst_row, src_row, bmp->width);
+			MemMove(dst_row, src_row, bmp->width);
 		}
 	}
 

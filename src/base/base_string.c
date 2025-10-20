@@ -36,16 +36,19 @@ str8_slice(String8 string, usize start, usize end_exclusive)
 	return str8(string.raw + start, Min(string.len, end_exclusive - start));
 }
 
-
 internal String8
-str8_cstr_slice(const char* cstring, isize start, isize end_exclusive)
+str8_cstr_slice(const char *cstring, isize start, isize end_exclusive)
 {
+	AssertAlways(cstring != NULL);
 	usize len = MemStrlen(cstring);
-	AssertAlways(start >= 0 && end_exclusive <= len && end_exclusive > start);
+
 	if (end_exclusive < 0) {
 		end_exclusive = (isize) len;
 	}
-	return str8((u8 *)(cstring + start), Min(len, (usize)(end_exclusive - start)));
+
+	AssertAlways(start >= 0 && end_exclusive <= (isize)len && end_exclusive > start);
+
+	return str8((u8 *)(cstring + start), (usize)(end_exclusive - start));
 }
 
 internal rune_itr 
@@ -71,12 +74,10 @@ str8_decode_utf8(u8 *raw, usize len) {
 
 	switch (byte_count) {
 		case 1: {
-			// ASCII: 0xxxxxxx
 			result.codepoint = first;
 		} break;
 
 		case 2: {
-			// 110xxxxx 10xxxxxx
 			u8 b1 = raw[0];
 			u8 b2 = raw[1];
 
@@ -97,7 +98,6 @@ str8_decode_utf8(u8 *raw, usize len) {
 		} break;
 
 		case 3: {
-			// 1110xxxx 10xxxxxx 10xxxxxx
 			u8 b1 = raw[0];
 			u8 b2 = raw[1];
 			u8 b3 = raw[2];
@@ -119,7 +119,6 @@ str8_decode_utf8(u8 *raw, usize len) {
 		} break;
 
 		case 4: {
-			// 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx
 			u8 b1 = raw[0];
 			u8 b2 = raw[1];
 			u8 b3 = raw[2];
@@ -172,7 +171,7 @@ str8_to_ctring(Arena *arena, String8 string)
 {
 	String8 result = {0};
 	result.raw = arena_push_array(arena, u8, string.len + 1);
-	MemCopy(result.raw, string.raw, string.len);
+	MemMove(result.raw, string.raw, string.len);
 	result.raw[string.len] = '\0';
 	result.len = string.len;
 	return result;
@@ -185,8 +184,46 @@ str8_copy_cstr(Arena *arena, const char *cstring)
 	String8 result;
 	result.raw = arena_push(arena, string_len + 1, AlignOf(u8), false);
 	result.len = string_len;
-	MemCopy(result.raw, cstring, string_len);
+	MemMove(result.raw, cstring, string_len);
 	result.raw[string_len] = 0;
+	return result;
+}
+
+internal String8
+str8_encode_rune(rune codepoint, u8 backing_mem[4])
+{
+	String8 result = {0};
+
+	if (codepoint <= 0x7F) {
+		backing_mem[0] = (u8)codepoint;
+		result.len = 1;
+	}
+	else if (codepoint <= 0x7FF) {
+		backing_mem[0] = 0xC0 | (u8)(codepoint >> 6);        // first 5 bits
+		backing_mem[1] = 0x80 | (u8)(codepoint & 0x3F);      // last 6 bits
+		result.len = 2;
+	}
+	else if (codepoint <= 0xFFFF) {
+		backing_mem[0] = 0xE0 | (u8)(codepoint >> 12);                  // first 4 bits
+		backing_mem[1] = 0x80 | (u8)((codepoint >> 6) & 0x3F);          // middle 6 bits
+		backing_mem[2] = 0x80 | (u8)(codepoint & 0x3F);                 // last 6 bits
+		result.len = 3;
+	}
+	else if (codepoint <= 0x10FFFF) {
+		backing_mem[0] = 0xF0 | (u8)(codepoint >> 18);                  // first 3 bits
+		backing_mem[1] = 0x80 | (u8)((codepoint >> 12) & 0x3F);         // next 6 bits
+		backing_mem[2] = 0x80 | (u8)((codepoint >> 6) & 0x3F);          // next 6 bits
+		backing_mem[3] = 0x80 | (u8)(codepoint & 0x3F);                 // last 6 bits
+		result.len = 4;
+	}
+	else {
+		backing_mem[0] = 0xEF;
+		backing_mem[1] = 0xBF;
+		backing_mem[2] = 0xBD;
+		result.len = 3;
+	}
+
+	result.raw = backing_mem;
 	return result;
 }
 
@@ -196,3 +233,12 @@ rune_is_space(rune cp)
 	return cp == ' ' || cp == '\t' || cp == '\r';
 }
 
+internal usize
+utf8_codepoint_size(u8 lead)
+{
+    if ((lead & 0x80) == 0x00) return 1;
+    if ((lead & 0xE0) == 0xC0) return 2;
+    if ((lead & 0xF0) == 0xE0) return 3;
+    if ((lead & 0xF8) == 0xF0) return 4;
+    return 1;
+}

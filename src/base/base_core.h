@@ -63,7 +63,7 @@
 ////////////////////////////////
 // ~geb: Mem operations
 
-#define MemCopy(dst, src, size)  memmove((dst), (src), (size))
+#define MemMove(dst, src, size)  memmove((dst), (src), (size))
 #define MemZero(dst, size)        memset((dst), 0x00, (size))
 #define MemZeroStruct(dst)        memset((dst), 0x00, (sizeof(*dst)))
 #define MemCompare(a, b, size)    memcmp((a), (b), (size))
