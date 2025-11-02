@@ -31,6 +31,11 @@ internal void gap_buffer_delete_rune(Gap_Buffer *buffer, u32 count, Cursor_Dir d
 internal void gap_buffer_move_gap(Gap_Buffer *buffer, usize byte);
 internal void gap_buffer_move_gap_by(Gap_Buffer *buffer, u32 count, Cursor_Dir dir);
 
+internal String8 gap_buffer_to_str(Gap_Buffer *buffer, Arena *allocator);
+
+internal u32  runes_till(Gap_Buffer *buffer, rune target);
+internal u32  runes_from(Gap_Buffer *buffer, rune target);
+
 /////////////////////////////////////
 // ~geb: Gap buffer Manager
 

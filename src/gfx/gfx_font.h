@@ -50,6 +50,14 @@ internal Font_Metrics font_get_metrics(u32 font_size);
 internal Font_Atlas font_generate_atlas(Arena *allocator, u32 font_size, String8 characters);
 internal u8 *font_rasterize_atlas(Arena *scratch, Font_Atlas *atlas);
 
+#define FONT_CHARSET \
+"!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~" \
+"ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ" \
+"ΆΈΉΊΌΎΏΪΫάέήίΰαβγδεζηθικλμνξοπρστυφχψωϊϋόύώ" \
+
+////////////////////////
+// ~geb: Inline helper functions
+
 internal force_inline f32
 font_metrics_line_height(Font_Metrics *metrics)
 {
@@ -67,10 +75,5 @@ font_metrics_scale(Font_Metrics *metrics)
 {
 	return (f32)metrics->font_size / metrics->design_units_per_em;
 }
-
-#define FONT_CHARSET \
-"!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~" \
-"ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ" \
-"ΆΈΉΊΌΎΏΪΫάέήίΰαβγδεζηθικλμνξοπρστυφχψωϊϋόύώ" \
 
 #endif

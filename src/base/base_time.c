@@ -3,6 +3,8 @@
 #if OS_WINDOWS
 # include <windows.h>
 #elif OS_LINUX || OS_MAC
+#include <time.h>
+#include <unistd.h>
 # include <time.h>
 # include <sys/time.h>
 #endif

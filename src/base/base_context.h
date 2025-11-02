@@ -132,4 +132,8 @@
 # define OS_MAC 0
 #endif
 
+#if OS_LINUX
+# define _GNU_SOURCE
+#endif
+
 #endif

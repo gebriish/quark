@@ -5,9 +5,9 @@ SRC="src/main.c"
 BIN="quark"
 
 CC="clang"
-CSTD="-std=gnu11"
+CSTD="-std=c11"
 
-CFLAGS="$CSTD -Wconversion -Wsign-conversion -Wfloat-conversion -Wno-override-init"
+CFLAGS="$CSTD -Wconversion -Wsign-conversion -Wfloat-conversion -Wno-override-init -g"
 INCLUDES="-I/usr/include/freetype2"
 LIBS="-lm -lGL -lfreetype -lglfw3"
 

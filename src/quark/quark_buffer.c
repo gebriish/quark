@@ -73,24 +73,23 @@ internal void
 gap_buffer_delete_rune(Gap_Buffer *buffer, u32 count, Cursor_Dir dir)
 {
 	Assert(buffer && buffer->data);
-
 	while (count > 0) {
 		if (dir == Cursor_Dir_Left) {
 			if (buffer->gap_index == 0) break;
-
 			do {
 				buffer->gap_index -= 1;
 				buffer->gap_size += 1;
-			} while (buffer->gap_index > 0 && utf8_trail(buffer->data[buffer->gap_index]));
+			} while (buffer->gap_index > 0 &&
+			         utf8_trail(buffer->data[buffer->gap_index]));
 		}
 		else if (dir == Cursor_Dir_Right) {
-			if (buffer->gap_index + buffer->gap_size >= buffer->capacity) break;
+			usize after_gap = buffer->gap_index + buffer->gap_size;
+			if (after_gap >= buffer->capacity) break;
 			do {
 				buffer->gap_size += 1;
 			} while (buffer->gap_index + buffer->gap_size < buffer->capacity &&
-			utf8_trail(buffer->data[buffer->gap_index + buffer->gap_size - 1]));
+			         utf8_trail(buffer->data[buffer->gap_index + buffer->gap_size]));
 		}
-
 		count -= 1;
 	}
 }
@@ -120,6 +119,87 @@ gap_buffer_move_gap(Gap_Buffer *buffer, usize byte_index)
 					move_size);
 		buffer->gap_index = byte_index;
 	}
+}
+
+
+internal String8
+gap_buffer_to_str(Gap_Buffer *buffer, Arena *allocator)
+{
+	usize str_len = buffer->capacity - buffer->gap_size;
+	if (str_len <= 0) return str8(NULL, 0);
+
+	u8 *result = arena_push_array(allocator, u8, str_len);
+	if (!result) {
+		LogError("Failed to allocate memory for buffer string conversion");
+		return str8(NULL, 0);
+	}
+
+	usize before_gap_len = buffer->gap_index;
+	MemMove(result, buffer->data, before_gap_len);
+
+	usize gap_end = buffer->gap_index + buffer->gap_size;
+	usize after_gap_len = buffer->capacity - gap_end;
+	MemMove(result + before_gap_len, buffer->data + gap_end, after_gap_len);
+
+	return str8(result, str_len);
+}
+
+internal u32
+runes_till(Gap_Buffer *buffer, rune target)
+{
+	Assert(buffer && buffer->data);
+	
+	usize gap_end = buffer->gap_index + buffer->gap_size;
+	if (gap_end >= buffer->capacity) { return 0; }
+
+	u8 *string_begin = buffer->data + gap_end;
+
+	String8 slice = str8(string_begin, buffer->capacity - gap_end);
+
+	u32 rune_count = 0;
+	str8_foreach(slice, itr, i) {
+		if (itr.codepoint == target) {
+			goto outside;
+		}
+		rune_count += 1;
+	}
+
+outside:
+	return rune_count;
+}
+
+internal u32
+runes_from(Gap_Buffer *buffer, rune target)
+{
+	Assert(buffer && buffer->data);
+	
+	if (buffer->gap_index == 0) { return 0; }
+	
+	u8 *string_begin = buffer->data;
+	String8 slice = str8(string_begin, buffer->gap_index);
+	
+	u32 rune_count = 0;
+	
+	usize pos = slice.len;
+	while (pos > 0) {
+		pos -= 1;
+		while (pos > 0 && utf8_trail(slice.raw[pos])) {
+			pos -= 1;
+		}
+		
+		u8 *rune_start = slice.raw + pos;
+		usize remaining = slice.len - pos;
+		rune_itr decoded = str8_decode_utf8(rune_start, remaining);
+		
+		if (decoded.codepoint == target) {
+			goto outside;
+		}
+		
+		rune_count += 1;
+	}
+	
+outside:
+	return rune_count;
 }
 
 /////////////////////////////////////

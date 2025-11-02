@@ -10,15 +10,21 @@ typedef GLFWwindow* Quark_Window;
 
 typedef u32 Special_Press_Flags;
 enum {
-	Special_Press_Return     = (Special_Press_Flags)(1 << 0),
-	Special_Press_Backspace  = (Special_Press_Flags)(1 << 1),
-	Special_Press_Tab        = (Special_Press_Flags)(1 << 2),
-	Special_Press_L          = (Special_Press_Flags)(1 << 3),
-	Special_Press_R          = (Special_Press_Flags)(1 << 4),
-	Special_Press_D          = (Special_Press_Flags)(1 << 5),
-	Special_Press_U          = (Special_Press_Flags)(1 << 6),
-	Special_Copy             = (Special_Press_Flags)(1 << 7),
-	Special_Press_Delete     = (Special_Press_Flags)(1 << 8),
+	Special_Press_None   = 0,
+	Special_Press_Cmd    = 1 << 1,
+	Special_Press_Insert = 1 << 2,
+	Special_Press_Escape = 1 << 3,
+
+	Special_Press_Up     = 1 << 4,
+	Special_Press_Down   = 1 << 5,
+	Special_Press_Left   = 1 << 6,
+	Special_Press_Right  = 1 << 7,
+
+	Special_Press_Enter  = 1 << 8,
+
+	Special_Press_Backspace  = 1 << 9,
+	Special_Press_Delete     = 1 << 10,
+	Special_Press_Tab        = 1 << 11,
 };
 
 typedef struct Input_Data Input_Data;
@@ -34,7 +40,6 @@ internal void quark_window_close(Quark_Window window);
 
 internal bool quark_window_is_open(Quark_Window window);
 internal void quark_window_swap_buff(Quark_Window window);
-
 
 internal Input_Data quark_gather_input(Quark_Window window);
 

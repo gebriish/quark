@@ -13,30 +13,52 @@ internal void
 char_callback(GLFWwindow* window, unsigned int codepoint) 
 {
 	g_input_data.codepoint = codepoint;
+
+	switch(codepoint) {
+		case ':':
+			g_input_data.special_press |= Special_Press_Cmd;
+		break;
+		case 'i':
+			g_input_data.special_press |= Special_Press_Insert;
+		break;
+	}
+
 }
 
 internal void
 key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-	if (action != GLFW_RELEASE) {
-		Special_Press_Flags s_flags = 0;
-		switch (key) {
-			case GLFW_KEY_ENTER:     s_flags |= Special_Press_Return;
-			case GLFW_KEY_BACKSPACE: s_flags |= Special_Press_Backspace;
-			case GLFW_KEY_DELETE:    s_flags |= Special_Press_Delete;
-			case GLFW_KEY_TAB:       s_flags |= Special_Press_Tab;
-			case GLFW_KEY_LEFT:      s_flags |= Special_Press_L;
-			case GLFW_KEY_RIGHT:     s_flags |= Special_Press_R;
-			case GLFW_KEY_DOWN:      s_flags |= Special_Press_D;
-			case GLFW_KEY_UP:        s_flags |= Special_Press_U;
-			case GLFW_KEY_V:
-				{
-					if (mods == GLFW_MOD_CONTROL) {
-						s_flags |= Special_Copy;
-					}
-				}break;
+	if (action != GLFW_RELEASE)	{
+		switch(key)
+		{
+			case GLFW_KEY_ESCAPE:
+				g_input_data.special_press |= Special_Press_Escape;
+			break;
+			case GLFW_KEY_LEFT:
+				g_input_data.special_press |= Special_Press_Left;
+			break;
+			case GLFW_KEY_RIGHT:
+				g_input_data.special_press |= Special_Press_Right;
+			break;
+			case GLFW_KEY_UP:
+				g_input_data.special_press |= Special_Press_Up;
+			break;
+			case GLFW_KEY_DOWN:
+				g_input_data.special_press |= Special_Press_Down;
+			break;
+			case GLFW_KEY_ENTER:
+				g_input_data.special_press |= Special_Press_Enter;
+			break;
+			case GLFW_KEY_BACKSPACE:
+				g_input_data.special_press |= Special_Press_Backspace;
+			break;
+			case GLFW_KEY_DELETE:
+				g_input_data.special_press |= Special_Press_Delete;
+			break;
+			case GLFW_KEY_TAB:
+				g_input_data.special_press |= Special_Press_Tab;
+			break;
 		}
-		g_input_data.special_press = s_flags;
 	}
 }
 
@@ -102,7 +124,6 @@ quark_gather_input(Quark_Window window)
 		glfwGetCursorPos(glfw_handle, &cx, &cy);
 		g_input_data.mouse_pointer = (vec2_f32){ (f32) cx, (f32) cy };
 	}
-
 
 	return g_input_data;
 }

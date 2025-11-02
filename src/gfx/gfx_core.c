@@ -360,8 +360,7 @@ gfx_push_rect_rounded(Rect_Params *params)
 	rounded_mask |= (r[2] > 0.5f) << 2;
 	rounded_mask |= (r[3] > 0.5f) << 3;
 
-	rounded_count = (rounded_mask & 1) + ((rounded_mask >> 1) & 1) + 
-		((rounded_mask >> 2) & 1) + ((rounded_mask >> 3) & 1);
+	rounded_count = (u8)((rounded_mask & 1) + ((rounded_mask >> 1) & 1) + ((rounded_mask >> 2) & 1) + ((rounded_mask >> 3) & 1));
 
 	u32 outline_vertices = 4 + rounded_count;
 	u32 corner_vertices = rounded_count * 3;
@@ -432,8 +431,8 @@ gfx_push_rect_rounded(Rect_Params *params)
 	u16 fan_center = base_idx;
 	for (u16 i = 1; i < outline_vertices - 1; i++) {
 		idx[idx_count++] = fan_center;
-		idx[idx_count++] = base_idx + i + 1;
-		idx[idx_count++] = base_idx + i;
+		idx[idx_count++] = (u16)(base_idx + i + 1);
+		idx[idx_count++] = (u16)(base_idx + i);
 	}
 
 	for (i32 i = 0; i < 4; i++) {
