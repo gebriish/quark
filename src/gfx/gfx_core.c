@@ -590,3 +590,24 @@ gfx_texture_update(u32 id, i32 w, i32 h, i32 channels, u8 *data)
 	return true;
 }
 
+internal bool 
+gfx_texture_unload(u32 id)
+{
+	Assert(_gfx_state);
+	
+	if (id >= _gfx_state->texture_count) {
+		return false;
+	}
+	
+	Texture *handle = &_gfx_state->texture_slots[id];
+	if (handle->gl_id == 0) {
+		return false;
+	}
+	
+	glDeleteTextures(1, &handle->gl_id);
+	handle->gl_id = 0;
+	handle->next = _gfx_state->texture_freelist;
+	_gfx_state->texture_freelist = id;
+
+	return true;
+}

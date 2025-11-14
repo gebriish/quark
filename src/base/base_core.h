@@ -220,9 +220,7 @@ struct Temp {
 	usize pos;
 };
 
-internal Arena *arena_alloc(usize capacity);
-internal Arena *arena_nest(Arena *backing, usize capacity);
-internal void   arena_release(Arena *arena);
+internal Arena *arena_new(u8 *mem, usize capacity);
 
 internal void  *arena_push_(Arena *arena, Alloc_Params *params);
 internal void   arena_pop(Arena *arena);

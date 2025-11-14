@@ -8,9 +8,7 @@ internal UI_Context *
 ui_init(Arena *allocator)
 {
 	UI_Context *ctx = arena_push_struct(allocator, UI_Context);
-	ctx->internal_arena = arena_nest(allocator, KB(512));
-
-	
+	ctx->internal_arena = allocator;
 }
 
 internal UI_Context * 

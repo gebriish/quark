@@ -208,7 +208,7 @@ internal void
 buffer_manager_init(Arena *allocator, Buffer_Manager *bm)
 {
 	Assert(bm && "Cannot Init null buffer manager");
-	bm->allocator = arena_nest(allocator, KB(64));
+	bm->allocator = allocator;
 	bm->buffer_list = NULL;
 	bm->buffer_freelist = NULL;
 }
@@ -304,13 +304,13 @@ buffer_manager_clear(Buffer_Manager *bm)
 	Gap_Buffer *curr = bm->buffer_list;
 	while (curr) {
 		Gap_Buffer *next = curr->next;
-		
+
 		curr->gap_index = 0;
 		curr->gap_size = curr->capacity;
-		
+
 		curr->next = bm->buffer_freelist;
 		bm->buffer_freelist = curr;
-		
+
 		curr = next;
 	}
 	

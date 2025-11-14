@@ -1,79 +1,63 @@
 #ifndef GFX_FONT_H
 #define GFX_FONT_H
 
-#include "../base/base_core.h"
 #include "../base/base_hash.h"
 #include "../base/base_string.h"
 
-#undef internal
-#include <ft2build.h>
-#include FT_FREETYPE_H
-#include FT_GLYPH_H
-#define internal static
+#include "gfx_core.h"
 
-typedef struct Glyph_Info Glyph_Info;
-struct Glyph_Info {
-	vec2_i16 position;
-	i16 advance;
-	vec2_u8 size;
-	vec2_i8 bearing;
-};
+#define STB_TRUETYPE_IMPLEMENTATION
+#include "../thirdparty/stb/stb_truetype.h"
 
-Map32_Define(glyph_map, Glyph_Info)
+#define FONT_CHARSET str8_lit(\
+"!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~" \
+"ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ" \
+"ΆΈΉΊΌΎΏΪΫάέήίΰαβγδεζηθικλμνξοπρστυφχψωϊϋόύώ"\
+)
 
-typedef struct {
-	f32 design_units_per_em;
+typedef struct Font Font;
+struct Font {
+	stbtt_fontinfo font_info;
+	f32 scale;
 	f32 ascent;
 	f32 descent;
 	f32 line_gap;
-	u32 font_size;
-} Font_Metrics;
+};
+
+typedef struct Glyph_Info Glyph_Info;
+struct Glyph_Info {
+	rune codepoint;
+	i32 x0, y0, x1, y1;
+	f32 xoff, yoff;
+	f32 xadvance;
+};
+
+Map32_Define(glyph_map, Glyph_Info);
 
 typedef struct Font_Atlas Font_Atlas;
 struct Font_Atlas {
-	glyph_map *code_to_glyph;
-	vec2_u16 dim;
-	Font_Metrics metrics;
+	u8 *atlas_data;
+	glyph_map *glyphs;
+	Font font;
+	u32 tex_id;
+	i32 atlas_width, atlas_height;
+	i32 current_x, current_y;
+	i32 row_height;
+	bool dirty;
 };
 
-typedef struct Font_State Font_State;
-struct Font_State {
-	FT_Library library;
-	FT_Face face;
-};
+internal bool font_atlas_new(Arena *arena, u8 *font_data,	i32 size, f32 font_height, Font_Atlas *result);
+internal void font_atlas_delete(Font_Atlas *atlas);
 
-internal void font_init(Arena *allocator, String8 path);
-internal void font_close();
+internal bool font_atlas_add_glyph(Font_Atlas *atlas, rune codepoint);
+internal bool font_atlas_expand(Font_Atlas *atlas);
 
-internal Font_Metrics font_get_metrics(u32 font_size);
+internal void font_atlas_add_glyphs_from_string(Font_Atlas *atlas, String8 string);
+internal void font_atlas_update(Font_Atlas *atlas);
 
-internal Font_Atlas font_generate_atlas(Arena *allocator, u32 font_size, String8 characters);
-internal u8 *font_rasterize_atlas(Arena *scratch, Font_Atlas *atlas);
+internal bool font_atlas_get_glyph(Font_Atlas *atlas, rune codepoint, Glyph_Info *out_glyph);
+internal bool font_atlas_resize_glyphs(Arena *temp_arena, Font_Atlas *atlas, f32 new_font_height);
 
-#define FONT_CHARSET \
-"!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~" \
-"ΑΒΓΔΕΖΗΘΙΚΛΜΝΞΟΠΡΣΤΥΦΧΨΩ" \
-"ΆΈΉΊΌΎΏΪΫάέήίΰαβγδεζηθικλμνξοπρστυφχψωϊϋόύώ" \
-
-////////////////////////
-// ~geb: Inline helper functions
-
-internal force_inline f32
-font_metrics_line_height(Font_Metrics *metrics)
-{
-	return metrics->ascent + metrics->descent + metrics->line_gap;
-}
-
-internal force_inline f32
-font_metrics_baseline_offset(Font_Metrics *metrics)
-{
-	return metrics->ascent;
-}
-
-internal force_inline f32
-font_metrics_scale(Font_Metrics *metrics)
-{
-	return (f32)metrics->font_size / metrics->design_units_per_em;
-}
+internal f32 font_atlas_height(Font_Atlas *atlas);
 
 #endif

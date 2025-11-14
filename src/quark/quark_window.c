@@ -16,10 +16,10 @@ char_callback(GLFWwindow* window, unsigned int codepoint)
 
 	switch(codepoint) {
 		case ':':
-			g_input_data.special_press |= Special_Press_Cmd;
+			g_input_data.special_press |= Press_Cmd;
 		break;
 		case 'i':
-			g_input_data.special_press |= Special_Press_Insert;
+			g_input_data.special_press |= Press_Insert;
 		break;
 	}
 
@@ -32,31 +32,31 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 		switch(key)
 		{
 			case GLFW_KEY_ESCAPE:
-				g_input_data.special_press |= Special_Press_Escape;
+				g_input_data.special_press |= Press_Escape;
 			break;
 			case GLFW_KEY_LEFT:
-				g_input_data.special_press |= Special_Press_Left;
+				g_input_data.special_press |= Press_Left;
 			break;
 			case GLFW_KEY_RIGHT:
-				g_input_data.special_press |= Special_Press_Right;
+				g_input_data.special_press |= Press_Right;
 			break;
 			case GLFW_KEY_UP:
-				g_input_data.special_press |= Special_Press_Up;
+				g_input_data.special_press |= Press_Up;
 			break;
 			case GLFW_KEY_DOWN:
-				g_input_data.special_press |= Special_Press_Down;
+				g_input_data.special_press |= Press_Down;
 			break;
 			case GLFW_KEY_ENTER:
-				g_input_data.special_press |= Special_Press_Enter;
+				g_input_data.special_press |= Press_Enter;
 			break;
 			case GLFW_KEY_BACKSPACE:
-				g_input_data.special_press |= Special_Press_Backspace;
+				g_input_data.special_press |= Press_Backspace;
 			break;
 			case GLFW_KEY_DELETE:
-				g_input_data.special_press |= Special_Press_Delete;
+				g_input_data.special_press |= Press_Delete;
 			break;
 			case GLFW_KEY_TAB:
-				g_input_data.special_press |= Special_Press_Tab;
+				g_input_data.special_press |= Press_Tab;
 			break;
 		}
 	}
@@ -108,6 +108,14 @@ internal void
 quark_window_swap_buff(Quark_Window window) 
 {
 	glfwSwapBuffers(window);
+}
+
+internal vec2_i32
+quark_window_size(Quark_Window window)
+{
+	int x, y;
+	glfwGetWindowSize(window, &x, &y);
+	return (vec2_i32) {x , y};
 }
 
 internal Input_Data 

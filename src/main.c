@@ -3,12 +3,14 @@
 #include "base/base_inc.h"
 #include "gfx/gfx_inc.h"
 #include "quark/quark_inc.h"
+#include "os/os_inc.h"
 
 ////////////////////////////////
 // ~geb: .c Includes
 #include "base/base_inc.c"
 #include "gfx/gfx_inc.c"
 #include "quark/quark_inc.c"
+#include "os/os_inc.c"
 
 global Quark_Context quark_ctx;
 global Quark_Window  quark_window;
@@ -20,185 +22,234 @@ int main(void)
 {
 	// ~geb: Layer initializations
 	quark_new(&quark_ctx);
+
 	quark_window = quark_window_open();
 	gfx_init(quark_ctx.persist_arena, quark_ctx.transient_arena, &gfx_state, quark_get_ogl_proc_addr);
-	font_init(quark_ctx.persist_arena, str8_lit("./res/fonts/JetBrainsMono-Regular.ttf"));
 
-	{
-		// ~geb: Font texture atlas generation
-		font_atlas = font_generate_atlas(
-			quark_ctx.persist_arena,
-			20,
-			str8_lit(FONT_CHARSET)
-		);
-		u8 *image = font_rasterize_atlas(quark_ctx.transient_arena, &font_atlas);
-		Texture_Data data = {
-			.data = image,
-			.width = font_atlas.dim.x,
-			.height = font_atlas.dim.y,
-			.channels = 1,
-		};
-		font_tex_id = (u8) gfx_texture_upload(data, TextureKind_GreyScale);
-	}
+	String8 file_data = os_read_file_data(
+		quark_ctx.persist_arena, 
+		str8_lit("./res/fonts/JetBrainsMono-Regular.ttf")
+	);
+	font_atlas_new(quark_ctx.persist_arena, file_data.raw, 512, 22, &font_atlas);
+	font_atlas_add_glyphs_from_string(&font_atlas, FONT_CHARSET);
+	font_tex_id = font_atlas.tex_id;
 
-	Time_Stamp last_time = time_now();
+	Gap_Buffer *buff = gap_buffer_new(&quark_ctx.buffer_manager, KB(10));
 
-	Buffer_Manager bm;
-	buffer_manager_init(quark_ctx.persist_arena, &bm);
+	OS_Time_Stamp last_time = os_time_now();
 
-	Gap_Buffer *buff = gap_buffer_new(&bm, KB(10));
+	vec2_f32 cursor_pos = {0};
+	vec2_f32 target_cursor_pos = {0};
 
 	while (quark_window_is_open(quark_window)) {
+		font_atlas_update(&font_atlas);
+
 		arena_clear(quark_ctx.transient_arena);
-		Time_Stamp frame_start = time_now();
-		f64 delta_time = time_diff(last_time, frame_start).seconds;
+		OS_Time_Stamp frame_start = os_time_now();
+		f64 delta_time = os_time_diff(last_time, frame_start).seconds;
 		last_time = frame_start;
 
+		vec2_i32 window_size = quark_window_size(quark_window);
+
 		Input_Data frame_input = quark_gather_input(quark_window);
-		quark_frame_update(&quark_ctx, frame_input);
+		Press_Flags s_flags = frame_input.special_press;
 
-		Special_Press_Flags s_flags = frame_input.special_press;
+		gfx_begin_frame(0x131313FF);
 
-		gfx_begin_frame(0x131313ff);
-
+		// Handle input
 		if (quark_ctx.state == Quark_State_Insert) {
-			if (s_flags & Special_Press_Enter) {
+			if (s_flags & Press_Enter) {
 				gap_buffer_insert(buff, str8_lit("\n"));
-			}else if(s_flags & Special_Press_Backspace) {
+			} else if (s_flags & Press_Backspace) {
 				gap_buffer_delete_rune(buff, 1, Cursor_Dir_Left);
-			}else if(s_flags & Special_Press_Delete) {
+			} else if (s_flags & Press_Delete) {
 				gap_buffer_delete_rune(buff, 1, Cursor_Dir_Right);
-			}else if(s_flags & Special_Press_Tab) {
+			} else if (s_flags & Press_Tab) {
 				gap_buffer_insert(buff, str8_lit("\t"));
-			}else if(s_flags & Special_Press_Left) {
-				gap_buffer_move_gap_by(buff, 1, Cursor_Dir_Left);
-			}else if(s_flags & Special_Press_Right) {
-				gap_buffer_move_gap_by(buff, 1, Cursor_Dir_Right);
-			}else if(s_flags & Special_Press_Down) {
-				u32 into_line = runes_from(buff, '\n');
-				u32 to_newline = runes_till(buff, '\n');
-				gap_buffer_move_gap_by(buff, to_newline + 1, Cursor_Dir_Right);
-				u32 chars_in_next_line = runes_till(buff, '\n');
-				u32 move_amount = Min(into_line, chars_in_next_line);
-				gap_buffer_move_gap_by(buff, move_amount, Cursor_Dir_Right);
-			}else if(s_flags & Special_Press_Up) {
-				u32 into_line = runes_from(buff, '\n');
-				gap_buffer_move_gap_by(buff, into_line, Cursor_Dir_Left);
-				if (buff->gap_index > 0) {
-					gap_buffer_move_gap_by(buff, 1, Cursor_Dir_Left);
-					u32 prev_line_length = runes_from(buff, '\n');
-					gap_buffer_move_gap_by(buff, prev_line_length, Cursor_Dir_Left);
-					u32 chars_in_prev_line = runes_till(buff, '\n');
-					u32 move_amount = Min(into_line, chars_in_prev_line);
-					gap_buffer_move_gap_by(buff, move_amount, Cursor_Dir_Right);
-				}
-			}
-			else if (frame_input.codepoint) {
+			} else if (frame_input.codepoint) {
 				u8 mem[4] = {0};
 				String8 encoded_rune = str8_encode_rune(frame_input.codepoint, mem);
 				gap_buffer_insert(buff, encoded_rune);
 			}
 		}
+		else if (quark_ctx.state == Quark_State_Normal) {
+			if (frame_input.codepoint) {
+				if (frame_input.codepoint == 'p') {
+					f32 line_height = font_atlas_height(&font_atlas);
+					if (line_height < 80) {
+						font_atlas_resize_glyphs(quark_ctx.transient_arena, &font_atlas, line_height + 4);
+					}
+				}
+				if (frame_input.codepoint == 'n') {
+					f32 line_height = font_atlas_height(&font_atlas);
+					if (line_height > 4) {
+						font_atlas_resize_glyphs(quark_ctx.transient_arena, &font_atlas, line_height - 4);
+					}
+				}
+			}
+		}
 
-		f32 x = 0, y = 0;
-		f32 atlas_w = (f32)font_atlas.dim.x;
-		f32 atlas_h = (f32)font_atlas.dim.y;
-		f32 scale = font_metrics_scale(&font_atlas.metrics);
-		f32 baseline_offset = font_atlas.metrics.ascent * scale;
-		f32 height = font_metrics_line_height(&font_atlas.metrics) * scale;
+		// Handle cursor movement
+		if (s_flags & Press_Left) {
+			gap_buffer_move_gap_by(buff, 1, Cursor_Dir_Left);
+		} else if (s_flags & Press_Right) {
+			gap_buffer_move_gap_by(buff, 1, Cursor_Dir_Right);
+		} else if (s_flags & Press_Down) {
+			u32 into_line = runes_from(buff, '\n');
+			u32 to_newline = runes_till(buff, '\n');
+			gap_buffer_move_gap_by(buff, to_newline + 1, Cursor_Dir_Right);
+			u32 chars_in_next_line = runes_till(buff, '\n');
+			u32 move_amount = Min(into_line, chars_in_next_line);
+			gap_buffer_move_gap_by(buff, move_amount, Cursor_Dir_Right);
+		} else if (s_flags & Press_Up) {
+			u32 into_line = runes_from(buff, '\n');
+			gap_buffer_move_gap_by(buff, into_line, Cursor_Dir_Left);
+			if (buff->gap_index > 0) {
+				gap_buffer_move_gap_by(buff, 1, Cursor_Dir_Left);
+				u32 prev_line_length = runes_from(buff, '\n');
+				gap_buffer_move_gap_by(buff, prev_line_length, Cursor_Dir_Left);
+				u32 chars_in_prev_line = runes_till(buff, '\n');
+				u32 move_amount = Min(into_line, chars_in_prev_line);
+				gap_buffer_move_gap_by(buff, move_amount, Cursor_Dir_Right);
+			}
+		}
 
-		Glyph_Info space_info;
-		f32 space_advance = (f32) font_atlas.metrics.font_size * 0.7f;
+		// Rendering setup
+		f32 x = 5, y = 5;
+		f32 atlas_w = (f32)font_atlas.atlas_width;
+		f32 atlas_h = (f32)font_atlas.atlas_height;
+		f32 line_height = font_atlas_height(&font_atlas);
+
+		f32 mono_advance = line_height * 0.6f;
 
 		String8 gap_buff_str = {
 			.raw = buff->data,
 			.len = buff->capacity,
 		};
 
-		local_persist vec2_f32 cursor_pos = {0};
-		local_persist vec2_f32 target_cursor_pos = {0};
-
 		bool in_line_comment = false;
 
 		str8_foreach(gap_buff_str, itr, i) {
 			bool on_cursor = false;
+			// Handle gap buffer gap
+			if (i == buff->gap_index) {
+				target_cursor_pos = (vec2_f32){x, y};
+				cursor_pos.x = smooth_damp(cursor_pos.x, target_cursor_pos.x, 0.05f, (f32)delta_time);
+				cursor_pos.y = smooth_damp(cursor_pos.y, target_cursor_pos.y, 0.05f, (f32)delta_time);
 
-			if (i >= buff->gap_index && i < buff->gap_index + buff->gap_size) {
-				if (i == buff->gap_index) {
-					target_cursor_pos = (vec2_f32){x, y};
+				usize idx = buff->gap_index + buff->gap_size;
+				f32 x_scale = 1.0f;
+				if (idx < buff->capacity && buff->data[idx] == '\t') {
+					x_scale = 4.0f;
 				}
-				i = buff->gap_index + buff->gap_size - itr.consumed;
-				cursor_pos.x = smooth_damp(cursor_pos.x, target_cursor_pos.x, 0.06f, (f32)delta_time);
-				cursor_pos.y = smooth_damp(cursor_pos.y, target_cursor_pos.y, 0.06f, (f32)delta_time);
+
 				push_rect_rounded(
 					.position = {floorf(cursor_pos.x), floorf(cursor_pos.y)},
-					.color = 0x00ff00ff,
-					.radii = rect_radius(space_advance * 0.5f),
-					.size = {space_advance, height}
+					.color = 0x00FF00FF,
+					.radii = rect_radius(mono_advance * 0.5),
+					.size = {mono_advance * x_scale, line_height}
 				);
+				i = idx - itr.consumed;
 				continue;
 			}
+
 			if (i == buff->gap_index + buff->gap_size) {
 				on_cursor = true;
 			}
 
 			rune c = itr.codepoint;
 
-			if (c == '\n') { 
+			// Newline
+			if (c == '\n') {
 				in_line_comment = false;
-				x = 0; 
-				y += height; 
-				continue; 
+				x = 5;
+				y += line_height;
+				if (y >= (f32)window_size.y) break;
+				continue;
 			}
 
+			// Comment detection
 			if (!in_line_comment && c == '/' && i + 1 < gap_buff_str.len) {
-				size_t peek_idx = i + 1;
-				if (peek_idx >= buff->gap_index && peek_idx < buff->gap_index + buff->gap_size) {
-					peek_idx += buff->gap_size;
+				usize peek = i + 1;
+				if (peek >= buff->gap_index && peek < buff->gap_index + buff->gap_size) {
+					peek += buff->gap_size;
 				}
-				if (peek_idx < gap_buff_str.len && gap_buff_str.raw[peek_idx] == '/') {
+				if (peek < gap_buff_str.len && gap_buff_str.raw[peek] == '/') {
 					in_line_comment = true;
 				}
 			}
 
-			if (c == ' ')  { x += space_advance; continue; }
-			if (c == '\t') { x += space_advance * 4; continue; }
-
-			Glyph_Info info;
-			bool char_missing = false;
-			if (!glyph_map_get(font_atlas.code_to_glyph, c, &info)) {
-				if (!glyph_map_get(font_atlas.code_to_glyph, '?', &info)) {
-					x += space_advance;
-					continue;
-				} 
-				char_missing = true;
+			// Spaces / tabs → monospaced advance
+			if (c == ' ') {
+				x += mono_advance;
+				continue;
 			}
-			if (info.size.x > 0 && info.size.y > 0) {
-				f32 glyph_x = x + (f32)info.bearing.x;
-				f32 glyph_y = y + baseline_offset - (f32)info.bearing.y;
+			if (c == '\t') {
+				x += mono_advance * 4.0f;
+				continue;
+			}
 
-				u32 text_color = char_missing ? 0xff0000ff : (on_cursor ? 0x131313ff : (in_line_comment ? 0x676767ff : 0x99856aff));
+			// Glyph lookup
+			Glyph_Info info;
+			bool missing = false;
+			if (!font_atlas_get_glyph(&font_atlas, c, &info)) {
+				if (!font_atlas_get_glyph(&font_atlas, '?', &info)) {
+					x += mono_advance;
+					continue;
+				}
+				missing = true;
+			}
 
+			// Compute glyph position
+			f32 glyph_x = x + info.xoff;
+			f32 glyph_y = y + font_atlas.font.ascent + info.yoff;
+
+			f32 gw = (f32)(info.x1 - info.x0);
+			f32 gh = (f32)(info.y1 - info.y0);
+
+			// Colors
+			u32 col = 0x99856aff;
+			if (on_cursor) col = 0x131313ff;
+			else if (missing) col = 0xff0000ff;    
+			else if (in_line_comment) col = 0x666666ff;
+			
+
+			// Draw glyph
+			if (gw > 0 && gh > 0) {
 				gfx_push_rect(&(Rect_Params){
 					.position = {floorf(glyph_x), floorf(glyph_y)},
-					.size = {(f32)info.size.x, (f32)info.size.y},
-					.color = text_color,
-					.uv = {
-						(f32)info.position.x / atlas_w,
-						(f32)info.position.y / atlas_h,
-						((f32)info.position.x + (f32)info.size.x) / atlas_w,
-						((f32)info.position.y + (f32)info.size.y) / atlas_h
+					.size     = {gw, gh},
+					.color    = col,
+					.uv       = {
+						(f32)info.x0 / atlas_w,
+						(f32)info.y0 / atlas_h,
+						(f32)info.x1 / atlas_w,
+						(f32)info.y1 / atlas_h
 					},
-					.tex_id = font_tex_id,
+					.tex_id   = font_tex_id,
 				});
 			}
-			x += (f32)space_advance;
-		}
-		gfx_end_frame();
 
+			x += mono_advance;  // fixed monospaced advance
+		}
+
+		quark_frame_update(&quark_ctx, frame_input);
+	
+		gfx_push_rect(&(Rect_Params){
+			.position = {0, 0},
+			.size     = {atlas_w, atlas_h},
+			.color    = 0x99856aff,
+			.uv       = {
+				0, 0, 1, 1
+			},
+			.tex_id   = font_tex_id,
+		});
+
+		gfx_end_frame();
 		quark_window_swap_buff(quark_window);
 	}
 
+	font_atlas_delete(&font_atlas);
 	quark_delete(&quark_ctx);
 
 	return 0;

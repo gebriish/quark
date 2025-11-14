@@ -3,12 +3,11 @@
 
 #include "base_core.h"
 
-#include <stdlib.h>
 
 internal Arena *
-arena_alloc(usize capacity)
+arena_new(u8 *mem, usize capacity)
 {
-	void *base = malloc(capacity);
+	void *base = mem;
 
 	Arena *arena = (Arena *) base;
 	arena->last_used = ARENA_HEADER_SIZE;
@@ -18,33 +17,6 @@ arena_alloc(usize capacity)
 	return arena;
 }
 
-
-internal Arena *
-arena_nest(Arena *backing, usize capacity)
-{
-	void *base = arena_push(backing, capacity, sizeof(void*), false);
-
-	Arena *arena = (Arena *) base;
-	arena->last_used = ARENA_HEADER_SIZE;
-	arena->used = ARENA_HEADER_SIZE;
-	arena->capacity = capacity;
-	arena->nested = true;
-	return arena;
-}
-
-
-internal void
-arena_release(Arena *arena)
-{
-	Assert(arena && "trying to release null arena");
-	if (arena->nested) {
-		LogWarn("Cannot release nested arena, clearing instead");
-		arena_clear(arena);
-		return;
-	}
-
-	free(arena);
-}
 
 internal void *
 arena_push_(Arena *arena, Alloc_Params *params)
