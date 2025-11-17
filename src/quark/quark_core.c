@@ -41,7 +41,7 @@ gather_cmd_input(Quark_Context *context, String8 input_string, Press_Flags s_fla
 	Gap_Buffer *cmd_buffer = context->cmd_gap_buffer;
 	if (!cmd_buffer || !cmd_buffer->data)
 	{
-		context->cmd_gap_buffer = gap_buffer_new(&context->buffer_manager, KB(1));
+		context->cmd_gap_buffer = gap_buffer_new(&context->buffer_manager, 256);
 		cmd_buffer = context->cmd_gap_buffer;
 
 		if(!cmd_buffer) {

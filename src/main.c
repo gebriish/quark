@@ -1,6 +1,9 @@
+#define DEBUG_BUILD 0
+
 ////////////////////////////////
 // ~geb: .h Includes
 #include "base/base_inc.h"
+#include "mem/mem_inc.h"
 #include "gfx/gfx_inc.h"
 #include "quark/quark_inc.h"
 #include "os/os_inc.h"
@@ -8,6 +11,7 @@
 ////////////////////////////////
 // ~geb: .c Includes
 #include "base/base_inc.c"
+#include "mem/mem_inc.c"
 #include "gfx/gfx_inc.c"
 #include "quark/quark_inc.c"
 #include "os/os_inc.c"
@@ -51,7 +55,7 @@ int main(void)
 
 		vec2_i32 window_size = quark_window_size(quark_window);
 
-		Input_Data frame_input = quark_gather_input(quark_window);
+		Input_Data frame_input = quark_gather_input(quark_window, quark_ctx.state);
 		Press_Flags s_flags = frame_input.special_press;
 
 		gfx_begin_frame(0x131313FF);
@@ -120,7 +124,9 @@ int main(void)
 		f32 atlas_h = (f32)font_atlas.atlas_height;
 		f32 line_height = font_atlas_height(&font_atlas);
 
-		f32 mono_advance = line_height * 0.6f;
+		Glyph_Info probe;
+		font_atlas_get_glyph(&font_atlas, 'A', &probe);
+		f32 mono_advance = probe.xadvance;
 
 		String8 gap_buff_str = {
 			.raw = buff->data,
@@ -131,11 +137,10 @@ int main(void)
 
 		str8_foreach(gap_buff_str, itr, i) {
 			bool on_cursor = false;
-			// Handle gap buffer gap
 			if (i == buff->gap_index) {
 				target_cursor_pos = (vec2_f32){x, y};
-				cursor_pos.x = smooth_damp(cursor_pos.x, target_cursor_pos.x, 0.05f, (f32)delta_time);
-				cursor_pos.y = smooth_damp(cursor_pos.y, target_cursor_pos.y, 0.05f, (f32)delta_time);
+				cursor_pos.x = smooth_damp(cursor_pos.x, target_cursor_pos.x, 0.03f, (f32)delta_time);
+				cursor_pos.y = smooth_damp(cursor_pos.y, target_cursor_pos.y, 0.03f, (f32)delta_time);
 
 				usize idx = buff->gap_index + buff->gap_size;
 				f32 x_scale = 1.0f;
@@ -144,10 +149,10 @@ int main(void)
 				}
 
 				push_rect_rounded(
-					.position = {floorf(cursor_pos.x), floorf(cursor_pos.y)},
-					.color = 0x00FF00FF,
+					.position = {cursor_pos.x, cursor_pos.y},
+					.color = 0x00ff00ff,
 					.radii = rect_radius(mono_advance * 0.5),
-					.size = {mono_advance * x_scale, line_height}
+					.size = {mono_advance * x_scale, line_height }
 				);
 				i = idx - itr.consumed;
 				continue;
@@ -164,7 +169,7 @@ int main(void)
 				in_line_comment = false;
 				x = 5;
 				y += line_height;
-				if (y >= (f32)window_size.y) break;
+				if (y >= (f32)window_size.y) goto outside_string_itr;
 				continue;
 			}
 
@@ -211,7 +216,7 @@ int main(void)
 			u32 col = 0x99856aff;
 			if (on_cursor) col = 0x131313ff;
 			else if (missing) col = 0xff0000ff;    
-			else if (in_line_comment) col = 0x666666ff;
+			else if (in_line_comment) col = 0x555555ff;
 			
 
 			// Draw glyph
@@ -232,18 +237,9 @@ int main(void)
 
 			x += mono_advance;  // fixed monospaced advance
 		}
+	outside_string_itr:
 
 		quark_frame_update(&quark_ctx, frame_input);
-	
-		gfx_push_rect(&(Rect_Params){
-			.position = {0, 0},
-			.size     = {atlas_w, atlas_h},
-			.color    = 0x99856aff,
-			.uv       = {
-				0, 0, 1, 1
-			},
-			.tex_id   = font_tex_id,
-		});
 
 		gfx_end_frame();
 		quark_window_swap_buff(quark_window);

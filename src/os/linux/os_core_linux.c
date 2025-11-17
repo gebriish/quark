@@ -79,7 +79,7 @@ os_time_now()
 {
 	struct timespec ts;
 	clock_gettime(CLOCK_MONOTONIC, &ts);
-	return (OS_Time_Stamp)ts.tv_sec * 1000000000ULL + (OS_Time_Stamp)ts.tv_nsec;
+	return (OS_Time_Stamp)ts.tv_sec * os_time_frequency() + (OS_Time_Stamp)ts.tv_nsec;
 }
 
 internal OS_Time_Stamp

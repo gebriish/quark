@@ -8,8 +8,8 @@ CC="clang"
 CSTD="-std=c11"
 
 CFLAGS="$CSTD -Wno-override-init -g"
-INCLUDES="-I/usr/include/freetype2"
-LIBS="-lm -lGL -lfreetype -lglfw3"
+INCLUDES=""
+LIBS="-lm -lGL -lglfw3"
 
 rm -rf "$BUILD"
 mkdir -p "$BUILD"

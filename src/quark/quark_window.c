@@ -1,5 +1,6 @@
 #include "../gfx/gfx_core.h"
 #include "quark_window.h"
+#include "quark_core.h"
 
 global Input_Data g_input_data = {0};
 
@@ -28,6 +29,9 @@ char_callback(GLFWwindow* window, unsigned int codepoint)
 internal void
 key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
+
+	Press_Flags normal_mask =  (g_input_data.curr_state == Quark_State_Normal) ? ~0 : 0;
+
 	if (action != GLFW_RELEASE)	{
 		switch(key)
 		{
@@ -58,6 +62,18 @@ key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 			case GLFW_KEY_TAB:
 				g_input_data.special_press |= Press_Tab;
 			break;
+			case GLFW_KEY_H:
+				g_input_data.special_press |= Press_Left & normal_mask;
+			break;
+			case GLFW_KEY_J: 
+				g_input_data.special_press |= Press_Down & normal_mask;
+			break;
+			case GLFW_KEY_K: 
+				g_input_data.special_press |= Press_Up & normal_mask;
+			break;
+			case GLFW_KEY_L:
+				g_input_data.special_press |= Press_Right & normal_mask;
+			break;
 		}
 	}
 }
@@ -82,7 +98,7 @@ quark_window_open()
 	}
 
 	glfwMakeContextCurrent(window);
-	glfwSwapInterval(1);
+	glfwSwapInterval(0);
 
 	glfwSetFramebufferSizeCallback(window, resize_callback);
 	glfwSetCharCallback(window, char_callback);
@@ -119,9 +135,10 @@ quark_window_size(Quark_Window window)
 }
 
 internal Input_Data 
-quark_gather_input(Quark_Window window) 
+quark_gather_input(Quark_Window window, Quark_State state) 
 {
 	g_input_data = (Input_Data){0};
+	g_input_data.curr_state = state;
 
 	glfwPollEvents();
 

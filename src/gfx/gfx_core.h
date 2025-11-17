@@ -4,6 +4,8 @@
 #include "../base/base_core.h"
 #include "../thirdparty/glad/glad.h"
 
+#include "../mem/mem_core.h"
+
 #define hex_color(x) ByteSwapU32(x)
 
 #define GL_VERSION_MAJOR 3

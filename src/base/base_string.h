@@ -2,6 +2,7 @@
 #define BASE_STRING_H
 
 #include "base_core.h"
+#include "../mem/mem_core.h"
 
 #define UNICODE_REPLACEMENT 0xFFFD
 

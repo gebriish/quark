@@ -7,6 +7,7 @@
 #include <GLFW/glfw3.h>
 
 typedef GLFWwindow* Quark_Window;
+typedef u32 Quark_State;
 
 typedef u32 Press_Flags;
 enum {
@@ -33,6 +34,7 @@ struct Input_Data {
 	String8  clipboard_str;
 	vec2_f32 mouse_pointer;
 	Press_Flags special_press;
+	Quark_State curr_state;
 };
 
 internal Quark_Window quark_window_open();
@@ -43,7 +45,7 @@ internal void quark_window_swap_buff(Quark_Window window);
 
 internal vec2_i32 quark_window_size(Quark_Window window);
 
-internal Input_Data quark_gather_input(Quark_Window window);
+internal Input_Data quark_gather_input(Quark_Window window, Quark_State state);
 
 #define quark_get_ogl_proc_addr glfwGetProcAddress
 

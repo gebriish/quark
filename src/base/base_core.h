@@ -172,7 +172,7 @@ smooth_damp(f32 current, f32 target, f32 time, f32 dt)
 }
 
 #if DEBUG_BUILD
-# define _log_base(stream, level, fmt, ...)                       \
+# define _log_base(stream, level, fmt, ...)                    \
 do {                                                           \
 	fprintf(stream, "[%s] %s:%d (%s): " fmt "\n",                \
 		 level, __FILE__, __LINE__, __func__, ##__VA_ARGS__); \
@@ -182,6 +182,14 @@ do {                                                           \
 # define LogWarn(fmt,  ...)  _log_base(stderr, "WARN ", fmt, ##__VA_ARGS__)
 # define LogInfo(fmt,  ...)  _log_base(stdout, "INFO ", fmt, ##__VA_ARGS__)
 # define LogDebug(fmt, ...)  _log_base(stdout, "DEBUG", fmt, ##__VA_ARGS__)
+
+typedef struct Source_Code_Location Source_Code_Location;
+struct Source_Code_Location {
+	const char *file_path;
+	const char *procedure;
+	int line, column;
+};
+
 #else
 # define LogError(fmt, ...)   ((void)0)
 # define LogWarn(fmt, ...)    ((void)0)
@@ -189,70 +197,6 @@ do {                                                           \
 # define LogDebug(fmt, ...)   ((void)0)
 #endif
 
-////////////////////////////////
-// ~geb: Arena Allocator 
-
-#define ARENA_HEADER_SIZE sizeof(Arena)
-
-typedef struct Arena Arena;
-struct Arena {
-	usize last_used;
-	usize used;
-	usize capacity;
-	bool  nested;
-};
-
-typedef struct Alloc_Params Alloc_Params;
-struct Alloc_Params {
-	usize size;
-	usize align;
-	bool zero;
-#if DEBUG_BUILD
-	const char *caller_proc;
-	const char *caller_file;
-	int         caller_line;
-#endif
-};
-
-typedef struct Temp Temp;
-struct Temp {
-	Arena *arena;
-	usize pos;
-};
-
-internal Arena *arena_new(u8 *mem, usize capacity);
-
-internal void  *arena_push_(Arena *arena, Alloc_Params *params);
-internal void   arena_pop(Arena *arena);
-internal void   arena_pop_to(Arena *arena, usize pos);
-internal void   arena_clear(Arena *arena);
-internal usize  arena_pos(Arena *arena);
-internal void   arena_print_usage(Arena *arena, const char *name);
-
-internal Temp   temp_begin(Arena *arena);
-internal void   temp_end(Temp temp);
-
-#define arena_push_struct(a, T)   (T *) arena_push((a), sizeof(T), AlignOf(T), true)
-#define arena_push_array_zeroed(a, T, c) (T *) arena_push((a), sizeof(T) * (c), AlignOf(T), true)
-#define arena_push_array(a, T, c) (T *) arena_push((a), sizeof(T) * (c), AlignOf(T), false)
-
-#if DEBUG_BUILD
-#define _ARENA_DEBUG_FIELDS_ , .caller_proc = __func__, .caller_file = __FILE__, .caller_line = __LINE__
-#else
-#define _ARENA_DEBUG_FIELDS_
-#endif
-
-#define arena_push(ar, s, al, zr)                                     \
-arena_push_(ar, &(Alloc_Params){                                      \
-	.size  = s,                                                         \
-	.align = al,                                                        \
-	.zero  = zr                                                         \
-	_ARENA_DEBUG_FIELDS_                                                \
-})
-
-
-////////////////////////////////
-// ~geb: Loop Constructs 
 
 #define DeferScope(begin, end) for(int _i_  = ((begin), 0); !_i_; _i_ += 1, (end))
 
