@@ -1,3 +1,5 @@
 bin/
 .vscode/
 .vs/
+
+src/thirdparty/glfw

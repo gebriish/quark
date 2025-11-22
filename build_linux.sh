@@ -7,12 +7,13 @@ BIN="quark"
 CC="clang"
 CSTD="-std=c11"
 
-CFLAGS="$CSTD -Wno-override-init -g"
-INCLUDES=""
-LIBS="-lm -lGL -lglfw3"
+CFLAGS="$CSTD -Wno-override-init -g -O2"
+GLFW_LIB="src/thirdparty/glfw/build/src/libglfw3.a"
+
+SYSLIBS="-lm -lGL -ldl -lpthread -lX11 -lXcursor"
 
 rm -rf "$BUILD"
 mkdir -p "$BUILD"
 
 echo "Compiling $SRC -> $BUILD/$BIN"
-$CC $SRC -o "$BUILD/$BIN" $CFLAGS $INCLUDES $LIBS
+$CC $SRC -o "$BUILD/$BIN" $CdLAGS $GLFW_LIB $SYSLIBS

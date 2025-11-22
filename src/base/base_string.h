@@ -2,7 +2,6 @@
 #define BASE_STRING_H
 
 #include "base_core.h"
-#include "../mem/mem_core.h"
 
 #define UNICODE_REPLACEMENT 0xFFFD
 
@@ -31,6 +30,7 @@ internal usize    str8_codepoint_count(String8 str);
 internal String8  str8_to_ctring(Arena *arena, String8 string);
 internal String8  str8_copy_cstr(Arena *arena, const char *cstring);
 internal String8  str8_encode_rune(rune codepoint, u8 backing_mem[4]);
+internal bool     str8_equal(String8 s1, String8 s2);
 
 internal bool     rune_is_space(rune codepoint);
 

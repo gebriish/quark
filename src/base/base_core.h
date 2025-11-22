@@ -21,9 +21,10 @@
 
 #define Enum(name, type) typedef type name; enum
 
-#define KB(n)  (((usize)(n)) << 10)
-#define MB(n)  (((usize)(n)) << 20)
-#define GB(n)  (((usize)(n)) << 30)
+#define Byte(n) (n) // just for semantic clarity
+#define KB(n)   (((usize)(n)) << 10)
+#define MB(n)   (((usize)(n)) << 20)
+#define GB(n)   (((usize)(n)) << 30)
 
 #define Min(A,B) (((A)<(B))?(A):(B))
 #define Max(A,B) (((A)>(B))?(A):(B))
@@ -41,6 +42,8 @@
 #else
 # error AlignOf not defined for this compiler.
 #endif
+
+#define DEFAULT_ALIGNMENT AlignOf(void*) * 2
 
 #define ByteSwapU32(x) (             \
 	(((x) & (u32)0x000000FFu) << 24) | \
@@ -63,7 +66,7 @@
 ////////////////////////////////
 // ~geb: Mem operations
 
-#define MemMove(dst, src, size)  memmove((dst), (src), (size))
+#define MemMove(dst, src, size)   memmove((dst), (src), (size))
 #define MemZero(dst, size)        memset((dst), 0x00, (size))
 #define MemZeroStruct(dst)        memset((dst), 0x00, (sizeof(*dst)))
 #define MemCompare(a, b, size)    memcmp((a), (b), (size))
@@ -183,21 +186,159 @@ do {                                                           \
 # define LogInfo(fmt,  ...)  _log_base(stdout, "INFO ", fmt, ##__VA_ARGS__)
 # define LogDebug(fmt, ...)  _log_base(stdout, "DEBUG", fmt, ##__VA_ARGS__)
 
-typedef struct Source_Code_Location Source_Code_Location;
-struct Source_Code_Location {
-	const char *file_path;
-	const char *procedure;
-	int line, column;
-};
 
 #else
 # define LogError(fmt, ...)   ((void)0)
 # define LogWarn(fmt, ...)    ((void)0)
 # define LogInfo(fmt, ...)    ((void)0)
 # define LogDebug(fmt, ...)   ((void)0)
+
 #endif
+
+
+typedef struct Source_Code_Location Source_Code_Location;
+struct Source_Code_Location {
+	const char *file_path;
+	const char *procedure;
+	int line;
+};
+
+#define Code_Location()        \
+    ((Source_Code_Location){   \
+        .file_path = __FILE__, \
+        .procedure = __func__, \
+        .line      = __LINE__, \
+    })
 
 
 #define DeferScope(begin, end) for(int _i_  = ((begin), 0); !_i_; _i_ += 1, (end))
 
+////////////////////////////////
+// ~geb: Allocator Interface 
+
+typedef u32 Alloc_Error;
+enum {
+	Alloc_Err_None,
+	Alloc_Err_Out_Of_Memory,
+	Alloc_Err_Invalid_Pointer,
+	Alloc_Err_Invalid_Argument,
+	Alloc_Err_Mode_Not_Implemented,
+};
+
+typedef u32 Alloc_Mode;
+enum {
+	AlMode_Alloc,
+	AlMode_Free,
+	AlMode_Free_All,
+	AlMode_Resize,
+	AlMode_Alloc_Non_Zeroed,
+	AlMode_Resize_Non_Zeroed,
+};
+
+typedef struct Alloc_Result Alloc_Result;
+struct Alloc_Result {
+	void *mem;
+	usize size;
+	Alloc_Error err;
+};
+
+typedef Alloc_Result (*Allocator_Proc)(
+	void *allocator_data,
+	Alloc_Mode mode,
+	usize size,
+	usize alignment,
+	void *old_memory,
+	usize old_size,
+	Source_Code_Location loc
+);
+
+typedef struct Allocator Allocator;
+struct Allocator {
+	Allocator_Proc procedure;
+	void *data;
+};
+
+#define al_alloc(a, size, align) \
+    (a)->procedure((a)->data, AlMode_Alloc, (size), (align), NULL, 0, Code_Location())
+
+#define al_alloc_nz(a, size, align) \
+    (a)->procedure((a)->data, AlMode_Alloc_Non_Zeroed, (size), (align), NULL, 0, Code_Location())
+
+#define al_free(a, ptr, old_size) \
+    (a)->procedure((a)->data, AlMode_Free, 0, 0, (ptr), (old_size), Code_Location())
+
+#define al_free_all(a) \
+    (a)->procedure((a)->data, AlMode_Free_All, 0, 0, NULL, 0, Code_Location())
+
+#define al_resize(a, ptr, old_size, new_size, align) \
+    (a)->procedure((a)->data, AlMode_Resize, (new_size), (align), (ptr), (old_size), Code_Location())
+
+#define al_resize_nz(a, ptr, old_size, new_size, align) \
+    (a)->procedure((a)->data, AlMode_Resize_Non_Zeroed, (new_size), (align), (ptr), (old_size), Code_Location())
+
+internal Allocator gp_heap_allocator();
+internal Allocator arena_allocator();
+
+////////////////////////////////
+// ~geb: Arena Allocator 
+
+#define ARENA_HEADER_SIZE sizeof(Arena)
+
+typedef struct Arena Arena;
+struct Arena {
+	usize last_used;
+	usize used;
+	usize capacity;
+	bool  nested;
+};
+
+typedef struct Alloc_Params Alloc_Params;
+struct Alloc_Params {
+	usize size;
+	usize align;
+	bool zero;
+#if DEBUG_BUILD
+	const char *caller_proc;
+	const char *caller_file;
+	int         caller_line;
 #endif
+};
+
+typedef struct Temp Temp;
+struct Temp {
+	Arena *arena;
+	usize pos;
+};
+
+internal Arena *arena_new(u8 *mem, usize capacity);
+
+internal void  *arena_push_(Arena *arena, Alloc_Params *params);
+internal void   arena_pop(Arena *arena);
+internal void   arena_pop_to(Arena *arena, usize pos);
+internal void   arena_clear(Arena *arena);
+internal usize  arena_pos(Arena *arena);
+internal void   arena_print_usage(Arena *arena, const char *name);
+
+internal Temp   temp_begin(Arena *arena);
+internal void   temp_end(Temp temp);
+
+#define arena_push_struct(a, T)   (T *) arena_push((a), sizeof(T), AlignOf(T), true)
+#define arena_push_array_zeroed(a, T, c) (T *) arena_push((a), sizeof(T) * (c), AlignOf(T), true)
+#define arena_push_array(a, T, c) (T *) arena_push((a), sizeof(T) * (c), AlignOf(T), false)
+
+#if DEBUG_BUILD
+#define _ARENA_DEBUG_FIELDS_ , .caller_proc = __func__, .caller_file = __FILE__, .caller_line = __LINE__
+#else
+#define _ARENA_DEBUG_FIELDS_
+#endif
+
+#define arena_push(ar, s, al, zr)                                     \
+arena_push_(ar, &(Alloc_Params){                                      \
+	.size  = s,                                                         \
+	.align = al,                                                        \
+	.zero  = zr                                                         \
+	_ARENA_DEBUG_FIELDS_                                                \
+})
+
+#endif
+

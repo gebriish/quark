@@ -7,23 +7,27 @@ quark_new(Quark_Context *context)
 {
 	Assert(context && "quark context ptr is null");
 
+	context->allocator = gp_heap_allocator();
+
 	const usize buffer_size = MB(4);
-
-	u8 *persist_buffer   = (u8 *) malloc(buffer_size);
-	u8 *transient_buffer = (u8 *) malloc(buffer_size);
-
-	if (!persist_buffer) {
+	
+	Alloc_Result persist_buffer = al_alloc_nz(&context->allocator, buffer_size, DEFAULT_ALIGNMENT);
+	if (persist_buffer.err != Alloc_Err_None) {
 		LogError("Failed to allocate persistant memory buffer"); Trap();
 	}
 
-	if (!transient_buffer) {
+	Alloc_Result temp_buffer = al_alloc_nz(&context->allocator, buffer_size, DEFAULT_ALIGNMENT);
+	if (temp_buffer.err != Alloc_Err_None) {
 		LogError("Failed to allocate transient memory buffer"); Trap();
 	}
 
-	context->persist_arena   = arena_new(persist_buffer, buffer_size);
-	context->transient_arena = arena_new(transient_buffer, buffer_size);
+	context->persist_arena   = arena_new(persist_buffer.mem, persist_buffer.size);
+	context->transient_arena = arena_new(temp_buffer.mem, temp_buffer.size);
 
 	buffer_manager_init(context->persist_arena, &context->buffer_manager);
+
+	context->window = quark_window_open();
+	context->active_buffer = q_buffer_new(&context->buffer_manager, KB(4));
 }
 
 internal void
@@ -31,17 +35,19 @@ quark_delete(Quark_Context *context)
 {
 	Assert(context && "quark context ptr is null");
 
-	free(context->persist_arena);
-	free(context->transient_arena);
+	quark_window_deinit(context->window);
+
+	al_free(&context->allocator, context->persist_arena, context->persist_arena->capacity);
+	al_free(&context->allocator, context->transient_arena, context->transient_arena->capacity);
 }
 
 internal String8 
 gather_cmd_input(Quark_Context *context, String8 input_string, Press_Flags s_flags)
 {
-	Gap_Buffer *cmd_buffer = context->cmd_gap_buffer;
+	Quark_Buffer *cmd_buffer = context->cmd_gap_buffer;
 	if (!cmd_buffer || !cmd_buffer->data)
 	{
-		context->cmd_gap_buffer = gap_buffer_new(&context->buffer_manager, 256);
+		context->cmd_gap_buffer = q_buffer_new(&context->buffer_manager, 256);
 		cmd_buffer = context->cmd_gap_buffer;
 
 		if(!cmd_buffer) {
@@ -51,21 +57,21 @@ gather_cmd_input(Quark_Context *context, String8 input_string, Press_Flags s_fla
 	}
 
 	if (input_string.len > 0) {
-		gap_buffer_insert(cmd_buffer, input_string);
+		q_buffer_insert(cmd_buffer, input_string);
 	}
 
 	if (s_flags & Press_Enter)
 	{
 		u8 *data = cmd_buffer->data;
-		String8 command = gap_buffer_to_str(cmd_buffer, context->transient_arena);
+		String8 command = q_buffer_to_str(cmd_buffer, context->transient_arena);
 		cmd_buffer->gap_index = 0;
 		cmd_buffer->gap_size = cmd_buffer->capacity;
 		return command;
 	}
-	else if (s_flags & Press_Backspace) gap_buffer_delete_rune(cmd_buffer, 1, Cursor_Dir_Left);
-	else if (s_flags & Press_Delete)    gap_buffer_delete_rune(cmd_buffer, 1, Cursor_Dir_Right);
-	else if (s_flags & Press_Right)     gap_buffer_move_gap_by(cmd_buffer, 1, Cursor_Dir_Right);
-	else if (s_flags & Press_Left)      gap_buffer_move_gap_by(cmd_buffer, 1, Cursor_Dir_Left);
+	else if (s_flags & Press_Backspace) q_buffer_delete_rune(cmd_buffer, 1, Cursor_Dir_Left);
+	else if (s_flags & Press_Delete)    q_buffer_delete_rune(cmd_buffer, 1, Cursor_Dir_Right);
+	else if (s_flags & Press_Right)     q_buffer_move_gap_by(cmd_buffer, 1, Cursor_Dir_Right);
+	else if (s_flags & Press_Left)      q_buffer_move_gap_by(cmd_buffer, 1, Cursor_Dir_Left);
 
 	return str8(NULL, 0);
 }
@@ -106,7 +112,12 @@ quark_frame_update(Quark_Context *context, Input_Data data)
 		case Quark_State_Cmd: {
 			String8 cmd_string = gather_cmd_input(context, input_string, special_press);
 			if (cmd_string.len) {
-				LogInfo(STR_FMT, str8_fmt(cmd_string));
+				if (str8_equal(cmd_string, str8_lit("q")))
+					quark_window_close(context->window);
+				else if(str8_equal(cmd_string, str8_lit("w")))
+					LogInfo("write!");
+				else if(str8_equal(cmd_string, str8_lit("clear")))
+					LogInfo("clear!");
 				context->state = Quark_State_Normal;
 			}
 		} break;

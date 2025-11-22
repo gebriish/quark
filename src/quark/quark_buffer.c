@@ -5,7 +5,7 @@
 /////////////////////////////////////
 
 internal void 
-gap_buffer_insert(Gap_Buffer *buffer, String8 string)
+q_buffer_insert(Quark_Buffer *buffer, String8 string)
 {
 	Assert(buffer && buffer->data);
 	if (string.len == 0) return;
@@ -35,7 +35,7 @@ gap_buffer_insert(Gap_Buffer *buffer, String8 string)
 }
 
 internal void
-gap_buffer_move_gap_by(Gap_Buffer *buffer, u32 count, Cursor_Dir dir)
+q_buffer_move_gap_by(Quark_Buffer *buffer, u32 count, Cursor_Dir dir)
 {
 	Assert(buffer && buffer->data);
 
@@ -51,7 +51,7 @@ gap_buffer_move_gap_by(Gap_Buffer *buffer, u32 count, Cursor_Dir dir)
 			}
 			count -= 1;
 		}
-		gap_buffer_move_gap(buffer, new_gap_pos);
+		q_buffer_move_gap(buffer, new_gap_pos);
 	}
 	else if (dir == Cursor_Dir_Right) {
 		usize new_gap_pos = gap_start;
@@ -64,13 +64,13 @@ gap_buffer_move_gap_by(Gap_Buffer *buffer, u32 count, Cursor_Dir dir)
 			}
 			count -= 1;
 		}
-		gap_buffer_move_gap(buffer, new_gap_pos);
+		q_buffer_move_gap(buffer, new_gap_pos);
 	}
 }
 
 
 internal void
-gap_buffer_delete_rune(Gap_Buffer *buffer, u32 count, Cursor_Dir dir)
+q_buffer_delete_rune(Quark_Buffer *buffer, u32 count, Cursor_Dir dir)
 {
 	Assert(buffer && buffer->data);
 	while (count > 0) {
@@ -95,7 +95,7 @@ gap_buffer_delete_rune(Gap_Buffer *buffer, u32 count, Cursor_Dir dir)
 }
 
 internal void
-gap_buffer_move_gap(Gap_Buffer *buffer, usize byte_index)
+q_buffer_move_gap(Quark_Buffer *buffer, usize byte_index)
 {
 	Assert(buffer && buffer->data);
 	
@@ -123,7 +123,7 @@ gap_buffer_move_gap(Gap_Buffer *buffer, usize byte_index)
 
 
 internal String8
-gap_buffer_to_str(Gap_Buffer *buffer, Arena *allocator)
+q_buffer_to_str(Quark_Buffer *buffer, Arena *allocator)
 {
 	usize str_len = buffer->capacity - buffer->gap_size;
 	if (str_len <= 0) return str8(NULL, 0);
@@ -145,7 +145,7 @@ gap_buffer_to_str(Gap_Buffer *buffer, Arena *allocator)
 }
 
 internal u32
-runes_till(Gap_Buffer *buffer, rune target)
+runes_till(Quark_Buffer *buffer, rune target)
 {
 	Assert(buffer && buffer->data);
 	
@@ -169,7 +169,7 @@ outside:
 }
 
 internal u32
-runes_from(Gap_Buffer *buffer, rune target)
+runes_from(Quark_Buffer *buffer, rune target)
 {
 	Assert(buffer && buffer->data);
 	
@@ -213,11 +213,11 @@ buffer_manager_init(Arena *allocator, Buffer_Manager *bm)
 	bm->buffer_freelist = NULL;
 }
 
-internal Gap_Buffer *
-gap_buffer_new(Buffer_Manager *bm, usize buffer_size)
+internal Quark_Buffer *
+q_buffer_new(Buffer_Manager *bm, usize buffer_size)
 {
 	Assert(bm && "Cannot add buffer into null buffer manager");
-	Gap_Buffer *new_buffer = NULL;
+	Quark_Buffer *new_buffer = NULL;
 	bool reused = false;
 	
 	if (bm->buffer_freelist) {
@@ -225,7 +225,7 @@ gap_buffer_new(Buffer_Manager *bm, usize buffer_size)
 		bm->buffer_freelist = bm->buffer_freelist->next;
 		reused = true;
 	} else {
-		new_buffer = arena_push_struct(bm->allocator, Gap_Buffer);
+		new_buffer = arena_push_struct(bm->allocator, Quark_Buffer);
 	}
 	
 	if (!new_buffer) {
@@ -265,13 +265,13 @@ gap_buffer_new(Buffer_Manager *bm, usize buffer_size)
 }
 
 internal void
-gap_buffer_delete(Buffer_Manager *bm, Gap_Buffer *buffer)
+q_buffer_delete(Buffer_Manager *bm, Quark_Buffer *buffer)
 {
 	Assert(bm && "Cannot delete buffer from null buffer manager");
 	Assert(buffer && "Cannot delete null buffer");
 	
-	Gap_Buffer *curr_buff = bm->buffer_list;
-	Gap_Buffer *prev = NULL;
+	Quark_Buffer *curr_buff = bm->buffer_list;
+	Quark_Buffer *prev = NULL;
 	
 	while(curr_buff != NULL && curr_buff != buffer) {
 		prev = curr_buff;
@@ -301,9 +301,9 @@ buffer_manager_clear(Buffer_Manager *bm)
 {
 	Assert(bm && "Cannot clear null buffer manager");
 	
-	Gap_Buffer *curr = bm->buffer_list;
+	Quark_Buffer *curr = bm->buffer_list;
 	while (curr) {
-		Gap_Buffer *next = curr->next;
+		Quark_Buffer *next = curr->next;
 
 		curr->gap_index = 0;
 		curr->gap_size = curr->capacity;

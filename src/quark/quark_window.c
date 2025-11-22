@@ -98,7 +98,7 @@ quark_window_open()
 	}
 
 	glfwMakeContextCurrent(window);
-	glfwSwapInterval(0);
+	glfwSwapInterval(1);
 
 	glfwSetFramebufferSizeCallback(window, resize_callback);
 	glfwSetCharCallback(window, char_callback);
@@ -109,6 +109,13 @@ quark_window_open()
 
 internal void 
 quark_window_close(Quark_Window window) 
+{
+	glfwSetWindowShouldClose(window, GLFW_TRUE);
+}
+
+
+internal void
+quark_window_deinit(Quark_Window window)
 {
 	glfwDestroyWindow(window);
 	glfwTerminate();

@@ -228,6 +228,13 @@ str8_encode_rune(rune codepoint, u8 backing_mem[4])
 }
 
 internal bool
+str8_equal(String8 s1, String8 s2)
+{
+	if (s1.len != s2.len) return false;
+	return MemCompare(s1.raw, s2.raw, s1.len) == 0;
+}
+
+internal bool
 rune_is_space(rune cp)
 {
 	return cp == ' ' || cp == '\t' || cp == '\r';

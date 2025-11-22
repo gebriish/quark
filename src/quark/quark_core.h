@@ -16,13 +16,19 @@ enum {
 
 typedef struct Quark_Context Quark_Context;
 struct Quark_Context {
+	Allocator allocator;
+	Allocator temp_allocator;
+
 	Arena *persist_arena;
 	Arena *transient_arena;
+
+	Quark_Window  window;
 
 	Quark_State state;
 	Buffer_Manager buffer_manager;
 
-	Gap_Buffer *cmd_gap_buffer;
+	Quark_Buffer *cmd_gap_buffer;
+	Quark_Buffer *active_buffer;
 };
 
 internal void quark_new(Quark_Context *context);

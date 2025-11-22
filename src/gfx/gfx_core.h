@@ -4,8 +4,6 @@
 #include "../base/base_core.h"
 #include "../thirdparty/glad/glad.h"
 
-#include "../mem/mem_core.h"
-
 #define hex_color(x) ByteSwapU32(x)
 
 #define GL_VERSION_MAJOR 3
@@ -126,26 +124,5 @@ internal bool gfx_texture_unload(u32 id);
 
 internal void gfx_push_rect(Rect_Params *params);
 internal void gfx_push_rect_rounded(Rect_Params *params);
-
-//////////////////////////////////
-// ~geb: shorthand macros
-
-#define push_rect_rounded(...) \
-gfx_push_rect_rounded(&(Rect_Params){ \
-  .size = {32, 32}, \
-  .color = 0xffffffff, \
-  .uv = {0,0,1,1}, \
-  .tex_id = 0, \
-	__VA_ARGS__ \
-})
-
-#define push_rect(...) \
-gfx_push_rect(&(Rect_Params){ \
-  .size = {32, 32}, \
-  .color = 0xffffffff, \
-  .uv = {0,0,1,1}, \
-  .tex_id = 0, \
-  __VA_ARGS__ \
-})
 
 #endif

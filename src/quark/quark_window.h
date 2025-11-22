@@ -4,7 +4,7 @@
 #include "../base/base_core.h"
 #include "../base/base_string.h"
 
-#include <GLFW/glfw3.h>
+#include "../thirdparty/glfw/include/GLFW/glfw3.h"
 
 typedef GLFWwindow* Quark_Window;
 typedef u32 Quark_State;
@@ -38,7 +38,9 @@ struct Input_Data {
 };
 
 internal Quark_Window quark_window_open();
+internal void quark_window_deinit(Quark_Window window);
 internal void quark_window_close(Quark_Window window);
+
 
 internal bool quark_window_is_open(Quark_Window window);
 internal void quark_window_swap_buff(Quark_Window window);

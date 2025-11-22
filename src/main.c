@@ -1,9 +1,8 @@
-#define DEBUG_BUILD 0
+#define DEBUG_BUILD 1
 
 ////////////////////////////////
 // ~geb: .h Includes
 #include "base/base_inc.h"
-#include "mem/mem_inc.h"
 #include "gfx/gfx_inc.h"
 #include "quark/quark_inc.h"
 #include "os/os_inc.h"
@@ -11,13 +10,11 @@
 ////////////////////////////////
 // ~geb: .c Includes
 #include "base/base_inc.c"
-#include "mem/mem_inc.c"
 #include "gfx/gfx_inc.c"
 #include "quark/quark_inc.c"
 #include "os/os_inc.c"
 
 global Quark_Context quark_ctx;
-global Quark_Window  quark_window;
 global GFX_State     gfx_state;
 global Font_Atlas    font_atlas;
 global u8            font_tex_id;
@@ -27,7 +24,6 @@ int main(void)
 	// ~geb: Layer initializations
 	quark_new(&quark_ctx);
 
-	quark_window = quark_window_open();
 	gfx_init(quark_ctx.persist_arena, quark_ctx.transient_arena, &gfx_state, quark_get_ogl_proc_addr);
 
 	String8 file_data = os_read_file_data(
@@ -38,14 +34,14 @@ int main(void)
 	font_atlas_add_glyphs_from_string(&font_atlas, FONT_CHARSET);
 	font_tex_id = font_atlas.tex_id;
 
-	Gap_Buffer *buff = gap_buffer_new(&quark_ctx.buffer_manager, KB(10));
+	Quark_Buffer *buff = q_buffer_new(&quark_ctx.buffer_manager, KB(10));
 
 	OS_Time_Stamp last_time = os_time_now();
 
 	vec2_f32 cursor_pos = {0};
 	vec2_f32 target_cursor_pos = {0};
 
-	while (quark_window_is_open(quark_window)) {
+	while (quark_window_is_open(quark_ctx.window)) {
 		font_atlas_update(&font_atlas);
 
 		arena_clear(quark_ctx.transient_arena);
@@ -53,9 +49,9 @@ int main(void)
 		f64 delta_time = os_time_diff(last_time, frame_start).seconds;
 		last_time = frame_start;
 
-		vec2_i32 window_size = quark_window_size(quark_window);
+		vec2_i32 window_size = quark_window_size(quark_ctx.window);
 
-		Input_Data frame_input = quark_gather_input(quark_window, quark_ctx.state);
+		Input_Data frame_input = quark_gather_input(quark_ctx.window, quark_ctx.state);
 		Press_Flags s_flags = frame_input.special_press;
 
 		gfx_begin_frame(0x131313FF);
@@ -63,17 +59,17 @@ int main(void)
 		// Handle input
 		if (quark_ctx.state == Quark_State_Insert) {
 			if (s_flags & Press_Enter) {
-				gap_buffer_insert(buff, str8_lit("\n"));
+				q_buffer_insert(buff, str8_lit("\n"));
 			} else if (s_flags & Press_Backspace) {
-				gap_buffer_delete_rune(buff, 1, Cursor_Dir_Left);
+				q_buffer_delete_rune(buff, 1, Cursor_Dir_Left);
 			} else if (s_flags & Press_Delete) {
-				gap_buffer_delete_rune(buff, 1, Cursor_Dir_Right);
+				q_buffer_delete_rune(buff, 1, Cursor_Dir_Right);
 			} else if (s_flags & Press_Tab) {
-				gap_buffer_insert(buff, str8_lit("\t"));
+				q_buffer_insert(buff, str8_lit("\t"));
 			} else if (frame_input.codepoint) {
 				u8 mem[4] = {0};
 				String8 encoded_rune = str8_encode_rune(frame_input.codepoint, mem);
-				gap_buffer_insert(buff, encoded_rune);
+				q_buffer_insert(buff, encoded_rune);
 			}
 		}
 		else if (quark_ctx.state == Quark_State_Normal) {
@@ -95,26 +91,26 @@ int main(void)
 
 		// Handle cursor movement
 		if (s_flags & Press_Left) {
-			gap_buffer_move_gap_by(buff, 1, Cursor_Dir_Left);
+			q_buffer_move_gap_by(buff, 1, Cursor_Dir_Left);
 		} else if (s_flags & Press_Right) {
-			gap_buffer_move_gap_by(buff, 1, Cursor_Dir_Right);
+			q_buffer_move_gap_by(buff, 1, Cursor_Dir_Right);
 		} else if (s_flags & Press_Down) {
 			u32 into_line = runes_from(buff, '\n');
 			u32 to_newline = runes_till(buff, '\n');
-			gap_buffer_move_gap_by(buff, to_newline + 1, Cursor_Dir_Right);
+			q_buffer_move_gap_by(buff, to_newline + 1, Cursor_Dir_Right);
 			u32 chars_in_next_line = runes_till(buff, '\n');
 			u32 move_amount = Min(into_line, chars_in_next_line);
-			gap_buffer_move_gap_by(buff, move_amount, Cursor_Dir_Right);
+			q_buffer_move_gap_by(buff, move_amount, Cursor_Dir_Right);
 		} else if (s_flags & Press_Up) {
 			u32 into_line = runes_from(buff, '\n');
-			gap_buffer_move_gap_by(buff, into_line, Cursor_Dir_Left);
+			q_buffer_move_gap_by(buff, into_line, Cursor_Dir_Left);
 			if (buff->gap_index > 0) {
-				gap_buffer_move_gap_by(buff, 1, Cursor_Dir_Left);
+				q_buffer_move_gap_by(buff, 1, Cursor_Dir_Left);
 				u32 prev_line_length = runes_from(buff, '\n');
-				gap_buffer_move_gap_by(buff, prev_line_length, Cursor_Dir_Left);
+				q_buffer_move_gap_by(buff, prev_line_length, Cursor_Dir_Left);
 				u32 chars_in_prev_line = runes_till(buff, '\n');
 				u32 move_amount = Min(into_line, chars_in_prev_line);
-				gap_buffer_move_gap_by(buff, move_amount, Cursor_Dir_Right);
+				q_buffer_move_gap_by(buff, move_amount, Cursor_Dir_Right);
 			}
 		}
 
@@ -139,8 +135,8 @@ int main(void)
 			bool on_cursor = false;
 			if (i == buff->gap_index) {
 				target_cursor_pos = (vec2_f32){x, y};
-				cursor_pos.x = smooth_damp(cursor_pos.x, target_cursor_pos.x, 0.03f, (f32)delta_time);
-				cursor_pos.y = smooth_damp(cursor_pos.y, target_cursor_pos.y, 0.03f, (f32)delta_time);
+				cursor_pos.x = smooth_damp(cursor_pos.x, target_cursor_pos.x, 0.05f, (f32)delta_time);
+				cursor_pos.y = smooth_damp(cursor_pos.y, target_cursor_pos.y, 0.05f, (f32)delta_time);
 
 				usize idx = buff->gap_index + buff->gap_size;
 				f32 x_scale = 1.0f;
@@ -148,12 +144,12 @@ int main(void)
 					x_scale = 4.0f;
 				}
 
-				push_rect_rounded(
+				gfx_push_rect_rounded(&(Rect_Params){
 					.position = {cursor_pos.x, cursor_pos.y},
-					.color = 0x00ff00ff,
-					.radii = rect_radius(mono_advance * 0.5),
-					.size = {mono_advance * x_scale, line_height }
-				);
+						.color = 0x00ff00ff,
+						.radii = rect_radius(mono_advance * 0.5),
+						.size = {mono_advance * x_scale, line_height }
+				});
 				i = idx - itr.consumed;
 				continue;
 			}
@@ -184,7 +180,7 @@ int main(void)
 				}
 			}
 
-			// Spaces / tabs → monospaced advance
+			// Spaces / tabs -> monospaced advance
 			if (c == ' ') {
 				x += mono_advance;
 				continue;
@@ -240,12 +236,13 @@ int main(void)
 	outside_string_itr:
 
 		quark_frame_update(&quark_ctx, frame_input);
-
 		gfx_end_frame();
-		quark_window_swap_buff(quark_window);
+		quark_window_swap_buff(quark_ctx.window);
+
 	}
 
 	font_atlas_delete(&font_atlas);
+
 	quark_delete(&quark_ctx);
 
 	return 0;
