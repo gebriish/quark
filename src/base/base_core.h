@@ -277,7 +277,7 @@ struct Allocator {
     (a)->procedure((a)->data, AlMode_Resize_Non_Zeroed, (new_size), (align), (ptr), (old_size), Code_Location())
 
 internal Allocator gp_heap_allocator();
-internal Allocator arena_allocator();
+internal Allocator arena_allocator(Allocator backing_allocator);
 
 ////////////////////////////////
 // ~geb: Arena Allocator 

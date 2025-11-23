@@ -47,8 +47,8 @@ heap_aligned_alloc(usize size, usize alignment, void *old_ptr, usize old_size, b
 		return result;
 	}
 
-	uintptr_t base = (uintptr_t)allocated_mem + sizeof(void*);
-	uintptr_t aligned = (base + (align - 1)) & ~((uintptr_t)(align - 1));
+	usize base = (usize)allocated_mem + sizeof(void*);
+	usize aligned = AlignPow2(base, align);
 	void *user_ptr = (void*)aligned;
 
 	((void**)user_ptr)[-1] = allocated_mem;
@@ -98,8 +98,7 @@ heap_allocator_proc(
 	void *old_memory,
 	usize old_size,
 	Source_Code_Location loc
-)
-{
+) {
 	switch (mode) {
 		case AlMode_Alloc: case AlMode_Alloc_Non_Zeroed:
 			return heap_aligned_alloc(size, alignment, NULL, 0, mode == AlMode_Alloc);
@@ -135,31 +134,19 @@ gp_heap_allocator()
 ///////////////////////////////////////////
 // ~geb: Temporary Arena allocator
 
-typedef struct Memory_Block Memory_Block;
-struct Memory_Block {
-	Memory_Block *prev;
-	Allocator allocator;
-	u8 *base;
-	usize used, capacity;
-};
-
 typedef struct _Arena _Arena;
 struct _Arena {
-	Allocator backing_allocator;
-	Memory_Block *current_block;
-	usize total_used;
-	usize total_capacity;
-	usize min_block_size;
-	usize temp_count;
+	usize used;
+	usize capacity;
 };
 
 internal Allocator
-arena_allocator() 
+arena_allocator(Allocator backing_allocator) 
 {
-	Allocator arena = {
+	Allocator alloc = {
 		.data = NULL,
 	};
-	return arena;
+	return alloc;
 }
 
 ///////////////////////////////////////////

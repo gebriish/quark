@@ -133,7 +133,7 @@
 #endif
 
 #if OS_LINUX
-# define _GNU_SOURCE
+# define _GNU_SOURCE 1
 #endif
 
 #endif

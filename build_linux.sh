@@ -1,19 +1,15 @@
 #!/usr/bin/env bash
 
-BUILD="./bin"
-SRC="src/main.c"
-BIN="quark"
+build="bin"
+bin="quark"
+src="src/main.c"
 
-CC="clang"
-CSTD="-std=c11"
 
-CFLAGS="$CSTD -Wno-override-init -g -O2"
 GLFW_LIB="src/thirdparty/glfw/build/src/libglfw3.a"
-
 SYSLIBS="-lm -lGL -ldl -lpthread -lX11 -lXcursor"
 
-rm -rf "$BUILD"
-mkdir -p "$BUILD"
+rm -rf "$build"
+mkdir -p "$build"
 
-echo "Compiling $SRC -> $BUILD/$BIN"
-$CC $SRC -o "$BUILD/$BIN" $CdLAGS $GLFW_LIB $SYSLIBS
+echo "Compiling $src -> $build/$bin"
+clang $src -o $build/$bin $GLFW_LIB $SYSLIBS -std=c11 -g
