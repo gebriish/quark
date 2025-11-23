@@ -67,9 +67,6 @@ Enum(Texture_Kind, u8) {
 
 typedef struct GFX_State GFX_State;
 struct GFX_State {
-  Arena *allocator;
-  Arena *temp_allocator;
-
   i32 uniform_loc[Uniform_Count];
   struct { i32 w, h; } viewport;
 
@@ -109,7 +106,7 @@ struct Rect_Params {
 //////////////////////////////////
 // ~geb: interface procs
 
-internal bool gfx_init(Arena *allocator, Arena *temp_allocator, GFX_State *gfx, void *opengl_proc_loader);
+internal bool gfx_init(Allocator *allocator, Allocator *temp_allocator, GFX_State *gfx, void *opengl_proc_loader);
 internal void gfx_resize_target(i32 w, i32 h);
 
 internal void gfx_begin_frame(color8_t color);

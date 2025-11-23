@@ -7,27 +7,21 @@ quark_new(Quark_Context *context)
 {
 	Assert(context && "quark context ptr is null");
 
-	context->allocator = gp_heap_allocator();
+	context->allocator = heap_allocator();
 
-	const usize buffer_size = MB(4);
-	
-	Alloc_Result persist_buffer = al_alloc_nz(&context->allocator, buffer_size, DEFAULT_ALIGNMENT);
-	if (persist_buffer.err != Alloc_Err_None) {
-		LogError("Failed to allocate persistant memory buffer"); Trap();
+	Alloc_Buffer arena_buffer = mem_alloc(&context->allocator, MB(4), DEFAULT_ALIGNMENT);
+
+	if (arena_buffer.err != Alloc_Err_None) {
+		LogError("Failed to allocate temp arena's memory buffer"); Trap();
 	}
 
-	Alloc_Result temp_buffer = al_alloc_nz(&context->allocator, buffer_size, DEFAULT_ALIGNMENT);
-	if (temp_buffer.err != Alloc_Err_None) {
-		LogError("Failed to allocate transient memory buffer"); Trap();
-	}
+	Arena *arena = arena_new(arena_buffer);
+	context->temp_allocator = arena_allocator(arena);
 
-	context->persist_arena   = arena_new(persist_buffer.mem, persist_buffer.size);
-	context->transient_arena = arena_new(temp_buffer.mem, temp_buffer.size);
-
-	buffer_manager_init(context->persist_arena, &context->buffer_manager);
+	buffer_manager_init(&context->allocator, &context->buffer_manager);
 
 	context->window = quark_window_open();
-	context->active_buffer = q_buffer_new(&context->buffer_manager, KB(4));
+	context->active_buffer = q_buffer_new(&context->allocator, &context->buffer_manager, KB(4));
 }
 
 internal void
@@ -37,8 +31,7 @@ quark_delete(Quark_Context *context)
 
 	quark_window_deinit(context->window);
 
-	al_free(&context->allocator, context->persist_arena, context->persist_arena->capacity);
-	al_free(&context->allocator, context->transient_arena, context->transient_arena->capacity);
+	mem_free(&context->allocator, context->temp_allocator.data, 0 /* size is irrelevant */);
 }
 
 internal String8 
@@ -47,7 +40,7 @@ gather_cmd_input(Quark_Context *context, String8 input_string, Press_Flags s_fla
 	Quark_Buffer *cmd_buffer = context->cmd_gap_buffer;
 	if (!cmd_buffer || !cmd_buffer->data)
 	{
-		context->cmd_gap_buffer = q_buffer_new(&context->buffer_manager, 256);
+		context->cmd_gap_buffer = q_buffer_new(&context->allocator, &context->buffer_manager, 256);
 		cmd_buffer = context->cmd_gap_buffer;
 
 		if(!cmd_buffer) {
@@ -63,7 +56,7 @@ gather_cmd_input(Quark_Context *context, String8 input_string, Press_Flags s_fla
 	if (s_flags & Press_Enter)
 	{
 		u8 *data = cmd_buffer->data;
-		String8 command = q_buffer_to_str(cmd_buffer, context->transient_arena);
+		String8 command = q_buffer_to_str(cmd_buffer, &context->temp_allocator);
 		cmd_buffer->gap_index = 0;
 		cmd_buffer->gap_size = cmd_buffer->capacity;
 		return command;

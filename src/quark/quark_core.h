@@ -19,9 +19,6 @@ struct Quark_Context {
 	Allocator allocator;
 	Allocator temp_allocator;
 
-	Arena *persist_arena;
-	Arena *transient_arena;
-
 	Quark_Window  window;
 
 	Quark_State state;

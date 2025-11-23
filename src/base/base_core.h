@@ -235,14 +235,14 @@ enum {
 	AlMode_Resize_Non_Zeroed,
 };
 
-typedef struct Alloc_Result Alloc_Result;
+typedef struct Alloc_Result Alloc_Buffer;
 struct Alloc_Result {
 	void *mem;
 	usize size;
 	Alloc_Error err;
 };
 
-typedef Alloc_Result (*Allocator_Proc)(
+typedef Alloc_Buffer (*Allocator_Proc)(
 	void *allocator_data,
 	Alloc_Mode mode,
 	usize size,
@@ -258,87 +258,36 @@ struct Allocator {
 	void *data;
 };
 
-#define al_alloc(a, size, align) \
+#define mem_alloc(a, size, align) \
     (a)->procedure((a)->data, AlMode_Alloc, (size), (align), NULL, 0, Code_Location())
 
-#define al_alloc_nz(a, size, align) \
+#define mem_alloc_nz(a, size, align) \
     (a)->procedure((a)->data, AlMode_Alloc_Non_Zeroed, (size), (align), NULL, 0, Code_Location())
 
-#define al_free(a, ptr, old_size) \
+#define mem_free(a, ptr, old_size) \
     (a)->procedure((a)->data, AlMode_Free, 0, 0, (ptr), (old_size), Code_Location())
 
-#define al_free_all(a) \
+#define mem_free_all(a) \
     (a)->procedure((a)->data, AlMode_Free_All, 0, 0, NULL, 0, Code_Location())
 
-#define al_resize(a, ptr, old_size, new_size, align) \
+#define mem_resize(a, ptr, old_size, new_size, align) \
     (a)->procedure((a)->data, AlMode_Resize, (new_size), (align), (ptr), (old_size), Code_Location())
 
-#define al_resize_nz(a, ptr, old_size, new_size, align) \
+#define mem_resize_nz(a, ptr, old_size, new_size, align) \
     (a)->procedure((a)->data, AlMode_Resize_Non_Zeroed, (new_size), (align), (ptr), (old_size), Code_Location())
-
-internal Allocator gp_heap_allocator();
-internal Allocator arena_allocator(Allocator backing_allocator);
-
-////////////////////////////////
-// ~geb: Arena Allocator 
-
-#define ARENA_HEADER_SIZE sizeof(Arena)
 
 typedef struct Arena Arena;
 struct Arena {
-	usize last_used;
 	usize used;
 	usize capacity;
-	bool  nested;
 };
 
-typedef struct Alloc_Params Alloc_Params;
-struct Alloc_Params {
-	usize size;
-	usize align;
-	bool zero;
-#if DEBUG_BUILD
-	const char *caller_proc;
-	const char *caller_file;
-	int         caller_line;
-#endif
-};
+#define ARENA_HEADER_SIZE sizeof(Arena)
 
-typedef struct Temp Temp;
-struct Temp {
-	Arena *arena;
-	usize pos;
-};
+internal Arena *arena_new(Alloc_Buffer backing_buffer);
 
-internal Arena *arena_new(u8 *mem, usize capacity);
-
-internal void  *arena_push_(Arena *arena, Alloc_Params *params);
-internal void   arena_pop(Arena *arena);
-internal void   arena_pop_to(Arena *arena, usize pos);
-internal void   arena_clear(Arena *arena);
-internal usize  arena_pos(Arena *arena);
-internal void   arena_print_usage(Arena *arena, const char *name);
-
-internal Temp   temp_begin(Arena *arena);
-internal void   temp_end(Temp temp);
-
-#define arena_push_struct(a, T)   (T *) arena_push((a), sizeof(T), AlignOf(T), true)
-#define arena_push_array_zeroed(a, T, c) (T *) arena_push((a), sizeof(T) * (c), AlignOf(T), true)
-#define arena_push_array(a, T, c) (T *) arena_push((a), sizeof(T) * (c), AlignOf(T), false)
-
-#if DEBUG_BUILD
-#define _ARENA_DEBUG_FIELDS_ , .caller_proc = __func__, .caller_file = __FILE__, .caller_line = __LINE__
-#else
-#define _ARENA_DEBUG_FIELDS_
-#endif
-
-#define arena_push(ar, s, al, zr)                                     \
-arena_push_(ar, &(Alloc_Params){                                      \
-	.size  = s,                                                         \
-	.align = al,                                                        \
-	.zero  = zr                                                         \
-	_ARENA_DEBUG_FIELDS_                                                \
-})
+internal Allocator heap_allocator();
+internal Allocator arena_allocator(Arena *arena);
 
 #endif
 

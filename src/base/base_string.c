@@ -167,10 +167,14 @@ str8_codepoint_count(String8 str) {
 }
 
 internal String8
-str8_to_ctring(Arena *arena, String8 string)
+str8_to_ctring(Allocator *alloc, String8 string)
 {
 	String8 result = {0};
-	result.raw = arena_push_array(arena, u8, string.len + 1);
+	Alloc_Buffer buff = mem_alloc(alloc, sizeof(u8) * string.len + 1, DEFAULT_ALIGNMENT);
+	if (buff.err != Alloc_Err_None) {
+		LogError("Failed to allocate cstring buffer in str8_to_ctring"); Trap();
+	}
+	result.raw = (u8 *)buff.mem;
 	MemMove(result.raw, string.raw, string.len);
 	result.raw[string.len] = '\0';
 	result.len = string.len;
@@ -178,11 +182,17 @@ str8_to_ctring(Arena *arena, String8 string)
 }
 
 internal String8
-str8_copy_cstr(Arena *arena, const char *cstring)
+str8_copy_cstr(Allocator *alloc, const char *cstring)
 {
 	usize string_len = MemStrlen(cstring);
 	String8 result;
-	result.raw = arena_push(arena, string_len + 1, AlignOf(u8), false);
+
+	Alloc_Buffer buff = mem_alloc(alloc, string_len + 1 , AlignOf(u8));
+	if (buff.err != Alloc_Err_None) {
+		LogError("Failed to allocate cstring buffer in str8_copy_cstr"); Trap();
+	}
+
+	result.raw = buff.mem;
 	result.len = string_len;
 	MemMove(result.raw, cstring, string_len);
 	result.raw[string_len] = 0;

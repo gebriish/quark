@@ -1,7 +1,7 @@
 #include "gfx_font.h"
 
 internal bool
-font_atlas_new(Arena *allocator, u8 *font_data, i32 size, f32 font_height, Font_Atlas *atlas)
+font_atlas_new(Allocator *allocator, u8 *font_data, i32 size, f32 font_height, Font_Atlas *atlas)
 {
 	Assert(atlas && font_data);
 	
@@ -20,7 +20,7 @@ font_atlas_new(Arena *allocator, u8 *font_data, i32 size, f32 font_height, Font_
 	usize codepoint_count = str8_codepoint_count(FONT_CHARSET);	
 	atlas->atlas_width = size;
 	atlas->atlas_height = size;
-	atlas->atlas_data = (u8 *) malloc(size * size); // atlas data is allocated in the global allocator
+	atlas->atlas_data = (u8 *) mem_alloc(allocator, size * size, DEFAULT_ALIGNMENT).mem;
 	atlas->glyphs = glyph_map_new(allocator, codepoint_count);
 	atlas->current_x = 1;
 	atlas->current_y = 1;
@@ -38,7 +38,7 @@ font_atlas_new(Arena *allocator, u8 *font_data, i32 size, f32 font_height, Font_
 }
 
 internal bool
-font_atlas_add_glyph(Font_Atlas *atlas, rune codepoint)
+font_atlas_add_glyph(Allocator *allocator, Font_Atlas *atlas, rune codepoint)
 {
 	Assert(atlas);
 	
@@ -82,7 +82,7 @@ font_atlas_add_glyph(Font_Atlas *atlas, rune codepoint)
 	}
 	
 	if (atlas->current_y + glyph_height + 1 > atlas->atlas_height) {
-		if (!font_atlas_expand(atlas)) {
+		if (!font_atlas_expand(allocator, atlas)) {
 			LogError("Failed to expand font atlas");
 			return false;
 		}
@@ -102,7 +102,6 @@ font_atlas_add_glyph(Font_Atlas *atlas, rune codepoint)
 		glyph_height = bitmap_height;
 	}
 	
-	// Copy glyph bitmap to atlas
 	if (glyph_bitmap != NULL && glyph_width > 0 && glyph_height > 0) {
 		for (i32 row = 0; row < glyph_height; row++) {
 			i32 atlas_y = glyph_y + row;
@@ -148,7 +147,7 @@ font_atlas_add_glyph(Font_Atlas *atlas, rune codepoint)
 }
 
 internal bool
-font_atlas_expand(Font_Atlas *atlas)
+font_atlas_expand(Allocator *allocator, Font_Atlas *atlas)
 {
 	i32 new_width = atlas->atlas_width * 2;
 	i32 new_height = atlas->atlas_height * 2;
@@ -158,17 +157,16 @@ font_atlas_expand(Font_Atlas *atlas)
 		return false;
 	}
 	
-	u8 *new_data = (u8 *)malloc(new_width * new_height);
+	u8 *new_data = (u8 *)mem_alloc(allocator, new_width * new_height, DEFAULT_ALIGNMENT).mem;
 	MemZero(new_data, new_width * new_height);
 	
-	// Copy old data to new atlas
 	for (i32 row = 0; row < atlas->atlas_height; row++) {
 		i32 old_start = row * atlas->atlas_width;
 		i32 new_start = row * new_width;
 		MemMove(new_data + new_start, atlas->atlas_data + old_start, atlas->atlas_width);
 	}
 	
-	free(atlas->atlas_data);
+	mem_free(allocator, atlas->atlas_data, 0);
 	atlas->atlas_data = new_data;
 	atlas->atlas_width = new_width;
 	atlas->atlas_height = new_height;
@@ -190,13 +188,13 @@ font_atlas_expand(Font_Atlas *atlas)
 }
 
 internal void
-font_atlas_add_glyphs_from_string(Font_Atlas *atlas, String8 string)
+font_atlas_add_glyphs_from_string(Allocator *allocator, Font_Atlas *atlas, String8 string)
 {
 	Assert(atlas);
 	
 	str8_foreach(string, itr, i) {
 		rune codepoint = itr.codepoint;
-		font_atlas_add_glyph(atlas, codepoint);
+		font_atlas_add_glyph(allocator, atlas, codepoint);
 	}
 }
 
@@ -212,12 +210,12 @@ font_atlas_update(Font_Atlas *atlas)
 }
 
 internal void
-font_atlas_delete(Font_Atlas *atlas)
+font_atlas_delete(Allocator *allocator, Font_Atlas *atlas)
 {
 	Assert(atlas);
 	
 	gfx_texture_unload(atlas->tex_id);
-	free(atlas->atlas_data);
+	mem_free(allocator, atlas->atlas_data, 0);
 	MemZero(atlas, sizeof(Font_Atlas));
 }
 
@@ -229,7 +227,7 @@ font_atlas_get_glyph(Font_Atlas *atlas, rune codepoint, Glyph_Info *out_glyph)
 }
 
 internal bool
-font_atlas_resize_glyphs(Arena *temp_arena, Font_Atlas *atlas, f32 new_font_height)
+font_atlas_resize_glyphs(Allocator *allocator, Font_Atlas *atlas, f32 new_font_height)
 {
 	Assert(atlas);
 
@@ -252,7 +250,7 @@ font_atlas_resize_glyphs(Arena *temp_arena, Font_Atlas *atlas, f32 new_font_heig
 	glyph_map *map = atlas->glyphs;
 	usize glyph_count = map->size;
 
-	rune *glyphs_to_regenerate = arena_push_array(temp_arena, rune, glyph_count);
+	rune *glyphs_to_regenerate = mem_alloc(allocator, sizeof(rune) * glyph_count, AlignOf(rune)).mem;
 	usize regen_count = 0;
 
 	for (usize i = 0; i < map->capacity; i++) {
@@ -272,7 +270,7 @@ font_atlas_resize_glyphs(Arena *temp_arena, Font_Atlas *atlas, f32 new_font_heig
 	for (usize i = 0; i < regen_count; i++) {
 		rune cp = glyphs_to_regenerate[i];
 
-		if (!font_atlas_add_glyph(atlas, cp)) {
+		if (!font_atlas_add_glyph(allocator, atlas, cp)) {
 			u8 buffer[4];
 			String8 utf8 = str8_encode_rune(cp, buffer);
 			LogWarn("Failed to regenerate glyph " STR_FMT " after resize",

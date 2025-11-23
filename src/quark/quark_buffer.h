@@ -31,7 +31,7 @@ internal void q_buffer_delete_rune(Quark_Buffer *buffer, u32 count, Cursor_Dir d
 internal void q_buffer_move_gap(Quark_Buffer *buffer, usize byte);
 internal void q_buffer_move_gap_by(Quark_Buffer *buffer, u32 count, Cursor_Dir dir);
 
-internal String8 q_buffer_to_str(Quark_Buffer *buffer, Arena *allocator);
+internal String8 q_buffer_to_str(Quark_Buffer *buffer, Allocator *allocator);
 
 internal u32  runes_till(Quark_Buffer *buffer, rune target);
 internal u32  runes_from(Quark_Buffer *buffer, rune target);
@@ -41,16 +41,16 @@ internal u32  runes_from(Quark_Buffer *buffer, rune target);
 
 typedef struct Buffer_Manager Buffer_Manager;
 struct Buffer_Manager {
-	Arena *allocator;
+	Allocator arena;
 
 	Quark_Buffer *buffer_list;
 	Quark_Buffer *buffer_freelist;
 };
 
-internal void buffer_manager_init(Arena *allocator, Buffer_Manager *bm);
+internal void buffer_manager_init(Allocator *allocator, Buffer_Manager *bm);
 internal void buffer_manager_clear(Buffer_Manager *bm);
 
-internal Quark_Buffer *q_buffer_new(Buffer_Manager *bm, usize buffer_size);
+internal Quark_Buffer *q_buffer_new(Allocator *allocator, Buffer_Manager *bm, usize buffer_size);
 internal void q_buffer_delete(Buffer_Manager *bm, Quark_Buffer *buffer);
 
 #endif

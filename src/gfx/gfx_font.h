@@ -46,17 +46,17 @@ struct Font_Atlas {
 	bool dirty;
 };
 
-internal bool font_atlas_new(Arena *arena, u8 *font_data,	i32 size, f32 font_height, Font_Atlas *result);
-internal void font_atlas_delete(Font_Atlas *atlas);
+internal bool font_atlas_new(Allocator *allocator, u8 *font_data,	i32 size, f32 font_height, Font_Atlas *result);
+internal void font_atlas_delete(Allocator *allocato, Font_Atlas *atlas);
 
-internal bool font_atlas_add_glyph(Font_Atlas *atlas, rune codepoint);
-internal bool font_atlas_expand(Font_Atlas *atlas);
+internal bool font_atlas_add_glyph(Allocator *allocator, Font_Atlas *atlas, rune codepoint);
+internal bool font_atlas_expand(Allocator *allocator, Font_Atlas *atlas);
 
-internal void font_atlas_add_glyphs_from_string(Font_Atlas *atlas, String8 string);
+internal void font_atlas_add_glyphs_from_string(Allocator *allocator, Font_Atlas *atlas, String8 string);
 internal void font_atlas_update(Font_Atlas *atlas);
 
 internal bool font_atlas_get_glyph(Font_Atlas *atlas, rune codepoint, Glyph_Info *out_glyph);
-internal bool font_atlas_resize_glyphs(Arena *temp_arena, Font_Atlas *atlas, f32 new_font_height);
+internal bool font_atlas_resize_glyphs(Allocator *allocator, Font_Atlas *atlas, f32 new_font_height);
 
 internal f32 font_atlas_height(Font_Atlas *atlas);
 

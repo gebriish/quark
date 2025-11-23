@@ -21,7 +21,7 @@ heap_aligned_free(void *ptr)
 	}
 }
 
-internal Alloc_Result
+internal Alloc_Buffer
 heap_aligned_alloc(usize size, usize alignment, void *old_ptr, usize old_size, bool zero_mem)
 {
 	usize align = Max(alignment, (usize)AlignOf(void*));
@@ -43,7 +43,7 @@ heap_aligned_alloc(usize size, usize alignment, void *old_ptr, usize old_size, b
 	}
 
 	if (allocated_mem == NULL) {
-		Alloc_Result result = { NULL, 0, Alloc_Err_Out_Of_Memory };
+		Alloc_Buffer result = { NULL, 0, Alloc_Err_Out_Of_Memory };
 		return result;
 	}
 
@@ -64,19 +64,19 @@ heap_aligned_alloc(usize size, usize alignment, void *old_ptr, usize old_size, b
 		}
 	}
 
-	Alloc_Result result = { user_ptr, size, Alloc_Err_None };
+	Alloc_Buffer result = { user_ptr, size, Alloc_Err_None };
 	return result;
 }
 
 
-internal Alloc_Result
+internal Alloc_Buffer
 heap_aligned_resize(void *ptr, usize old_size, usize new_size, usize alignment, bool zero) 
 {
 	if (ptr == NULL) {
 		return heap_aligned_alloc(new_size, alignment, NULL, 0, zero);
 	}
 
-	Alloc_Result result = heap_aligned_alloc(new_size, alignment, ptr, old_size, zero);
+	Alloc_Buffer result = heap_aligned_alloc(new_size, alignment, ptr, old_size, zero);
 	if (result.err != Alloc_Err_None) {
 		return result;
 	}
@@ -89,7 +89,7 @@ heap_aligned_resize(void *ptr, usize old_size, usize new_size, usize alignment, 
 	return result;
 }
 
-internal Alloc_Result
+internal Alloc_Buffer
 heap_allocator_proc(
 	void *allocator_data,
 	Alloc_Mode mode,
@@ -108,7 +108,7 @@ heap_allocator_proc(
 			heap_aligned_free(old_memory);
 			break;
 		case AlMode_Free_All: {
-			Alloc_Result result = {NULL, 0 , Alloc_Err_Mode_Not_Implemented};
+			Alloc_Buffer result = {NULL, 0 , Alloc_Err_Mode_Not_Implemented};
 			return result;
 		} break;
 
@@ -117,12 +117,11 @@ heap_allocator_proc(
 			break;
 	}
 
-	return (Alloc_Result){};	
+	return (Alloc_Buffer){};	
 }
 
-
 internal Allocator 
-gp_heap_allocator()
+heap_allocator()
 {
 	Allocator heap = {
 		.procedure = heap_allocator_proc,
@@ -134,133 +133,136 @@ gp_heap_allocator()
 ///////////////////////////////////////////
 // ~geb: Temporary Arena allocator
 
-typedef struct _Arena _Arena;
-struct _Arena {
-	usize used;
-	usize capacity;
-};
+
+internal Arena *
+arena_new(Alloc_Buffer backing_buffer) {
+	Assert(backing_buffer.err == Alloc_Err_None);
+	Assert(backing_buffer.size > ARENA_HEADER_SIZE * 2);
+
+	Arena *result = (Arena *)backing_buffer.mem;
+
+	result->used = ARENA_HEADER_SIZE;
+	result->capacity = backing_buffer.size;
+
+	return result;
+}
+
+internal Alloc_Buffer
+arena_aligned_alloc(Arena *arena, usize size, usize alignment, bool zero_mem)
+{
+	Assert(arena);
+	if (size == 0) {
+		Alloc_Buffer z = {NULL, 0, Alloc_Err_None};
+		return z;
+	}
+
+	usize align = Max(alignment, (usize)AlignOf(void*));
+	if (align == 0) align = AlignOf(void*);
+
+	usize arena_base = (usize)arena;
+	usize current_used = arena->used;
+	usize base_addr = arena_base + current_used + sizeof(void*);
+	usize aligned_addr = AlignPow2(base_addr, align);
+	usize offset = aligned_addr - arena_base;
+
+	if (offset + size > arena->capacity) {
+		Alloc_Buffer result = { NULL, 0, Alloc_Err_Out_Of_Memory };
+		return result;
+	}
+
+	void *user_ptr = (void*)aligned_addr;
+	arena->used = offset + size;
+
+	if (zero_mem) {
+		MemZero(user_ptr, size);
+	}
+
+	Alloc_Buffer result = { user_ptr, size, Alloc_Err_None };
+	return result;
+}
+
+internal Alloc_Buffer
+arena_aligned_resize(Arena *arena, void *old_memory, usize old_size, usize new_size, usize alignment, bool zero_mem)
+{
+	Assert(arena);
+
+	if (old_memory == NULL) {
+		return arena_aligned_alloc(arena, new_size, alignment, zero_mem);
+	}
+
+	usize arena_base = (usize)arena;
+	usize ptr_addr = (usize)old_memory;
+	if (ptr_addr < arena_base + ARENA_HEADER_SIZE || ptr_addr >= arena_base + arena->used) {
+		Alloc_Buffer fail = { NULL, 0, Alloc_Err_Mode_Not_Implemented };
+		return fail;
+	}
+
+	usize old_offset = ptr_addr - arena_base;
+	usize old_end = old_offset + old_size;
+	usize current_used = arena->used;
+
+	if (old_end == current_used) {
+		usize desired_end = old_offset + new_size;
+		if (desired_end <= arena->capacity) {
+			arena->used = desired_end;
+			if (zero_mem && new_size > old_size) {
+				void *start = (u8*)old_memory + old_size;
+				MemZero(start, new_size - old_size);
+			}
+			Alloc_Buffer ok = { old_memory, new_size, Alloc_Err_None };
+			return ok;
+		} else {
+			Alloc_Buffer fail = { NULL, 0, Alloc_Err_Out_Of_Memory };
+			return fail;
+		}
+	} else {
+		if (new_size <= old_size) {
+			Alloc_Buffer ok = { old_memory, new_size, Alloc_Err_None };
+			return ok;
+		} else {
+			Alloc_Buffer fail = { NULL, 0, Alloc_Err_Mode_Not_Implemented };
+			return fail;
+		}
+	}
+}
+
+internal Alloc_Buffer
+arena_allocator_proc(
+	void *allocator_data,
+	Alloc_Mode mode,
+	usize size,
+	usize alignment,
+	void *old_memory,
+	usize old_size,
+	Source_Code_Location loc
+) {
+	Arena *arena = (Arena *)allocator_data;
+	Assert(arena);
+
+	switch (mode) {
+		case AlMode_Alloc: case AlMode_Alloc_Non_Zeroed:
+			return arena_aligned_alloc(arena, size, alignment, mode == AlMode_Alloc);
+		case AlMode_Free: 
+			return (Alloc_Buffer){ NULL, 0, Alloc_Err_Mode_Not_Implemented };
+
+		case AlMode_Free_All:
+			arena->used = ARENA_HEADER_SIZE;
+			return (Alloc_Buffer) { NULL, 0, Alloc_Err_None };
+
+		case AlMode_Resize: case AlMode_Resize_Non_Zeroed:
+			return arena_aligned_resize(arena, old_memory, old_size, size, alignment, mode == AlMode_Resize);
+	}
+	return (Alloc_Buffer) {};
+}
 
 internal Allocator
-arena_allocator(Allocator backing_allocator) 
+arena_allocator(Arena *arena) 
 {
+	Assert(arena);
+
 	Allocator alloc = {
-		.data = NULL,
+		.procedure = arena_allocator_proc,
+		.data = arena,
 	};
 	return alloc;
 }
-
-///////////////////////////////////////////
-// ~geb: Arena Allocator
-
-internal Arena *
-arena_new(u8 *mem, usize capacity)
-{
-	void *base = mem;
-
-	Arena *arena = (Arena *) base;
-	arena->last_used = ARENA_HEADER_SIZE;
-	arena->used = ARENA_HEADER_SIZE;
-	arena->capacity = capacity;
-	arena->nested = false;
-	return arena;
-}
-
-
-internal void *
-arena_push_(Arena *arena, Alloc_Params *params)
-{
-	usize used_pre = AlignPow2(arena->used, params->align);
-	usize used_pst = used_pre + params->size;
-
-	AssertAlways(used_pst <= arena->capacity && "Arena ran out of memory");
-
-	arena->last_used = arena->used;
-
-	void *result = (u8 *)arena + used_pre;
-	arena->used = used_pst;
-
-	if (params->zero) {
-		MemZero(result, params->size);
-	}
-
-	/*
-#if DEBUG_BUILD
-	printf("arena_push %6zu bytes%s at %s:%d (%s)\n",
-		params->size,
-		params->zero ? " [zero]" : "",
-		params->caller_file,
-		params->caller_line,
-		params->caller_proc);
-#endif
-	*/
-
-	return result;
-}
-
-internal usize
-arena_pos(Arena *arena)
-{
-	return arena->used;
-}
-
-internal void 
-arena_pop(Arena *arena)
-{
-	arena->used = arena->last_used;
-}
-
-internal void
-arena_pop_to(Arena *arena, usize pos)
-{
-	Assert(pos >= ARENA_HEADER_SIZE && "Cannot pop into header");
-	arena->last_used = pos;
-	arena->used = pos;
-}
-
-internal void 
-arena_clear(Arena *arena)
-{
-	arena->used = ARENA_HEADER_SIZE;
-	arena->last_used = ARENA_HEADER_SIZE;
-}
-
-internal Temp 
-temp_begin(Arena *arena)
-{
-	Temp result = {
-		.arena = arena,
-		.pos = arena->used
-	};
-	return result;
-}
-
-internal void   
-temp_end(Temp temp)
-{
-	Arena *arena = temp.arena;
-	arena->used = temp.pos;
-}
-
-
-internal void
-arena_print_usage(Arena *arena, const char *name)
-{
-#if DEBUG_BUILD
-	if (!arena) {
-		printf("Arena(%s): NULL\n", name ? name : "unnamed");
-		return;
-	}
-
-	f64 used_pct = 0;
-	if (arena->capacity > 0) {
-		used_pct = ((f64)arena->used / (f64)arena->capacity) * 100.0;
-	}
-
-	printf("Arena(%s):\n", name ? name : "unnamed");
-	printf("  used:       %zu bytes\n", arena->used);
-	printf("  last_used:  %zu bytes\n", arena->last_used);
-	printf("  capacity:   %zu bytes\n", arena->capacity);
-	printf("  usage:      %.2f%%\n", used_pct);
-#endif
-}
-

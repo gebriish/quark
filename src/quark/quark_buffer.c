@@ -123,12 +123,12 @@ q_buffer_move_gap(Quark_Buffer *buffer, usize byte_index)
 
 
 internal String8
-q_buffer_to_str(Quark_Buffer *buffer, Arena *allocator)
+q_buffer_to_str(Quark_Buffer *buffer, Allocator *allocator)
 {
 	usize str_len = buffer->capacity - buffer->gap_size;
 	if (str_len <= 0) return str8(NULL, 0);
 
-	u8 *result = arena_push_array(allocator, u8, str_len);
+	u8 *result = mem_alloc(allocator, str_len, AlignOf(u8)).mem;
 	if (!result) {
 		LogError("Failed to allocate memory for buffer string conversion");
 		return str8(NULL, 0);
@@ -205,16 +205,21 @@ outside:
 /////////////////////////////////////
 
 internal void 
-buffer_manager_init(Arena *allocator, Buffer_Manager *bm)
+buffer_manager_init(Allocator *allocator, Buffer_Manager *bm)
 {
 	Assert(bm && "Cannot Init null buffer manager");
-	bm->allocator = allocator;
+	
+	Arena *buffer_manager_arena = arena_new(
+		mem_alloc(allocator, KB(1), DEFAULT_ALIGNMENT)
+	);
+
+	bm->arena = arena_allocator(buffer_manager_arena);
 	bm->buffer_list = NULL;
 	bm->buffer_freelist = NULL;
 }
 
 internal Quark_Buffer *
-q_buffer_new(Buffer_Manager *bm, usize buffer_size)
+q_buffer_new(Allocator *heap, Buffer_Manager *bm, usize buffer_size)
 {
 	Assert(bm && "Cannot add buffer into null buffer manager");
 	Quark_Buffer *new_buffer = NULL;
@@ -225,9 +230,10 @@ q_buffer_new(Buffer_Manager *bm, usize buffer_size)
 		bm->buffer_freelist = bm->buffer_freelist->next;
 		reused = true;
 	} else {
-		new_buffer = arena_push_struct(bm->allocator, Quark_Buffer);
+		new_buffer = mem_alloc(&bm->arena, sizeof(Quark_Buffer), AlignOf(Quark_Buffer)).mem;
 	}
 	
+
 	if (!new_buffer) {
 		LogError("Ran out of buffer capacity, consider closing some buffers");
 		return NULL;
@@ -235,7 +241,7 @@ q_buffer_new(Buffer_Manager *bm, usize buffer_size)
 	
 	if (reused) {
 		if (new_buffer->capacity < buffer_size) {
-			u8 *new_data = (u8 *)realloc(new_buffer->data, buffer_size);
+			u8 *new_data = (u8 *)mem_resize_nz(heap, new_buffer->data,0,  buffer_size, DEFAULT_ALIGNMENT).mem;
 			if (!new_data) {
 				LogError("Failed to reallocate gap buffer data");
 				new_buffer->next = bm->buffer_freelist;
@@ -246,7 +252,7 @@ q_buffer_new(Buffer_Manager *bm, usize buffer_size)
 			new_buffer->capacity = buffer_size;
 		}
 	} else {
-		new_buffer->data = (u8 *)malloc(buffer_size);
+		new_buffer->data = (u8 *)mem_alloc(heap, buffer_size, DEFAULT_ALIGNMENT).mem;
 		if (!new_buffer->data) {
 			LogError("Failed to allocate gap buffer data");
 			new_buffer->next = bm->buffer_freelist;

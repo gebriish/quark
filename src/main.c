@@ -24,17 +24,17 @@ int main(void)
 	// ~geb: Layer initializations
 	quark_new(&quark_ctx);
 
-	gfx_init(quark_ctx.persist_arena, quark_ctx.transient_arena, &gfx_state, quark_get_ogl_proc_addr);
+	gfx_init(&quark_ctx.allocator, &quark_ctx.temp_allocator, &gfx_state, quark_get_ogl_proc_addr);
 
 	String8 file_data = os_read_file_data(
-		quark_ctx.persist_arena, 
+		&quark_ctx.allocator, 
 		str8_lit("./res/fonts/JetBrainsMono-Regular.ttf")
 	);
-	font_atlas_new(quark_ctx.persist_arena, file_data.raw, 512, 22, &font_atlas);
-	font_atlas_add_glyphs_from_string(&font_atlas, FONT_CHARSET);
+	font_atlas_new(&quark_ctx.allocator, file_data.raw, 512, 22, &font_atlas);
+	font_atlas_add_glyphs_from_string(&quark_ctx.allocator, &font_atlas, FONT_CHARSET);
 	font_tex_id = font_atlas.tex_id;
 
-	Quark_Buffer *buff = q_buffer_new(&quark_ctx.buffer_manager, KB(10));
+	Quark_Buffer *buff = q_buffer_new(&quark_ctx.allocator, &quark_ctx.buffer_manager, KB(10));
 
 	OS_Time_Stamp last_time = os_time_now();
 
@@ -44,7 +44,7 @@ int main(void)
 	while (quark_window_is_open(quark_ctx.window)) {
 		font_atlas_update(&font_atlas);
 
-		arena_clear(quark_ctx.transient_arena);
+		mem_free_all(&quark_ctx.temp_allocator);
 		OS_Time_Stamp frame_start = os_time_now();
 		f64 delta_time = os_time_diff(last_time, frame_start).seconds;
 		last_time = frame_start;
@@ -77,19 +77,18 @@ int main(void)
 				if (frame_input.codepoint == 'p') {
 					f32 line_height = font_atlas_height(&font_atlas);
 					if (line_height < 80) {
-						font_atlas_resize_glyphs(quark_ctx.transient_arena, &font_atlas, line_height + 4);
+						font_atlas_resize_glyphs(&quark_ctx.temp_allocator, &font_atlas, line_height + 4);
 					}
 				}
 				if (frame_input.codepoint == 'n') {
 					f32 line_height = font_atlas_height(&font_atlas);
 					if (line_height > 4) {
-						font_atlas_resize_glyphs(quark_ctx.transient_arena, &font_atlas, line_height - 4);
+						font_atlas_resize_glyphs(&quark_ctx.temp_allocator, &font_atlas, line_height - 4);
 					}
 				}
 			}
 		}
 
-		// Handle cursor movement
 		if (s_flags & Press_Left) {
 			q_buffer_move_gap_by(buff, 1, Cursor_Dir_Left);
 		} else if (s_flags & Press_Right) {
@@ -114,7 +113,6 @@ int main(void)
 			}
 		}
 
-		// Rendering setup
 		f32 x = 5, y = 5;
 		f32 atlas_w = (f32)font_atlas.atlas_width;
 		f32 atlas_h = (f32)font_atlas.atlas_height;
@@ -241,7 +239,7 @@ int main(void)
 
 	}
 
-	font_atlas_delete(&font_atlas);
+	font_atlas_delete(&quark_ctx.allocator, &font_atlas);
 
 	quark_delete(&quark_ctx);
 

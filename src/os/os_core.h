@@ -8,7 +8,7 @@
 // ~geb: File handling
 
 internal usize   os_file_size(String8 path);
-internal String8 os_read_file_data(Arena *arena, String8 path);
+internal String8 os_read_file_data(Allocator *arena, String8 path);
 internal bool    os_write_file_data(String8 path, String8 data);
 
 internal usize   os_read_file_into_buffer(u8 *buffer, usize capacity, String8 path);

@@ -13,6 +13,7 @@ hash32(u32 x)
 }
 
 #define Map32_Define(name, value_t)                                                   \
+                                                                                      \
 typedef struct {                                                                      \
     u32 key;                                                                          \
     value_t value;                                                                    \
@@ -26,12 +27,24 @@ typedef struct {                                                                
 } name;                                                                               \
                                                                                       \
 internal name *                                                                       \
-name##_new(Arena *arena, usize n)                                                     \
+name##_new(Allocator *alloc, usize n)                                                 \
 {                                                                                     \
-    name *map = arena_push_struct(arena, name);                                       \
+    Alloc_Buffer buf_map = mem_alloc(alloc, sizeof(name), AlignOf(name));             \
+    if (buf_map.err != Alloc_Err_None) return NULL;                                   \
+                                                                                      \
+    name *map = (name *)buf_map.mem;                                                  \
     map->size = 0;                                                                    \
     map->capacity = n * 2;                                                            \
-    map->entries = arena_push_array_zeroed(arena, name##_Entry, map->capacity);       \
+                                                                                      \
+    Alloc_Buffer buf_entries = mem_alloc(                                             \
+				alloc,                                                                        \
+				map->capacity * sizeof(name##_Entry),                                         \
+				AlignOf(name##_Entry));                                                       \
+                                                                                      \
+    if (buf_entries.err != Alloc_Err_None) return NULL;                               \
+                                                                                      \
+    map->entries = (name##_Entry *)buf_entries.mem;                                   \
+                                                                                      \
     return map;                                                                       \
 }                                                                                     \
                                                                                       \
@@ -41,6 +54,7 @@ name##_insert(name *map, u32 key, value_t value)                                
     if (map->size >= map->capacity - 1) {                                             \
         return false;                                                                 \
     }                                                                                 \
+                                                                                      \
     usize idx = hash32(key) % map->capacity;                                          \
     while (map->entries[idx].occupied) {                                              \
         if (map->entries[idx].key == key) {                                           \
@@ -49,6 +63,7 @@ name##_insert(name *map, u32 key, value_t value)                                
         }                                                                             \
         idx = (idx + 1) % map->capacity;                                              \
     }                                                                                 \
+                                                                                      \
     map->entries[idx].key = key;                                                      \
     map->entries[idx].value = value;                                                  \
     map->entries[idx].occupied = true;                                                \
@@ -61,6 +76,7 @@ name##_get(name *map, u32 key, value_t *out)                                    
 {                                                                                     \
     usize idx = hash32(key) % map->capacity;                                          \
     usize start = idx;                                                                \
+                                                                                      \
     while (map->entries[idx].occupied) {                                              \
         if (map->entries[idx].key == key) {                                           \
             *out = map->entries[idx].value;                                           \

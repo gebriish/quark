@@ -58,19 +58,26 @@ global String8 FRAGMENT_SHADER_SRC = str8_lit(
 
 
 internal bool 
-gfx_init(Arena *allocator, Arena *temp_allocator, GFX_State *gfx, void* opengl_proc_loader)
+gfx_init(Allocator *allocator, Allocator *temp_allocator, GFX_State *gfx, void *opengl_proc_loader)
 {
 	Assert(gfx);
 	MemZeroStruct(gfx);
+	
+	Alloc_Buffer vertex_buffer = mem_alloc(allocator, sizeof(Render_Vertex) * MAX_VERTEX_COUNT, AlignOf(Render_Vertex));
+	Alloc_Buffer index_buffer = mem_alloc(allocator, sizeof(u16) * MAX_VERTEX_COUNT, AlignOf(u16));
 
-	gfx->allocator = allocator;
-	gfx->temp_allocator = temp_allocator;
+	if (vertex_buffer.err != Alloc_Err_None) {
+		LogError("Failed to allocate Vertex buffer memory"); Trap();
+	}
+	if (index_buffer.err != Alloc_Err_None) {
+		LogError("Failed to allocate Index buffer memory"); Trap();
+	}
 
-	gfx->render_buffer.vertices = arena_push_array(allocator, Render_Vertex, MAX_VERTEX_COUNT);
-	gfx->render_buffer.indices  = arena_push_array(allocator, u16, MAX_VERTEX_COUNT);
+	gfx->render_buffer.vertices = (Render_Vertex *)vertex_buffer.mem;
+	gfx->render_buffer.indices  = (u16 *)index_buffer.mem;
 
 	if (!gladLoadGLLoader((GLADloadproc)opengl_proc_loader)) {
-		LogError("Failed to initialize GLAD\n");
+		LogError("Failed to initialize GLAD");
 		return -1;
 	}
 

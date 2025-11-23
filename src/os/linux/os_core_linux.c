@@ -42,14 +42,14 @@ os_read_file_into_buffer(u8 *buffer, usize capacity, String8 path)
 }
 
 internal String8
-os_read_file_data(Arena *arena, String8 path)
+os_read_file_data(Allocator *allocator, String8 path)
 {
 	String8 result = {0};
 	
 	usize file_size = os_file_size(path);
 	if (file_size == 0) return result;
 	
-	result.raw = arena_push_array(arena, u8, file_size);
+	result.raw = mem_alloc(allocator, sizeof(u8) * file_size, AlignOf(u8)).mem;
 	result.len = os_read_file_into_buffer(result.raw, file_size, path);
 	
 	if (result.len == 0) {
