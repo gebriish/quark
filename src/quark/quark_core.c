@@ -6,7 +6,6 @@ internal void
 quark_new(Quark_Context *context)
 {
 	Assert(context && "quark context ptr is null");
-
 	context->allocator = heap_allocator();
 
 	Alloc_Buffer arena_buffer = mem_alloc(&context->allocator, MB(4), DEFAULT_ALIGNMENT);

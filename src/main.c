@@ -146,7 +146,8 @@ int main(void)
 					.position = {cursor_pos.x, cursor_pos.y},
 						.color = 0x00ff00ff,
 						.radii = rect_radius(mono_advance * 0.5),
-						.size = {mono_advance * x_scale, line_height }
+						.size = {mono_advance * x_scale, line_height },
+						.uv = {0, 0, 1, 1},
 				});
 				i = idx - itr.consumed;
 				continue;
@@ -207,7 +208,7 @@ int main(void)
 			f32 gh = (f32)(info.y1 - info.y0);
 
 			// Colors
-			u32 col = 0x99856aff;
+			u32 col = 0x99866aff;
 			if (on_cursor) col = 0x131313ff;
 			else if (missing) col = 0xff0000ff;    
 			else if (in_line_comment) col = 0x555555ff;
