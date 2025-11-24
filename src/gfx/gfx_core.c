@@ -36,25 +36,45 @@ global String8 VERTEX_SHADER_SRC = str8_lit (
 );
 
 global String8 FRAGMENT_SHADER_SRC = str8_lit(
-	"#version 330 core\n"
-	"in vec2 Frag_UV;"
-	"in vec2 Frag_CircCoords;"
-	"in vec4 Frag_Color;"
-	"in float Frag_TexID;"
+    "#version 330 core\n"
+    "in vec2 Frag_UV;\n"
+    "in vec2 Frag_CircCoords;\n"
+    "in vec4 Frag_Color;\n"
+    "in float Frag_TexID;\n"
 
-	"uniform sampler2D Textures[16];"
+    "uniform sampler2D Textures[16];\n"
 
-	"layout (location = 0) out vec4 Out_Color;"
+    "layout (location = 0) out vec4 Out_Color;\n"
 
-	"void main() {"
-	"    int tex_id = int(Frag_TexID);"
-	"    float dist = length(Frag_CircCoords) - 1.0;"
-	"    float edge_width = fwidth(dist) * 0.5;"
-	"    float alpha = 1.0 - smoothstep(-edge_width, edge_width, dist);"
-	"    vec4 base = Frag_Color * texture(Textures[tex_id], Frag_UV);"
-	"    Out_Color = vec4(base.rgb, base.a * alpha);"
-	"}"
+    "void main() {\n"
+    "    int tex_id = int(Frag_TexID);\n"
+    "    float dist = length(Frag_CircCoords) - 1.0;\n"
+    "    float edge_width = fwidth(dist) * 0.5;\n"
+    "    float alpha = 1.0 - smoothstep(-edge_width, edge_width, dist);\n"
+
+    "    vec4 texColor = vec4(1.0);\n"
+    "    if      (tex_id == 0)  texColor = texture(Textures[0], Frag_UV);\n"
+    "    else if (tex_id == 1)  texColor = texture(Textures[1], Frag_UV);\n"
+    "    else if (tex_id == 2)  texColor = texture(Textures[2], Frag_UV);\n"
+    "    else if (tex_id == 3)  texColor = texture(Textures[3], Frag_UV);\n"
+    "    else if (tex_id == 4)  texColor = texture(Textures[4], Frag_UV);\n"
+    "    else if (tex_id == 5)  texColor = texture(Textures[5], Frag_UV);\n"
+    "    else if (tex_id == 6)  texColor = texture(Textures[6], Frag_UV);\n"
+    "    else if (tex_id == 7)  texColor = texture(Textures[7], Frag_UV);\n"
+    "    else if (tex_id == 8)  texColor = texture(Textures[8], Frag_UV);\n"
+    "    else if (tex_id == 9)  texColor = texture(Textures[9], Frag_UV);\n"
+    "    else if (tex_id == 10) texColor = texture(Textures[10], Frag_UV);\n"
+    "    else if (tex_id == 11) texColor = texture(Textures[11], Frag_UV);\n"
+    "    else if (tex_id == 12) texColor = texture(Textures[12], Frag_UV);\n"
+    "    else if (tex_id == 13) texColor = texture(Textures[13], Frag_UV);\n"
+    "    else if (tex_id == 14) texColor = texture(Textures[14], Frag_UV);\n"
+    "    else if (tex_id == 15) texColor = texture(Textures[15], Frag_UV);\n"
+
+    "    vec4 base = Frag_Color * texColor;\n"
+    "    Out_Color = vec4(base.rgb, base.a * alpha);\n"
+    "}\n"
 );
+
 
 
 internal bool 
