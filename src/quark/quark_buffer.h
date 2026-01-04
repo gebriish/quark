@@ -1,56 +1,38 @@
 #ifndef QUARK_BUFFER_H
 #define QUARK_BUFFER_H
 
-#include "../base/base_core.h"
-#include "../base/base_string.h"
+#include "../base/base_inc.h"
 
-/////////////////////////////////////
-// ~geb: Gap buffer
-
-typedef struct Quark_Buffer Quark_Buffer;
-struct Quark_Buffer {
-	u8 *data;
-
-	usize capacity;
-	usize gap_index;
-	usize gap_size;
-
-	Quark_Buffer *next; // linked list of buffers
+typedef struct Buffer_ID Buffer_ID;
+struct Buffer_ID {
+	u32 index, generation_id;
 };
 
-typedef u32 Cursor_Dir;
-enum {
-	Cursor_Dir_Left,
-	Cursor_Dir_Right,
-	Cursor_Dir_Up,
-	Cursor_Dir_Down,
+typedef struct QBuffer QBuffer;
+
+typedef struct QBuffer_List QBuffer_List;
+struct QBuffer_List {
+	QBuffer *first;
+	usize len;
 };
 
-internal void q_buffer_insert(Quark_Buffer *buffer, String8 string);
-internal void q_buffer_delete_rune(Quark_Buffer *buffer, u32 count, Cursor_Dir dir);
-internal void q_buffer_move_gap(Quark_Buffer *buffer, usize byte);
-internal void q_buffer_move_gap_by(Quark_Buffer *buffer, u32 count, Cursor_Dir dir);
-
-internal String8 q_buffer_to_str(Quark_Buffer *buffer, Allocator *allocator);
-
-internal u32  runes_till(Quark_Buffer *buffer, rune target);
-internal u32  runes_from(Quark_Buffer *buffer, rune target);
-
-/////////////////////////////////////
-// ~geb: Gap buffer Manager
-
-typedef struct Buffer_Manager Buffer_Manager;
-struct Buffer_Manager {
-	Allocator arena;
-
-	Quark_Buffer *buffer_list;
-	Quark_Buffer *buffer_freelist;
+typedef struct QBuffer_Itr QBuffer_Itr;
+struct QBuffer_Itr {
+	QBuffer *buf;
+	u8 *ptr;
+	rune codepoint;
+	usize pos;
+	u8 size;
 };
 
-internal void buffer_manager_init(Allocator *allocator, Buffer_Manager *bm);
-internal void buffer_manager_clear(Buffer_Manager *bm);
+internal QBuffer *quark_buffer_new(Arena *arena, String8 data);
+internal void     quark_buffer_clear(QBuffer *buf);
 
-internal Quark_Buffer *q_buffer_new(Allocator *allocator, Buffer_Manager *bm, usize buffer_size);
-internal void q_buffer_delete(Buffer_Manager *bm, Quark_Buffer *buffer);
+internal usize quark_buffer_length(QBuffer *buf);
+internal String8 quark_buffer_slice(QBuffer *buf, usize begin, usize end, Arena *arena);
+internal QBuffer_Itr quark_buffer_itr(QBuffer *buf, QBuffer_Itr *prev);
+
+internal bool quark_buffer_insert(QBuffer *buf, String8 string);
+
 
 #endif

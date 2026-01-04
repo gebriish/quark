@@ -2,88 +2,75 @@
 #define BASE_STRING_H
 
 #include "base_core.h"
+#include "base_collections.h"
+#include "base_arena.h"
 
-#define UNICODE_REPLACEMENT 0xFFFD
+#define Utf8_Invalid 0xFFFD
+global const u8 UTF8_SIZE[256] = {
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 0x00–0x0F
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 0x10–0x1F
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 0x20–0x2F
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 0x30–0x3F
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 0x40–0x4F
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 0x50–0x5F
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 0x60–0x6F
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, // 0x70–0x7F
 
-typedef u32 rune;
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x80–0x8F
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0x90–0x9F
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0xA0–0xAF
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, // 0xB0–0xBF
 
-typedef struct {
-	rune codepoint;
-	u32  consumed;
-} rune_itr;
+		2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, // 0xC0–0xCF
+		2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, // 0xD0–0xDF
+		3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, // 0xE0–0xEF
 
+		4, 4, 4, 4, 4, 4, 4, 4, // F0–F7
+		0, 0, 0, 0, 0, 0, 0, 0	// F8–FF (invalid in UTF-8)
+};
 
-typedef struct String8 String8; // UTF8 Encoded String
+typedef struct String8 String8; // UTF-8 String
 struct String8 {
-	u8 *raw;
+	u8 *str;
 	usize len;
 };
 
-#define str8_lit(x) (String8){.raw = (u8 *)(x), .len = sizeof(x) - 1}
-#define str8_fmt(x) ((i32)x.len), (x.raw)
+Generate_List(String8, string8_list)
 
-internal String8  str8(u8 *raw, usize len);
-internal String8  str8_slice(String8 string, usize start, usize end_exclusive);
-internal String8  str8_cstr_slice(const char* cstring, isize start, isize end_exclusive);
-internal rune_itr str8_decode_utf8(u8 *raw, usize len);
-internal usize    str8_codepoint_count(String8 str);
-internal String8  str8_to_ctring(Allocator *alloc, String8 string);
-internal String8  str8_copy_cstr(Allocator *alloc, const char *cstring);
-internal String8  str8_encode_rune(rune codepoint, u8 backing_mem[4]);
-internal bool     str8_equal(String8 s1, String8 s2);
+typedef u32 rune;
 
-internal bool     rune_is_space(rune codepoint);
+#define S(x) (String8) {.str = (u8 *)x, .len = (usize) sizeof(x) - 1}
+#define S_FMT "%.*s"
+#define str8_fmt(s) (int)s.len, (char *)s.str
 
-internal usize    utf8_codepoint_size(u8 lead);
-
-force_inline bool
-utf8_trail(u8 byte)
-{
-	return (byte & 0xC0) == 0x80;
+force_inline String8 str8_empty() {
+	return S("");
 }
 
-force_inline usize
-utf8_size_from_first_byte(u8 b) {
-	if ((b & 0x80) == 0) return 1;
-	if ((b & 0xE0) == 0xC0) return 2;
-	if ((b & 0xF0) == 0xE0) return 3;
-	if ((b & 0xF8) == 0xF0) return 4;
-	return 1;
-}
+internal String8 str8(u8 *mem, usize len);
+internal String8 str8_slice(String8 string, usize begin, usize end_exclusive);
+internal String8 str8_concat(String8 left, String8 right, Arena *arena);
+internal String8 str8_sprintf(Arena *arena, const char *fmt, ...);
+internal bool    str8_equal(String8 s1, String8 s2);
+internal usize   str8_count(String8 string);
 
-force_inline rune
-utf8_decode(u8 *p)
-{
-	u8 b0 = p[0];
-	if ((b0 & 0x80) == 0) {
-		return (rune)b0;
-	}
-	else if ((b0 & 0xE0) == 0xC0) {
-		return (rune)(((b0 & 0x1F) << 6) |
-		       (p[1] & 0x3F));
-	}
-	else if ((b0 & 0xF0) == 0xE0) {
-		return (rune)(((b0 & 0x0F) << 12) |
-		       ((p[1] & 0x3F) << 6) |
-		       (p[2] & 0x3F));
-	}
-	else if ((b0 & 0xF8) == 0xF0) {
-		return (rune)(((b0 & 0x07) << 18) |
-		       ((p[1] & 0x3F) << 12) |
-		       ((p[2] & 0x3F) << 6) |
-		       (p[3] & 0x3F));
-	}
-	else {
-		return 0xFFFD;
-	}
-}
+/* ~geb: Doesnt copy string data itself, strings are a view */  
+internal string8_list str8_list_from_cstring_array(Arena *arena, usize count, char **cstrings);
 
-#define STR_FMT "%.*s"
 
-#define str8_foreach(str, itr_name, offset_name) \
-for (usize offset_name = 0; offset_name < (str).len;) \
-	for (rune_itr itr_name = str8_decode_utf8((str).raw + offset_name, (str).len - offset_name); \
-		offset_name < (str).len && itr_name.consumed != 0; \
-		offset_name += itr_name.consumed, itr_name.consumed = 0)
+typedef u32 UTF8_Error;
+enum {
+	UTF8_Err_None = 0,
+	UTF8_Err_OutOfBounds,
+	UTF8_Err_InvalidLead,
+	UTF8_Err_InvalidContinuation,
+	UTF8_Err_Overlong,
+	UTF8_Err_Surrogate,
+	UTF8_Err_OutOfRange,
+};
+
+// UTF-8
+internal UTF8_Error utf8_decode(String8 s, usize idx, rune *out, usize *consumed);
+
 
 #endif

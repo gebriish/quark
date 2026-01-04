@@ -31,8 +31,6 @@
 #define Clamp(A,X,B) (((X)<(A))?(A):((X)>(B))?(B):(X))
 #define Lerp(a, b, t) ((a) + ((b) - (a)) * t)
 
-#define Abs_i64(v) (i64)llabs(v)
-
 #if COMPILER_MSVC
 # define AlignOf(T) __alignof(T)
 #elif COMPILER_CLANG
@@ -45,12 +43,6 @@
 
 #define DEFAULT_ALIGNMENT AlignOf(void*) * 2
 
-#define ByteSwapU32(x) (             \
-	(((x) & (u32)0x000000FFu) << 24) | \
-	(((x) & (u32)0x0000FF00u) << 8)  | \
-	(((x) & (u32)0x00FF0000u) >> 8)  | \
-	(((x) & (u32)0xFF000000u) >> 24) )
-
 #define OffsetOf(s,m) ((size_t)&(((s*)0)->m))
 
 #if COMPILER_CLANG || COMPILER_GCC
@@ -60,8 +52,6 @@
 #else
 # define force_inline inline
 #endif
-
-#define Glue(A,B) A##B
 
 ////////////////////////////////
 // ~geb: Mem operations
@@ -80,16 +70,18 @@
 # error Unknown trap intrinsic for this compiler.
 #endif
 
-#define AssertAlways(x) do{if(!(x)) {Trap();}}while(0)
+#define NoOp ((void)0)
+
+#include <assert.h>
+#define AssertAlways(x) assert(x)
 #if DEBUG_BUILD
 # define Assert(x) AssertAlways(x)
 #else
-# define Assert(x) (void)(x)
+# define Assert(x) NoOp
 #endif
 
 #define StaticAssert(expr, str) _Static_assert(expr, str)
 #define AlignPow2(x,b)     (((x) + (b) - 1)&(~((b) - 1)))
-#define NoOp               ((void)0)
 
 ////////////////////////////////
 // ~geb: Type shorthands
@@ -104,9 +96,11 @@ typedef int16_t  i16;
 typedef int32_t  i32;
 typedef int64_t  i64;
 
-typedef i8       bool;
+#if IS_C
+typedef u8       bool;
 #define true    ((bool)1)
 #define false   ((bool)0)
+#endif
 
 typedef float    f32;
 typedef double   f64;
@@ -125,19 +119,26 @@ typedef double   f64;
 #define I64_MIN (-9223372036854775807LL - 1)
 #define I64_MAX 9223372036854775807LL
 
+#define ByteSwapU32(x) (             \
+	(((x) & (u32)0x000000FFu) << 24) | \
+	(((x) & (u32)0x0000FF00u) << 8)  | \
+	(((x) & (u32)0x00FF0000u) >> 8)  | \
+	(((x) & (u32)0xFF000000u) >> 24) )
+
 StaticAssert(sizeof(f32) == 4, "float32 size not correct");
 StaticAssert(sizeof(f64) == 8, "float64 size not correct");
 
 #if ARCH_64BIT
 typedef u64 usize;
 typedef i64 isize;
+
+#define USIZE_MAX U64_MAX
 #else
 typedef u32 usize;
 typedef i32 isize;
-#endif
 
-////////////////////////////////
-// ~geb: Math 
+#define USIZE_MAX U32_MAX
+#endif
 
 #define VecDef(N, T, ...) \
 typedef struct {\
@@ -156,43 +157,29 @@ VecDef(2, u8,  x, y);
 VecDef(4, f32, x, y, z, w);
 VecDef(4, u16, x, y, z, w);
 
-internal force_inline f32 
-smooth_damp(f32 current, f32 target, f32 time, f32 dt)
-{
-	if (dt <= 0 || time <= 0) return target;
 
-	f32 rate = 2.0f / time;
-	f32 x = rate * dt;
-
-	f32 factor = 0;
-	if (x < 0.0001f) {
-		factor = x * (1.0f - x*0.5f + x*x/6.0f - x*x*x/24.0f);
-	} else {
-		factor = 1.0f - expf(-x);
-	}
-
-	return Lerp(current, target, factor);
-}
+#define ANSI_RESET   "\x1b[0m"
+#define ANSI_RED     "\x1b[31m"
+#define ANSI_YELLOW  "\x1b[33m"
+#define ANSI_GREEN   "\x1b[32m"
 
 #if DEBUG_BUILD
-# define _log_base(stream, level, fmt, ...)                    \
-do {                                                           \
-	fprintf(stream, "[%s] %s:%d (%s): " fmt "\n",                \
-		 level, __FILE__, __LINE__, __func__, ##__VA_ARGS__); \
+
+# define _log_base(stream, color, level, fmt, ...)    \
+do {                                                  \
+	fprintf(stream, "%s %s: %s:%d (%s): %s" fmt "\n",   \
+	        color, level, __FILE__, __LINE__, __func__, \
+	        ANSI_RESET, ##__VA_ARGS__);                 \
 } while (0)
 
-# define LogError(fmt, ...)  _log_base(stderr, "ERROR", fmt, ##__VA_ARGS__)
-# define LogWarn(fmt,  ...)  _log_base(stderr, "WARN ", fmt, ##__VA_ARGS__)
-# define LogInfo(fmt,  ...)  _log_base(stdout, "INFO ", fmt, ##__VA_ARGS__)
-# define LogDebug(fmt, ...)  _log_base(stdout, "DEBUG", fmt, ##__VA_ARGS__)
-
+# define log_trace(fmt, ...)  _log_base(stdout, ANSI_GREEN,  "  INFO    ",  fmt, ##__VA_ARGS__)
+# define log_warn(fmt,  ...)  _log_base(stderr, ANSI_YELLOW, "  WARN    ",  fmt, ##__VA_ARGS__)
+# define log_error(fmt, ...)  _log_base(stderr, ANSI_RED,    "< ERROR > ", fmt, ##__VA_ARGS__)
 
 #else
-# define LogError(fmt, ...)   ((void)0)
-# define LogWarn(fmt, ...)    ((void)0)
-# define LogInfo(fmt, ...)    ((void)0)
-# define LogDebug(fmt, ...)   ((void)0)
-
+# define log_trace(fmt, ...) ((void)(0))
+# define log_warn(fmt,  ...) ((void)(0))
+# define log_error(fmt, ...) ((void)(0))
 #endif
 
 
@@ -203,7 +190,7 @@ struct Source_Code_Location {
 	int line;
 };
 
-#define Code_Location()        \
+#define Code_Location          \
     ((Source_Code_Location){   \
         .file_path = __FILE__, \
         .procedure = __func__, \
@@ -212,82 +199,6 @@ struct Source_Code_Location {
 
 
 #define DeferScope(begin, end) for(int _i_  = ((begin), 0); !_i_; _i_ += 1, (end))
-
-////////////////////////////////
-// ~geb: Allocator Interface 
-
-typedef u32 Alloc_Error;
-enum {
-	Alloc_Err_None,
-	Alloc_Err_Out_Of_Memory,
-	Alloc_Err_Invalid_Pointer,
-	Alloc_Err_Invalid_Argument,
-	Alloc_Err_Mode_Not_Implemented,
-};
-
-typedef u32 Alloc_Mode;
-enum {
-	AlMode_Alloc,
-	AlMode_Free,
-	AlMode_Free_All,
-	AlMode_Resize,
-	AlMode_Alloc_Non_Zeroed,
-	AlMode_Resize_Non_Zeroed,
-};
-
-typedef struct Alloc_Result Alloc_Buffer;
-struct Alloc_Result {
-	void *mem;
-	usize size;
-	Alloc_Error err;
-};
-
-typedef Alloc_Buffer (*Allocator_Proc)(
-	void *allocator_data,
-	Alloc_Mode mode,
-	usize size,
-	usize alignment,
-	void *old_memory,
-	usize old_size,
-	Source_Code_Location loc
-);
-
-typedef struct Allocator Allocator;
-struct Allocator {
-	Allocator_Proc procedure;
-	void *data;
-};
-
-#define mem_alloc(a, size, align) \
-    (a)->procedure((a)->data, AlMode_Alloc, (size), (align), NULL, 0, Code_Location())
-
-#define mem_alloc_nz(a, size, align) \
-    (a)->procedure((a)->data, AlMode_Alloc_Non_Zeroed, (size), (align), NULL, 0, Code_Location())
-
-#define mem_free(a, ptr, old_size) \
-    (a)->procedure((a)->data, AlMode_Free, 0, 0, (ptr), (old_size), Code_Location())
-
-#define mem_free_all(a) \
-    (a)->procedure((a)->data, AlMode_Free_All, 0, 0, NULL, 0, Code_Location())
-
-#define mem_resize(a, ptr, old_size, new_size, align) \
-    (a)->procedure((a)->data, AlMode_Resize, (new_size), (align), (ptr), (old_size), Code_Location())
-
-#define mem_resize_nz(a, ptr, old_size, new_size, align) \
-    (a)->procedure((a)->data, AlMode_Resize_Non_Zeroed, (new_size), (align), (ptr), (old_size), Code_Location())
-
-typedef struct Arena Arena;
-struct Arena {
-	usize used;
-	usize capacity;
-};
-
-#define ARENA_HEADER_SIZE sizeof(Arena)
-
-internal Arena *arena_new(Alloc_Buffer backing_buffer);
-
-internal Allocator heap_allocator();
-internal Allocator arena_allocator(Arena *arena);
 
 #endif
 

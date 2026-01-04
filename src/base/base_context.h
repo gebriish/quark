@@ -136,4 +136,12 @@
 # define _GNU_SOURCE 1
 #endif
 
+#ifdef __cplusplus
+# define IS_CPP 1
+# define IS_C   0
+#else
+# define IS_CPP 0
+# define IS_C   1
+#endif
+
 #endif

@@ -12,4 +12,4 @@ rm -rf "$build"
 mkdir -p "$build"
 
 echo "Compiling $src -> $build/$bin"
-clang $src -o $build/$bin $GLFW_LIB $SYSLIBS -std=c11 -g
+clang $src -o $build/$bin $GLFW_LIB $SYSLIBS -std=c11 -g -Winitializer-overrides

@@ -1,36 +1,61 @@
 #ifndef QUARK_CORE_H
 #define QUARK_CORE_H
 
-#include "../base/base_core.h"
-#include "../gfx/gfx_core.h"
+#include "../base/base_inc.h"
 
 #include "quark_buffer.h"
-#include "quark_window.h"
 
-typedef u32	Quark_State;
+typedef u32 Quark_Cmd_Kind;
 enum {
-	Quark_State_Normal,
-	Quark_State_Insert,
-	Quark_State_Cmd,
+	Cmd_Kind_None,
+
+	Cmd_Kind_New_Buffer,
+	Cmd_Kind_Delete_Buffer,
+
+	Cmd_Kind_Len,
 };
 
-typedef struct Quark_Context Quark_Context;
-struct Quark_Context {
-	Allocator allocator;
-	Allocator temp_allocator;
-
-	Quark_Window  window;
-
-	Quark_State state;
-	Buffer_Manager buffer_manager;
-
-	Quark_Buffer *cmd_gap_buffer;
-	Quark_Buffer *active_buffer;
+typedef u32 Quark_Error;
+enum {
+	Quark_Err_None,
+	Quark_Err_Underflow,
+	Quark_Err_Overflow,
+	Quark_Err_Count,
 };
 
-internal void quark_new(Quark_Context *context);
-internal void quark_delete(Quark_Context *context);
+typedef struct Quark_Cmd Quark_Cmd;
+struct Quark_Cmd {
+	Quark_Cmd_Kind kind;
 
-internal void quark_frame_update(Quark_Context *context, Input_Data data);
+	union {
+		struct { String8 name, data_buffer; } buffer_new;
+		struct { Buffer_ID id; } buffer_delete;
+	};
+};
+
+Generate_Deque(cmd_queue, Quark_Cmd)
+
+typedef struct Quark_Ctx Quark_Ctx;
+struct Quark_Ctx {
+	Arena *arena;
+	Arena *frame_arena;
+
+	Arena *buffer_arena;
+
+	cmd_queue undo_queue, redo_queue;
+
+	QBuffer_List open_buffers;
+	QBuffer_List buffer_freelist;
+};
+
+internal Quark_Ctx quark_new();
+internal void quark_delete();
+internal Quark_Ctx *quark_set_context(Quark_Ctx *ctx);
+
+internal Quark_Error quark_exec_cmd(Quark_Cmd cmd);
+
+internal Quark_Error quark_undo();
+internal Quark_Error quark_redo();
+
 
 #endif

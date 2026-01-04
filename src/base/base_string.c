@@ -1,261 +1,202 @@
 #include "base_string.h"
 
-global const u8 utf8_class[256] = {
-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, // 0x00-0x0F
-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, // 0x10-0x1F
-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, // 0x20-0x2F
-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, // 0x30-0x3F
-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, // 0x40-0x4F
-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, // 0x50-0x5F
-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, // 0x60-0x6F
-	1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1, // 0x70-0x7F
-	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // 0x80-0x8F
-	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // 0x90-0x9F
-	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // 0xA0-0xAF
-	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, // 0xB0-0xBF
-	2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2, // 0xC0-0xCF
-	2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2, // 0xD0-0xDF
-	3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3, // 0xE0-0xEF
-	4,4,4,4,4,4,4,4,5,5,5,5,6,6,0,0  // 0xF0-0xFF
-};
-
-internal String8 
-str8(u8 *raw, usize len)
+internal String8
+str8(u8 *mem, usize len)
 {
 	String8 str = {
-		raw,
-		len
-	};
+			mem,
+			len};
 	return str;
 }
 
-internal String8 
+internal String8
 str8_slice(String8 string, usize start, usize end_exclusive)
 {
 	AssertAlways(start >= 0 && end_exclusive <= string.len && end_exclusive > start);
-	return str8(string.raw + start, Min(string.len, end_exclusive - start));
+	return str8(string.str + start, Min(string.len, end_exclusive - start));
 }
 
 internal String8
-str8_cstr_slice(const char *cstring, isize start, isize end_exclusive)
+str8_concat(String8 left, String8 right, Arena *arena)
 {
-	AssertAlways(cstring != NULL);
-	usize len = MemStrlen(cstring);
+	Assert(arena != 0);
 
-	if (end_exclusive < 0) {
-		end_exclusive = (isize) len;
-	}
+	usize total_len = left.len + right.len;
+	Assert(total_len >= left.len);
 
-	AssertAlways(start >= 0 && end_exclusive <= (isize)len && end_exclusive > start);
+	u8 *str_data = arena_push_array(arena, u8, total_len);
 
-	return str8((u8 *)(cstring + start), (usize)(end_exclusive - start));
-}
+	MemMove(str_data, left.str, left.len);
+	MemMove(str_data + left.len, right.str, right.len);
 
-internal rune_itr 
-str8_decode_utf8(u8 *raw, usize len) {
-	rune_itr result = {0};
-
-	if (len == 0) {
-		result.codepoint = UNICODE_REPLACEMENT;
-		result.consumed = 0;
-		return result;
-	}
-
-	u8 first = raw[0];
-	u8 byte_count = utf8_class[first];
-
-	if (byte_count == 0 || byte_count > len) {
-		result.codepoint = UNICODE_REPLACEMENT;
-		result.consumed = 1;
-		return result;
-	}
-
-	result.consumed = byte_count;
-
-	switch (byte_count) {
-		case 1: {
-			result.codepoint = first;
-		} break;
-
-		case 2: {
-			u8 b1 = raw[0];
-			u8 b2 = raw[1];
-
-			if ((b2 & 0xC0) != 0x80) {
-				result.codepoint = UNICODE_REPLACEMENT;
-				result.consumed = 1;
-				break;
-			}
-
-			rune cp = (rune)(((b1 & 0x1F) << 6) | (b2 & 0x3F));
-
-			if (cp < 0x80) {
-				result.codepoint = UNICODE_REPLACEMENT;
-				result.consumed = 1;
-			} else {
-				result.codepoint = cp;
-			}
-		} break;
-
-		case 3: {
-			u8 b1 = raw[0];
-			u8 b2 = raw[1];
-			u8 b3 = raw[2];
-
-			if ((b2 & 0xC0) != 0x80 || (b3 & 0xC0) != 0x80) {
-				result.codepoint = UNICODE_REPLACEMENT;
-				result.consumed = 1;
-				break;
-			}
-
-			rune cp = (rune)(((b1 & 0x0F) << 12) | ((b2 & 0x3F) << 6) | (b3 & 0x3F));
-
-			if (cp < 0x800 || (cp >= 0xD800 && cp <= 0xDFFF)) {
-				result.codepoint = UNICODE_REPLACEMENT;
-				result.consumed = 1;
-			} else {
-				result.codepoint = cp;
-			}
-		} break;
-
-		case 4: {
-			u8 b1 = raw[0];
-			u8 b2 = raw[1];
-			u8 b3 = raw[2];
-			u8 b4 = raw[3];
-
-			if ((b2 & 0xC0) != 0x80 || (b3 & 0xC0) != 0x80 || (b4 & 0xC0) != 0x80) {
-				result.codepoint = UNICODE_REPLACEMENT;
-				result.consumed = 1;
-				break;
-			}
-
-			rune cp = (rune)(((b1 & 0x07) << 18) | ((b2 & 0x3F) << 12) | 
-					((b3 & 0x3F) << 6) | (b4 & 0x3F));
-
-			if (cp < 0x10000 || cp > 0x10FFFF) {
-				result.codepoint = UNICODE_REPLACEMENT;
-				result.consumed = 1;
-			} else {
-				result.codepoint = cp;
-			}
-		} break;
-
-		default: {
-			result.codepoint = UNICODE_REPLACEMENT;
-			result.consumed = 1;
-		} break;
-	}
-
-	return result;
-}
-
-internal usize 
-str8_codepoint_count(String8 str) {
-	usize count = 0;
-	usize offset = 0;
-
-	while (offset < str.len) {
-		rune_itr itr = str8_decode_utf8(str.raw + offset, str.len - offset);
-		if (itr.consumed == 0) break;
-
-		offset += itr.consumed;
-		count++;
-	}
-
-	return count;
+	return str8(str_data, total_len);
 }
 
 internal String8
-str8_to_ctring(Allocator *alloc, String8 string)
+str8_sprintf(Arena *arena, const char *fmt, ...)
 {
-	String8 result = {0};
-	Alloc_Buffer buff = mem_alloc(alloc, sizeof(u8) * string.len + 1, DEFAULT_ALIGNMENT);
-	if (buff.err != Alloc_Err_None) {
-		LogError("Failed to allocate cstring buffer in str8_to_ctring"); Trap();
-	}
-	result.raw = (u8 *)buff.mem;
-	MemMove(result.raw, string.raw, string.len);
-	result.raw[string.len] = '\0';
-	result.len = string.len;
-	return result;
-}
+	va_list args, args_copy;
+	va_start(args, fmt);
 
-internal String8
-str8_copy_cstr(Allocator *alloc, const char *cstring)
-{
-	usize string_len = MemStrlen(cstring);
-	String8 result;
+	va_copy(args_copy, args);
+	int size = vsnprintf(NULL, 0, fmt, args_copy);
+	va_end(args_copy);
 
-	Alloc_Buffer buff = mem_alloc(alloc, string_len + 1 , AlignOf(u8));
-	if (buff.err != Alloc_Err_None) {
-		LogError("Failed to allocate cstring buffer in str8_copy_cstr"); Trap();
+	if (size < 0)
+	{
+		va_end(args);
+		return S("");
 	}
 
-	result.raw = buff.mem;
-	result.len = string_len;
-	MemMove(result.raw, cstring, string_len);
-	result.raw[string_len] = 0;
-	return result;
-}
-
-internal String8
-str8_encode_rune(rune codepoint, u8 backing_mem[4])
-{
-	String8 result = {0};
-
-	if (codepoint <= 0x7F) {
-		backing_mem[0] = (u8)codepoint;
-		result.len = 1;
-	}
-	else if (codepoint <= 0x7FF) {
-		backing_mem[0] = 0xC0 | (u8)(codepoint >> 6);        // first 5 bits
-		backing_mem[1] = 0x80 | (u8)(codepoint & 0x3F);      // last 6 bits
-		result.len = 2;
-	}
-	else if (codepoint <= 0xFFFF) {
-		backing_mem[0] = 0xE0 | (u8)(codepoint >> 12);                  // first 4 bits
-		backing_mem[1] = 0x80 | (u8)((codepoint >> 6) & 0x3F);          // middle 6 bits
-		backing_mem[2] = 0x80 | (u8)(codepoint & 0x3F);                 // last 6 bits
-		result.len = 3;
-	}
-	else if (codepoint <= 0x10FFFF) {
-		backing_mem[0] = 0xF0 | (u8)(codepoint >> 18);                  // first 3 bits
-		backing_mem[1] = 0x80 | (u8)((codepoint >> 12) & 0x3F);         // next 6 bits
-		backing_mem[2] = 0x80 | (u8)((codepoint >> 6) & 0x3F);          // next 6 bits
-		backing_mem[3] = 0x80 | (u8)(codepoint & 0x3F);                 // last 6 bits
-		result.len = 4;
-	}
-	else {
-		backing_mem[0] = 0xEF;
-		backing_mem[1] = 0xBF;
-		backing_mem[2] = 0xBD;
-		result.len = 3;
+	u8 *buf = arena_push_array(arena, u8, size + 1);
+	if (!buf)
+	{
+		va_end(args);
+		return S("");
 	}
 
-	result.raw = backing_mem;
-	return result;
+	vsnprintf((char *)buf, size + 1, fmt, args);
+	va_end(args);
+
+	return str8(buf, size);
 }
 
 internal bool
 str8_equal(String8 s1, String8 s2)
 {
-	if (s1.len != s2.len) return false;
-	return MemCompare(s1.raw, s2.raw, s1.len) == 0;
-}
-
-internal bool
-rune_is_space(rune cp)
-{
-	return cp == ' ' || cp == '\t' || cp == '\r';
+	if (s1.len != s2.len)
+		return false;
+	return MemCompare(s1.str, s2.str, s1.len) == 0;
 }
 
 internal usize
-utf8_codepoint_size(u8 lead)
+str8_count(String8 string)
 {
-    if ((lead & 0x80) == 0x00) return 1;
-    if ((lead & 0xE0) == 0xC0) return 2;
-    if ((lead & 0xF0) == 0xE0) return 3;
-    if ((lead & 0xF8) == 0xF0) return 4;
-    return 1;
+	usize consumed = 0, count = 0;
+	for (usize i=0; i<string.len; i+=consumed, ++count)
+	{
+		rune c = 0;
+		UTF8_Error err = utf8_decode(string, i, &c, &consumed);
+
+		if (err != UTF8_Err_None) { return count; }
+	}
+
+	return count;
+}
+
+
+internal string8_list
+str8_list_from_cstring_array(Arena *arena, usize count, char **cstrings)
+{
+	Assert(arena);
+	Assert(count != 0 && cstrings);
+
+	string8_list arr = string8_list_make(arena, count);
+
+	for (usize i = 0; i < count; i++)
+	{
+		usize len = MemStrlen(cstrings[i]);
+		String8 str = str8((u8 *)cstrings[i], len);
+
+		string8_list_push(&arr, str);
+	}
+
+	return arr;
+}
+
+force_inline bool utf8_is_cont(u8 b)
+{
+	return (b & 0xC0) == 0x80;
+}
+
+internal UTF8_Error
+utf8_decode(String8 s, usize idx, rune *out, usize *consumed)
+{
+	if (consumed)
+		*consumed = 0;
+
+	if (idx >= s.len)
+	{
+		return UTF8_Err_OutOfBounds;
+	}
+
+	u8 *p = s.str + idx;
+	u8 b0 = p[0];
+
+	u8 len = UTF8_SIZE[b0];
+	if (len == 0)
+	{
+		return UTF8_Err_InvalidLead;
+	}
+
+	if (idx + len > s.len)
+	{
+		return UTF8_Err_OutOfBounds;
+	}
+
+	rune r = 0;
+
+	switch (len)
+	{
+	case 1:
+		r = b0;
+		break;
+
+	case 2:
+		if (!utf8_is_cont(p[1]))
+		{
+			return UTF8_Err_InvalidContinuation;
+		}
+		r = ((b0 & 0x1F) << 6) |
+				(p[1] & 0x3F);
+		if (r < 0x80)
+		{
+			return UTF8_Err_Overlong;
+		}
+		break;
+
+	case 3:
+		if (!utf8_is_cont(p[1]) || !utf8_is_cont(p[2]))
+		{
+			return UTF8_Err_InvalidContinuation;
+		}
+		r = ((b0 & 0x0F) << 12) |
+				((p[1] & 0x3F) << 6) |
+				(p[2] & 0x3F);
+		if (r < 0x800)
+		{
+			return UTF8_Err_Overlong;
+		}
+		if (r >= 0xD800 && r <= 0xDFFF)
+		{
+			return UTF8_Err_Surrogate;
+		}
+		break;
+
+	case 4:
+		if (!utf8_is_cont(p[1]) ||
+				!utf8_is_cont(p[2]) ||
+				!utf8_is_cont(p[3]))
+		{
+			return UTF8_Err_InvalidContinuation;
+		}
+		r = ((b0 & 0x07) << 18) |
+				((p[1] & 0x3F) << 12) |
+				((p[2] & 0x3F) << 6) |
+				(p[3] & 0x3F);
+		if (r < 0x10000)
+		{
+			return UTF8_Err_Overlong;
+		}
+		if (r > 0x10FFFF)
+		{
+			return UTF8_Err_OutOfRange;
+		}
+		break;
+	}
+
+	*out = r;
+	if (consumed)
+		*consumed = len;
+	return UTF8_Err_None;
 }

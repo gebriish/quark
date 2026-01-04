@@ -1,78 +1,148 @@
 #include "../os_core.h"
+#include "os_core_linux.h"
 
-#include <sys/stat.h>
-#include <sys/mman.h>
-
-#include <fcntl.h>
-#include <unistd.h>
-#include <time.h>
-
-//////////////////////////////////////////
-
-internal usize
-os_file_size(String8 path)
+internal void * os_reserve(usize size)
 {
-	struct stat st;
-	if (stat((char *)path.raw, &st) == -1) {
-		return 0;
+	void *result = mmap(0, size, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+	if(result == MAP_FAILED)
+	{
+		result = 0;
 	}
-	return (usize)st.st_size;
-}
-
-internal usize
-os_read_file_into_buffer(u8 *buffer, usize capacity, String8 path)
-{
-	int fd = open((char *)path.raw, O_RDONLY);
-	if (fd == -1) return 0;
-	
-	struct stat st;
-	if (fstat(fd, &st) == -1) {
-		close(fd);
-		return 0;
-	}
-	
-	usize file_size = (usize)st.st_size;
-	usize bytes_to_read = file_size < capacity ? file_size : capacity;
-	
-	ssize_t bytes_read = read(fd, buffer, bytes_to_read);
-	close(fd);
-	
-	if (bytes_read < 0) return 0;
-	return (usize)bytes_read;
-}
-
-internal String8
-os_read_file_data(Allocator *allocator, String8 path)
-{
-	String8 result = {0};
-	
-	usize file_size = os_file_size(path);
-	if (file_size == 0) return result;
-	
-	result.raw = mem_alloc(allocator, sizeof(u8) * file_size, AlignOf(u8)).mem;
-	result.len = os_read_file_into_buffer(result.raw, file_size, path);
-	
-	if (result.len == 0) {
-		result.raw = 0;
-	}
-	
 	return result;
 }
 
-internal bool
-os_write_file_data(String8 path, String8 data)
+internal int
+os_commit(void *ptr, usize size)
 {
-	int fd = open((char *)path.raw, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-	if (fd == -1) return false;
+	return mprotect(ptr, size, PROT_READ | PROT_WRITE);
+}
 
-	ssize_t bytes_written = write(fd, data.raw, data.len);
-	close(fd);
+internal void
+os_decommit(void *ptr, usize size)
+{
+	madvise(ptr, size, MADV_DONTNEED);
+	mprotect(ptr, size, PROT_NONE);
+}
 
-	return bytes_written == (ssize_t)data.len;
+internal void
+os_release(void *ptr, usize size)
+{
+  munmap(ptr, size);
 }
 
 
-//////////////////////////////////////////
+internal OS_Handle
+os_file_open(OS_Access_Flags flags, String8 path, Arena *scratch)
+{
+	Arena_Scope scope = arena_scope_begin(scratch);
+
+  String8 path_cstring = str8_concat(path, S("\0"), scratch);
+
+  int linx_flags = 0;
+  if(flags & OS_AccessFlag_Read && flags & OS_AccessFlag_Write)
+  {
+    linx_flags = O_RDWR;
+  }
+  else if(flags & OS_AccessFlag_Write)
+  {
+    linx_flags = O_WRONLY;
+  }
+  else if(flags & OS_AccessFlag_Read)
+  {
+    linx_flags = O_RDONLY;
+  }
+  if(flags & OS_AccessFlag_Append)
+  {
+    linx_flags |= O_APPEND;
+  }
+  if(flags & (OS_AccessFlag_Write|OS_AccessFlag_Append))
+  {
+    linx_flags |= O_CREAT;
+  }
+  linx_flags |= O_CLOEXEC;
+  int fd = open((char *)path_cstring.str, linx_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+  OS_Handle handle = {0};
+
+  if(fd != -1) handle.u64 = fd;
+
+	arena_scope_end(scope);
+
+  return handle;
+}
+
+
+internal void
+os_file_close(OS_Handle file)
+{
+  if(!file.u64) { return; }
+  int fd = (int)file.u64;
+  close(fd);
+}
+
+internal usize
+os_file_read(OS_Handle handle, usize begin, usize end, void *out_data)
+{
+	if (handle.u64 == 0) { return 0; }
+
+	int fd = (int) handle.u64;
+  usize total_num_bytes_to_read = end - begin;
+  usize total_num_bytes_read = 0;
+  usize total_num_bytes_left_to_read = total_num_bytes_to_read;
+  for(;total_num_bytes_left_to_read > 0;)
+  {
+    int read_result = pread(fd, (u8 *)out_data + total_num_bytes_read, total_num_bytes_left_to_read, begin + total_num_bytes_read);
+    if(read_result >= 0)
+    {
+      total_num_bytes_read += read_result;
+      total_num_bytes_left_to_read -= read_result;
+    }
+    else if(errno != EINTR)
+    {
+      break;
+    }
+  }
+  return total_num_bytes_read;
+}
+
+
+internal usize
+os_file_write(OS_Handle file, usize begin, usize end, u8 *data)
+{
+  if(file.u64 == 0) { return 0; }
+  int fd = (int) file.u64;
+  usize total_num_bytes_to_write = end - begin;
+  usize total_num_bytes_written = 0;
+  usize total_num_bytes_left_to_write = total_num_bytes_to_write;
+  for(;total_num_bytes_left_to_write > 0;)
+  {
+    int write_result = pwrite(fd, (u8 *)data + total_num_bytes_written, total_num_bytes_left_to_write, begin + total_num_bytes_written);
+    if(write_result >= 0)
+    {
+      total_num_bytes_written += write_result;
+      total_num_bytes_left_to_write -= write_result;
+    }
+    else if(errno != EINTR)
+    {
+      break;
+    }
+  }
+  return total_num_bytes_written;
+}
+
+internal OS_FileProps
+os_properties_from_file(OS_Handle file)
+{
+  if(file.u64 == 0) { return (OS_FileProps){0}; }
+  int fd = (int)file.u64;
+  struct stat fd_stat = {0};
+  int fstat_result = fstat(fd, &fd_stat);
+  OS_FileProps props = {0};
+  if(fstat_result != -1)
+  {
+    props = os_linx_file_props_from_stats(&fd_stat);
+  }
+  return props;
+}
 
 internal OS_Time_Stamp
 os_time_now()
@@ -96,3 +166,28 @@ os_sleep_ms(u32 ms)
 	ts.tv_nsec = (ms % 1000) * 1000000;
 	nanosleep(&ts, NULL);
 }
+
+internal OS_FileProps 
+os_linx_file_props_from_stats(struct stat *s)
+{
+	OS_FileProps props = {0};
+
+	props.size     = (usize)s->st_size;
+	props.created  = os_linx_time_from_timespec(s->st_ctim);
+	props.modified = os_linx_time_from_timespec(s->st_mtim);
+
+	if (S_ISDIR(s->st_mode)) {
+		props.flags |= FileProp_IsFolder;
+	}
+
+	return props;
+}
+
+
+internal u64
+os_linx_time_from_timespec(struct timespec in)
+{
+	return (u64)in.tv_sec * 1000000000ull + (u64)in.tv_nsec;
+}
+
+
