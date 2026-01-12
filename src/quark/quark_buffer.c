@@ -1,156 +1,231 @@
 #include "quark_buffer.h"
 
-struct QBuffer {
-	QBuffer *next;
+////////////////////////////////
+// ~geb: Gap buffer specific helpers
 
-	usize gap_index;
-	usize gap_size;
-	usize capacity;
-	u8    bytes[];
-};
-
-force_inline usize
-_qb_logical_to_physical_idx(QBuffer *buf, usize logical)
+internal usize
+qb_logical_to_physical(QBuffer *b, usize logical)
 {
-	usize physical = 0;
-	if (logical < buf->gap_index) 
-		physical = logical;
-	else
-		physical = logical + buf->gap_size;
-	return physical;
+	Assert(logical <= quark_buffer_length(b));
+	if (logical < b->gap_index) return logical;
+	return logical + b->gap_size;
 }
+
+internal void
+qb_move_gap(QBuffer *b, usize logical)
+{
+	Assert(logical <= quark_buffer_length(b));
+
+	if (logical == b->gap_index) return;
+
+	usize phys = qb_logical_to_physical(b, logical);
+
+	if (logical < b->gap_index) {
+		usize count = b->gap_index - logical;
+		MemMove(
+			b->bytes + phys + b->gap_size,
+			b->bytes + phys,
+			count
+		);
+	} else {
+		usize count = logical - b->gap_index;
+		MemMove(
+			b->bytes + b->gap_index,
+			b->bytes + b->gap_index + b->gap_size,
+			count
+		);
+	}
+
+	b->gap_index = logical;
+}
+
+////////////////////////////////
 
 internal QBuffer *
 quark_buffer_new(Arena *arena, String8 data)
 {
 	Assert(arena);
-	
-	usize usable_cap = data.len * 2;
-	
-	if (usable_cap < KB(64)) {
-		usable_cap = AlignPow2(Max(usable_cap, KB(4)), KB(4));
-	} else if (usable_cap < MB(1)) {
-		usable_cap = AlignPow2(usable_cap, KB(64));
-	} else {
-		usable_cap = AlignPow2(usable_cap, MB(1));
-	}
-	
-	usize total_cap = sizeof(QBuffer) + usable_cap;
-	u8 *memory = arena_push_array(arena, u8, total_cap);
-	QBuffer *buf = (QBuffer *)memory;
-	
-	buf->next       = NULL;
-	buf->capacity   = usable_cap;
-	buf->gap_index  = 0;
-	buf->gap_size   = usable_cap - data.len;
-	
-	MemMove(buf->bytes + buf->gap_size, data.str, data.len);
-	
-	return buf;
+
+	usize cap = Max(KB(4), AlignPow2(data.len * 2, KB(4)));
+	u8 *mem = arena_push_array(arena, u8, sizeof(QBuffer) + cap);
+
+	QBuffer *b = (QBuffer *)mem;
+	b->capacity  = cap;
+	b->gap_index = 0;
+	b->gap_size  = cap - data.len;
+	b->next = b->prev = NULL;
+	b->name = S("");
+
+	MemMove(b->bytes + b->gap_size, data.str, data.len);
+	return b;
 }
 
 internal void
-quark_buffer_clear(QBuffer *buf)
+quark_buffer_clear(QBuffer *b)
 {
-	Assert(buf);
-
-	MemZero(buf->bytes, buf->capacity);
-	buf->gap_size = buf->capacity;
-	buf->gap_index = 0;
+	b->gap_index = 0;
+	b->gap_size  = b->capacity;
 }
 
 internal usize
-quark_buffer_length(QBuffer *buf)
+quark_buffer_length(QBuffer *b)
+{
+	Assert(b);
+	return b->capacity - b->gap_size;
+}
+
+internal usize
+quark_buffer_capacity(QBuffer *buf) 
 {
 	Assert(buf);
-	return buf->capacity - buf->gap_size;
+	return buf->capacity;
 }
 
 
 internal String8
-quark_buffer_slice(QBuffer *buf, usize begin, usize end, Arena *arena)
+quark_buffer_slice(QBuffer *b, usize begin, usize end, Arena *arena)
 {
-	Assert(buf);
 	Assert(begin <= end);
-	
-	usize slice_size = end - begin;
-	if (slice_size == 0) {
-		return str8(NULL, 0);
+	Assert(end <= quark_buffer_length(b));
+
+	usize len = end - begin;
+	if (!len) return str8(0, 0);
+
+	u8 *dst = arena_push_array(arena, u8, len);
+
+	usize p0 = qb_logical_to_physical(b, begin);
+	usize p1 = qb_logical_to_physical(b, end);
+
+	if (p0 < b->gap_index && p1 <= b->gap_index) {
+		MemMove(dst, b->bytes + p0, len);
 	}
-	
-	u8 *dst = arena_push_array(arena, u8, slice_size);
-	usize gap_idx = buf->gap_index;
-	
-	if (end <= gap_idx) {
-		MemMove(dst, buf->bytes + begin, slice_size);
-	}
-	else if (begin >= gap_idx) {
-		MemMove(dst, buf->bytes + begin + buf->gap_size, slice_size);
+	else if (p0 >= b->gap_index + b->gap_size) {
+		MemMove(dst, b->bytes + p0, len);
 	}
 	else {
-		usize left_size = gap_idx - begin;
-		MemMove(dst, buf->bytes + begin, left_size);
-		MemMove(dst + left_size, buf->bytes + gap_idx + buf->gap_size, slice_size - left_size);
+		usize left = b->gap_index - p0;
+		MemMove(dst, b->bytes + p0, left);
+		MemMove(dst + left,
+					b->bytes + b->gap_index + b->gap_size,
+					len - left);
 	}
-	
-	return str8(dst, slice_size);
+
+	return str8(dst, len);
 }
 
 internal QBuffer_Itr
-quark_buffer_itr(QBuffer *buf, QBuffer_Itr *prev)
+quark_buffer_itr(QBuffer *b, QBuffer_Itr *prev)
 {
-	QBuffer_Itr itr = {0};
-	
-	if (prev) {
-		usize consumed = UTF8_SIZE[*prev->ptr];
-		if (!consumed) consumed = 1;
-		
-		usize next_phy = prev->ptr - buf->bytes + consumed;
-		
-		if (next_phy == buf->gap_index) {
-			next_phy += buf->gap_size;
-		}
-		
-		if (next_phy >= buf->capacity) return itr;
-		
-		itr.pos = prev->pos + 1;
-		itr.ptr = buf->bytes + next_phy;
-	} else {
-		if (buf->capacity == buf->gap_size) return itr;
+	QBuffer_Itr it = {0};
 
-		itr.pos = 0;
-		itr.ptr = buf->bytes + ((buf->gap_index == 0) * buf->gap_size);
-	}
-	
-	u8 first = *itr.ptr;
+	usize logical = prev ? prev->pos + 1 : 0;
+	if (logical >= quark_buffer_length(b)) return it;
+
+	usize phys = qb_logical_to_physical(b, logical);
+	u8 *ptr = b->bytes + phys;
+
+	it.pos = logical;
+	it.ptr = ptr;
+	it.on_cursor = (logical == b->gap_index);
+
+	u8 first = *ptr;
 	if (first < 0x80) {
-		itr.codepoint = first;
-		return itr;
+		it.codepoint = first;
+		return it;
 	}
-	
-	usize _;
-	if (utf8_decode(str8(itr.ptr, 4), 0, &itr.codepoint, &_) != UTF8_Err_None) {
-		itr.codepoint = Utf8_Invalid;
+
+	usize used = 0;
+	if (utf8_decode(str8(ptr, 4), 0, &it.codepoint, &used) != UTF8_Err_None) {
+		it.codepoint = Utf8_Invalid;
 	}
-	
-	return itr;
+
+	return it;
 }
 
 
 internal bool
-quark_buffer_insert(QBuffer *buf, String8 string)
+quark_buffer_insert(QBuffer *b, String8 s, usize cursor)
 {
+	Assert(cursor <= quark_buffer_length(b));
+
+	if (s.len > b->gap_size) return false;
+
+	qb_move_gap(b, cursor);
+	MemMove(b->bytes + b->gap_index, s.str, s.len);
+
+	b->gap_index += s.len;
+	b->gap_size  -= s.len;
+	return true;
+}
+
+internal void
+quark_buffer_delete(QBuffer *b, usize count, usize cursor, bool backspace)
+{
+	if (!count) return;
+
+	usize start = cursor;
+	if (backspace) {
+		if (!cursor) return;
+		count = Min(count, cursor);
+		start = cursor - count;
+	}
+
+	usize avail = quark_buffer_length(b) - start;
+	count = Min(count, avail);
+
+	qb_move_gap(b, start);
+	b->gap_size += count;
+}
+
+
+/////////////////////////////////////////////
+// ~geb: Quark Buffer List procs
+
+internal void
+qbuffer_list_push(QBuffer_List *list, QBuffer *buf)
+{
+	Assert(list);
 	Assert(buf);
 
-	usize len = quark_buffer_length(buf);
-	if (len + string.len > buf->capacity) return false;
+	buf->next = NULL;
+	buf->prev = list->last;
 
-	u8 *buffer_dest = buf->bytes + buf->gap_index;
+	if (list->last) {
+		list->last->next = buf;
+	} else {
+		list->first = buf;
+	}
 
-	MemMove(buffer_dest, string.str, string.len);
+	list->last = buf;
+	list->len += 1;
+}
 
-	buf->gap_index += string.len;
-	buf->gap_size -= string.len;
+
+internal bool
+qbuffer_list_remove(QBuffer_List *list, QBuffer *buf)
+{
+	Assert(list);
+	Assert(buf);
+
+	if (!buf->prev && !buf->next && list->first != buf) {
+		return false;
+	}
+
+	if (buf->prev) {
+		buf->prev->next = buf->next;
+	} else {
+		list->first = buf->next;
+	}
+
+	if (buf->next) {
+		buf->next->prev = buf->prev;
+	} else {
+		list->last = buf->prev;
+	}
+
+	buf->next = NULL;
+	buf->prev = NULL;
+	list->len -= 1;
 
 	return true;
 }

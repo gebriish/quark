@@ -39,11 +39,11 @@ font_atlas_new(Arena *arena, u8 *font_data, i32 size, f32 font_height, Font_Atla
 }
 
 internal bool
-font_atlas_add_glyph(Arena *arena, Font_Atlas *atlas, rune codepoint)
+font_atlas_add_glyph(Font_Atlas *atlas, rune codepoint, bool ignore_chache)
 {
 	Assert(atlas);
 	
-	{ // check if the glyph is already in the atlas
+	if (!ignore_chache) { // check if the glyph is already in the atlas
 		Glyph_Info info;
 		bool contains_glyph = glyph_map_get(&atlas->glyphs, codepoint, &info);
 		if (contains_glyph) {
@@ -72,7 +72,9 @@ font_atlas_add_glyph(Arena *arena, Font_Atlas *atlas, rune codepoint)
 			.x0 = 0, .y0 = 0, .x1 = 0, .y1 = 0,
 			.xoff = 0, .yoff = 0,
 			.xadvance = (f32)advance_width * atlas->font.scale,
+			.resident = false,
 		};
+
 		return glyph_map_put(&atlas->glyphs, codepoint, glyph);
 	}
 	
@@ -83,10 +85,20 @@ font_atlas_add_glyph(Arena *arena, Font_Atlas *atlas, rune codepoint)
 	}
 	
 	if (atlas->current_y + glyph_height + 1 > atlas->atlas_height) {
-		if (!font_atlas_expand(arena, atlas)) {
-			log_error("Failed to expand font atlas");
-			return false;
-		}
+		i32 advance_width;
+		stbtt_GetGlyphHMetrics(font_info, glyph_index, &advance_width, NULL);
+
+		Glyph_Info glyph = {
+			.codepoint = codepoint,
+			.x0 = 0, .y0 = 0, .x1 = 0, .y1 = 0,
+			.xoff = (f32)x0,
+			.yoff = (f32)y0,
+			.xadvance = (f32)advance_width * atlas->font.scale,
+			.resident = false,
+		};
+
+		glyph_map_put(&atlas->glyphs, codepoint, glyph);
+		return false;
 	}
 	
 	i32 glyph_x = atlas->current_x;
@@ -138,8 +150,9 @@ font_atlas_add_glyph(Arena *arena, Font_Atlas *atlas, rune codepoint)
 		.xoff = (f32)x0,
 		.yoff = (f32)y0,
 		.xadvance = (f32)advance_width * atlas->font.scale,
+		.resident = true,
 	};
-	
+
 	atlas->current_x += glyph_width + 1;
 	atlas->row_height = Max(atlas->row_height, glyph_height);
 	atlas->dirty = true;
@@ -200,7 +213,7 @@ font_atlas_expand(Arena *arena, Font_Atlas *atlas)
 
 
 internal void
-font_atlas_add_glyphs_from_string(Arena *arena, Font_Atlas *atlas, String8 string)
+font_atlas_add_glyphs_from_string(Font_Atlas *atlas, String8 string)
 {
 	Assert(atlas);
 
@@ -214,7 +227,7 @@ font_atlas_add_glyphs_from_string(Arena *arena, Font_Atlas *atlas, String8 strin
 			break;
 		}
 
-		font_atlas_add_glyph(arena, atlas, codepoint);
+		font_atlas_add_glyph(atlas, codepoint, false);
 	}
 }
 
@@ -237,14 +250,12 @@ font_atlas_get_glyph(Font_Atlas *atlas, rune codepoint, Glyph_Info *out_glyph)
 }
 
 internal bool
-font_atlas_resize_glyphs(Arena *arena, Font_Atlas *atlas, f32 new_font_height)
+font_atlas_resize_glyphs(Arena *scratch, Font_Atlas *atlas, f32 new_font_height)
 {
 	Assert(atlas);
 
-	f32 old_scale = atlas->font.scale;
 	f32 new_scale = stbtt_ScaleForPixelHeight(&atlas->font.font_info, new_font_height);
-
-	if (fabs(new_scale - old_scale) < 0.001f) {
+	if (fabs(new_scale - atlas->font.scale) < 0.001f) {
 		return true;
 	}
 
@@ -253,36 +264,33 @@ font_atlas_resize_glyphs(Arena *arena, Font_Atlas *atlas, f32 new_font_height)
 	i32 ascent, descent, line_gap;
 	stbtt_GetFontVMetrics(&atlas->font.font_info, &ascent, &descent, &line_gap);
 
-	atlas->font.ascent   = (f32)ascent   * atlas->font.scale;
-	atlas->font.descent  = (f32)descent  * atlas->font.scale;
-	atlas->font.line_gap = (f32)line_gap * atlas->font.scale;
+	atlas->font.ascent   = ascent   * new_scale;
+	atlas->font.descent  = descent  * new_scale;
+	atlas->font.line_gap = line_gap * new_scale;
 
 	glyph_map *map = &atlas->glyphs;
+
 	usize glyph_count = map->len;
+	rune *glyphs = arena_push_array(scratch, rune, glyph_count);
 
-	rune *glyphs_to_regenerate = arena_push_array(arena, rune, glyph_count);
-	usize regen_count = 0;
-
+	usize count = 0;
 	for (usize i = 0; i < map->cap; i++) {
 		if (!map->entries[i].used) continue;
-		glyphs_to_regenerate[regen_count++] = map->entries[i].key;
+
+		// mark all glyphs as non-resident up front
+		map->entries[i].value.resident = false;
+		glyphs[count++] = map->entries[i].key;
 	}
 
-	usize total_pixels = atlas->atlas_width * atlas->atlas_height;
-	MemZero(atlas->atlas_data, total_pixels);
-
-	glyph_map_clear(map);
+	MemZero(atlas->atlas_data,
+				 atlas->atlas_width * atlas->atlas_height);
 
 	atlas->current_x = 1;
 	atlas->current_y = 1;
 	atlas->row_height = 0;
 
-	for (usize i = 0; i < regen_count; i++) {
-		rune cp = glyphs_to_regenerate[i];
-
-		if (!font_atlas_add_glyph(arena, atlas, cp)) {
-			log_warn("failed to regenerate glyph (%d)", cp); // TODO : encode utf8 and log it
-		}
+	for (usize i = 0; i < count; i++) {
+		font_atlas_add_glyph(atlas, glyphs[i], true);
 	}
 
 	font_atlas_update(atlas);

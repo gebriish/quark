@@ -18,6 +18,7 @@
 #define MAX_TRIANGLES     1024
 #define MAX_VERTEX_COUNT  MAX_TRIANGLES * 3
 #define MAX_TEXTURES      16
+#define MAX_SCISSOR_DEPTH 16
 
 #define WHITE_TEXTURE     0
 
@@ -71,26 +72,45 @@ Enum(Texture_Kind, u8) {
   TextureKind_Count
 };
 
+typedef struct Scissor_Rect Scissor_Rect;
+struct Scissor_Rect {
+	i32 x, y, w, h;
+};
+
+
+typedef struct Input_Data Input_Data;
+struct Input_Data {
+	rune codepoint;
+	bool key_repeat;
+};
+
 typedef struct GFX_State GFX_State;
 struct GFX_State {
 	Arena *persist_arena;
 
-  i32 uniform_loc[Uniform_Count];
-  struct { i32 w, h; } viewport;
+	i32 uniform_loc[Uniform_Count];
+	struct { i32 w, h; } viewport;
 
-  // Geometry
-  Render_Buffer render_buffer;
-  u32 vao, vbo, ibo;
-  u32 program;
+	// Geometry
+	Render_Buffer render_buffer;
+	u32 vao, vbo, ibo;
+	u32 program;
 
-  // Texture
-  Texture texture_slots[MAX_TEXTURES];
-  u32 texture_count; 
-  u32 texture_freelist;
+	// Texture
+	Texture texture_slots[MAX_TEXTURES];
+	u32 texture_count; 
+	u32 texture_freelist;
 
-  GLFWwindow *glfw_window;
+	GLFWwindow *glfw_window;
 
 	Font_Atlas font_atlas;
+
+	// scissor rects
+	Scissor_Rect scissor_stack[MAX_SCISSOR_DEPTH];
+	u32 scissor_stack_len;
+	bool scissor_enabled;
+
+	Input_Data input_data;
 };
 
 //////////////////////////////////
@@ -141,6 +161,7 @@ internal void gfx_deinit();
 
 internal bool gfx_window_open();
 internal vec2_i32 gfx_window_size(); 
+internal Input_Data gfx_input_data();
 
 internal void gfx_resize_target(i32 w, i32 h);
 
@@ -154,11 +175,8 @@ internal u32  gfx_texture_upload(Texture_Data data, Texture_Kind type);
 internal bool gfx_texture_update(u32 id, i32 w, i32 h, i32 channels, u8 *data);
 internal bool gfx_texture_unload(u32 id);
 
-internal void gfx_push_rect(Rect_Params *params);
-internal void gfx_push_rect_rounded(Rect_Params *params);
-
-#define push_rect(...) gfx_push_rect(&(Rect_Params) {__VA_ARGS__})
-#define push_rect_rounded(...) gfx_push_rect_rounded(&(Rect_Params) {__VA_ARGS__})
+internal void gfx_push_rect(Rect_Params params);
+internal void gfx_push_rect_rounded(Rect_Params params);
 
 internal void gfx_push_text(String8 text, vec2_f32 pos, color8_t color);
 internal void gfx_push_text_aligned(String8 text, vec2_f32 pos, color8_t color, Text_Align h_align, Text_Align v_align);

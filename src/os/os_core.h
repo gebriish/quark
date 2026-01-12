@@ -6,8 +6,7 @@
 
 typedef struct { u64 u64; } OS_Handle;
 
-typedef u32 OS_Access_Flags;
-enum {
+Enum(OS_Access_Flags, u32) {
 	OS_AccessFlag_Read       = (1 << 0),
 	OS_AccessFlag_Write      = (1 << 1),
 	OS_AccessFlag_Execute    = (1 << 2),
@@ -17,8 +16,7 @@ enum {
 	OS_AccessFlag_Inherited  = (1 << 6),
 };
 
-typedef u32 File_Prop_Flags;
-enum {
+Enum(File_Prop_Flags, u32) {
 	FileProp_IsFolder = (1 << 0)
 };
 

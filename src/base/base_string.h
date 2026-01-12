@@ -58,6 +58,25 @@ internal usize   str8_count(String8 string);
 internal string8_list str8_list_from_cstring_array(Arena *arena, usize count, char **cstrings);
 
 
+Enum(ASCII_Sequence, u8) {
+    ASCII_NUL = 0x00, // Null
+    ASCII_SOH = 0x01, // Start of Heading
+    ASCII_STX = 0x02, // Start of Text
+    ASCII_ETX = 0x03, // End of Text (Ctrl+C)
+    ASCII_EOT = 0x04, // End of Transmission
+    ASCII_ENQ = 0x05, // Enquiry
+    ASCII_ACK = 0x06, // Acknowledge
+    ASCII_BEL = 0x07, // Bell
+    ASCII_BS  = 0x08, // Backspace
+    ASCII_HT  = 0x09, // Horizontal Tab
+    ASCII_LF  = 0x0A, // Line Feed
+    ASCII_VT  = 0x0B, // Vertical Tab
+    ASCII_FF  = 0x0C, // Form Feed
+    ASCII_CR  = 0x0D, // Carriage Return
+    ASCII_ESC = 0x1B, // Escape
+    ASCII_DEL = 0x7F  // Delete
+} ASCII_Control;
+
 typedef u32 UTF8_Error;
 enum {
 	UTF8_Err_None = 0,
@@ -69,8 +88,19 @@ enum {
 	UTF8_Err_OutOfRange,
 };
 
+
 // UTF-8
 internal UTF8_Error utf8_decode(String8 s, usize idx, rune *out, usize *consumed);
+internal String8    utf8_encode(rune codepoint, u8 *buf);
+
+force_inline bool
+rune_is_space(rune c)
+{
+	return c == ' '  ||
+	       c == '\t' ||
+	       c == '\n' ||
+	       c == '\r';
+}
 
 
 #endif

@@ -25,9 +25,10 @@ struct Font {
 typedef struct Glyph_Info Glyph_Info;
 struct Glyph_Info {
 	rune codepoint;
-	i32 x0, y0, x1, y1;
+	u16 x0, y0, x1, y1;
 	f32 xoff, yoff;
 	f32 xadvance;
+	bool resident;
 };
 
 Generate_Map32(glyph_map, Glyph_Info);
@@ -46,14 +47,14 @@ struct Font_Atlas {
 
 internal bool font_atlas_new(Arena *arena, u8 *font_data,	i32 size, f32 font_height, Font_Atlas *result);
 
-internal bool font_atlas_add_glyph(Arena *arena, Font_Atlas *atlas, rune codepoint);
+internal bool font_atlas_add_glyph(Font_Atlas *atlas, rune codepoint, bool ignore_cache);
 internal bool font_atlas_expand(Arena *arena, Font_Atlas *atlas);
 
-internal void font_atlas_add_glyphs_from_string(Arena *arena, Font_Atlas *atlas, String8 string);
+internal void font_atlas_add_glyphs_from_string(Font_Atlas *atlas, String8 string);
 internal void font_atlas_update(Font_Atlas *atlas);
 
 internal bool font_atlas_get_glyph(Font_Atlas *atlas, rune codepoint, Glyph_Info *out_glyph);
-internal bool font_atlas_resize_glyphs(Arena *arena, Font_Atlas *atlas, f32 new_font_height);
+internal bool font_atlas_resize_glyphs(Arena *scratch, Font_Atlas *atlas, f32 new_font_height);
 
 internal f32 font_atlas_height(Font_Atlas *atlas);
 

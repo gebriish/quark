@@ -21,6 +21,7 @@
 
 #define Enum(name, type) typedef type name; enum
 
+#define Bit(n)  ( 1 << n )
 #define Byte(n) (n) // just for semantic clarity
 #define KB(n)   (((usize)(n)) << 10)
 #define MB(n)   (((usize)(n)) << 20)
@@ -157,6 +158,23 @@ VecDef(2, u8,  x, y);
 VecDef(4, f32, x, y, z, w);
 VecDef(4, u16, x, y, z, w);
 
+internal f32 
+smooth_damp(f32 current, f32 target, f32 time, f32 dt)
+{
+	if (dt <= 0 || time <= 0) return target;
+
+	f32 rate = 2.0f / time;
+	f32 x = rate * dt;
+
+	f32 factor = 0;
+	if (x < 0.0001f) {
+		factor = x * (1.0f - x*0.5f + x*x/6.0f - x*x*x/24.0f);
+	} else {
+		factor = 1.0f - expf(-x);
+	}
+
+	return Lerp(current, target, factor);
+}
 
 #define ANSI_RESET   "\x1b[0m"
 #define ANSI_RED     "\x1b[31m"

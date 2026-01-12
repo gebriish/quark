@@ -83,11 +83,37 @@ resize_callback(GLFWwindow *window, int w, int h)
 internal void
 char_callback(GLFWwindow *window, unsigned int codepoint)
 {
+	GFX_State *gfx = (GFX_State *) glfwGetWindowUserPointer(window);
+	Input_Data *input = &gfx->input_data;
+
+	input->codepoint = codepoint;
 }
 
 internal void
 key_callback(GLFWwindow *window, int key, int scancode, int action, int mods)
 {
+	GFX_State *gfx = (GFX_State *) glfwGetWindowUserPointer(window);
+	Input_Data *input = &gfx->input_data;
+
+	if (action == GLFW_REPEAT)
+		input->key_repeat = true;
+
+	if (action != GLFW_RELEASE)
+		switch (key) {
+			case GLFW_KEY_ENTER:
+				input->codepoint = (rune) ASCII_LF;
+				return;
+			case GLFW_KEY_TAB:
+				input->codepoint = (rune) ASCII_HT;
+				return;
+
+			case GLFW_KEY_BACKSPACE:
+				input->codepoint = (rune) ASCII_BS;
+				return;
+			case GLFW_KEY_DELETE:
+				input->codepoint = (rune) ASCII_DEL;
+				return;
+		}
 }
 
 internal bool
@@ -123,6 +149,8 @@ gfx_init(GFX_State *gfx)
 		glfwSetKeyCallback(window, key_callback);
 
 		gfx->glfw_window = window;
+
+		glfwSetWindowUserPointer(window, (void *)gfx);
 	}
 
 	gfx->persist_arena = arena_new(MB(4), os_reserve, os_commit, os_decommit, os_release);
@@ -234,8 +262,11 @@ gfx_init(GFX_State *gfx)
 	{
 		samplers[i] = i;
 	}
-	_gfx_state = gfx;
 
+	gfx->scissor_stack_len = 0;
+	gfx->scissor_enabled = false;
+
+	_gfx_state = gfx;
 	glUniform1iv(gfx->uniform_loc[Uniform_Textures], MAX_TEXTURES, samplers);
 
 	u32 white_pixel = 0xffffffff;
@@ -254,7 +285,7 @@ gfx_init(GFX_State *gfx)
 		log_error("Failed to load Font file"); Trap();
 	}
 	font_atlas_new(gfx->persist_arena, file_data.str, 512, 22, &gfx->font_atlas);
-	font_atlas_add_glyphs_from_string(gfx->persist_arena, &gfx->font_atlas, FONT_CHARSET);
+	font_atlas_add_glyphs_from_string(&gfx->font_atlas, FONT_CHARSET);
 
 	return true;
 }
@@ -301,7 +332,8 @@ gfx_deinit(void)
 	_gfx_state = NULL;
 }
 
-internal bool gfx_window_open()
+internal bool 
+gfx_window_open()
 {
 	if (!_gfx_state)
 		return false;
@@ -309,12 +341,20 @@ internal bool gfx_window_open()
 	return !glfwWindowShouldClose(_gfx_state->glfw_window);
 }
 
-internal vec2_i32 gfx_window_size()
+internal vec2_i32 
+gfx_window_size()
 {
 	int x = 0, y = 0;
 
 	glfwGetWindowSize(_gfx_state->glfw_window, &x, &y);
 	return (vec2_i32) {x, y};
+}
+
+
+internal Input_Data
+gfx_input_data()
+{
+	return _gfx_state->input_data;
 }
 
 internal void
@@ -330,12 +370,26 @@ gfx_resize_target(i32 w, i32 h)
 	glUniformMatrix4fv(_gfx_state->uniform_loc[Uniform_ProjMatrix], 1, false, proj);
 	_gfx_state->viewport.w = w;
 	_gfx_state->viewport.h = h;
+
+	if (_gfx_state->scissor_enabled && _gfx_state->scissor_stack_len > 0) {
+		Scissor_Rect *current = &_gfx_state->scissor_stack[_gfx_state->scissor_stack_len - 1];
+		i32 gl_y = h - (current->y + current->h);
+		glScissor(current->x, gl_y, current->w, current->h);
+	}
 }
 
 internal void
 gfx_begin_frame(color8_t color)
 {
+	_gfx_state->input_data = (Input_Data) {0};
+
 	glfwPollEvents();
+
+	glUseProgram(_gfx_state->program);
+	glBindVertexArray(_gfx_state->vao);
+
+	glBindBuffer(GL_ARRAY_BUFFER, _gfx_state->vbo);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _gfx_state->ibo);
 
 	glClearColor(
 			(f32)color_r(color) / 255.0f,
@@ -344,14 +398,7 @@ gfx_begin_frame(color8_t color)
 			(f32)color_a(color) / 255.0f);
 	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
-	glUseProgram(_gfx_state->program);
-	glBindVertexArray(_gfx_state->vao);
-
-	glBindBuffer(GL_ARRAY_BUFFER, _gfx_state->vbo);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _gfx_state->ibo);
-
 	font_atlas_update(&_gfx_state->font_atlas);
-
 	gfx_prep();
 }
 
@@ -378,7 +425,7 @@ gfx_flush()
 }
 
 internal void
-gfx_push_rect(Rect_Params *params)
+gfx_push_rect(Rect_Params params)
 {
 	if (_gfx_state->render_buffer.vtx_count + 4 > MAX_VERTEX_COUNT ||
 			_gfx_state->render_buffer.idx_count + 6 > MAX_VERTEX_COUNT)
@@ -392,14 +439,14 @@ gfx_push_rect(Rect_Params *params)
 	Render_Vertex *vtx = _gfx_state->render_buffer.vertices + base_idx;
 	u16 *idx = _gfx_state->render_buffer.indices + _gfx_state->render_buffer.idx_count;
 
-	vec2_f32 pos = params->position;
-	color8_t color = params->color;
-	vec2_f32 size = params->size;
+	vec2_f32 pos = params.position;
+	color8_t color = params.color;
+	vec2_f32 size = params.size;
 	vec4_u16 uv = {
-			(u16)(params->uv.x * U16_MAX),
-			(u16)(params->uv.y * U16_MAX),
-			(u16)(params->uv.z * U16_MAX),
-			(u16)(params->uv.w * U16_MAX),
+			(u16)(params.uv.x * U16_MAX),
+			(u16)(params.uv.y * U16_MAX),
+			(u16)(params.uv.z * U16_MAX),
+			(u16)(params.uv.w * U16_MAX),
 	};
 
 	f32 x0 = pos.x, y0 = pos.y;
@@ -411,28 +458,28 @@ gfx_push_rect(Rect_Params *params)
 			.color = final_color,
 			.uv = {uv.x, uv.y},
 			.circ_mask = {0, 0},
-			.tex_id = params->tex_id};
+			.tex_id = params.tex_id};
 
 	vtx[1] = (Render_Vertex){
 			.position = {x1, y0},
 			.color = final_color,
 			.uv = {uv.z, uv.y},
 			.circ_mask = {0, 0},
-			.tex_id = params->tex_id};
+			.tex_id = params.tex_id};
 
 	vtx[2] = (Render_Vertex){
 			.position = {x1, y1},
 			.color = final_color,
 			.uv = {uv.z, uv.w},
 			.circ_mask = {0, 0},
-			.tex_id = params->tex_id};
+			.tex_id = params.tex_id};
 
 	vtx[3] = (Render_Vertex){
 			.position = {x0, y1},
 			.color = final_color,
 			.uv = {uv.x, uv.w},
 			.circ_mask = {0, 0},
-			.tex_id = params->tex_id};
+			.tex_id = params.tex_id};
 
 	idx[0] = base_idx;
 	idx[1] = base_idx + 1;
@@ -446,28 +493,28 @@ gfx_push_rect(Rect_Params *params)
 }
 
 internal void
-gfx_push_rect_rounded(Rect_Params *params)
+gfx_push_rect_rounded(Rect_Params params)
 {
-	if (params->size.x <= 0.0f || params->size.y <= 0.0f)
+	if (params.size.x <= 0.0f || params.size.y <= 0.0f)
 		return;
 
-	vec2_f32 size = params->size;
-	vec2_f32 pos = params->position;
-	u8 tex_id = params->tex_id;
-	color8_t color = hex_color(params->color);
+	vec2_f32 size = params.size;
+	vec2_f32 pos = params.position;
+	u8 tex_id = params.tex_id;
+	color8_t color = hex_color(params.color);
 
 	f32 inv_width = 1.0f / size.x;
 	f32 inv_height = 1.0f / size.y;
-	f32 uv_base_x = params->uv.x;
-	f32 uv_base_y = params->uv.y;
-	f32 uv_scale_x = (params->uv.z - params->uv.x) * inv_width;
-	f32 uv_scale_y = (params->uv.w - params->uv.y) * inv_height;
+	f32 uv_base_x = params.uv.x;
+	f32 uv_base_y = params.uv.y;
+	f32 uv_scale_x = (params.uv.z - params.uv.x) * inv_width;
+	f32 uv_scale_y = (params.uv.w - params.uv.y) * inv_height;
 
 	f32 r[4] = {
-			params->radii.top_left,
-			params->radii.top_right,
-			params->radii.bottom_right,
-			params->radii.bottom_left};
+			params.radii.top_left,
+			params.radii.top_right,
+			params.radii.bottom_right,
+			params.radii.bottom_left};
 
 	f32 top_sum = r[0] + r[1];
 	if (top_sum > size.x)
@@ -777,7 +824,7 @@ gfx_push_text(String8 text, vec2_f32 pos, color8_t color)
 
 		if (gw > 0 && gh > 0)
 		{
-			gfx_push_rect(&(Rect_Params){
+			gfx_push_rect((Rect_Params){
 				.position = {floorf(glyph_x), floorf(glyph_y)},
 				.size = {gw, gh},
 				.color = color,
@@ -963,4 +1010,67 @@ gfx_texture_unload(u32 id)
 	_gfx_state->texture_freelist = id;
 
 	return true;
+}
+
+internal void
+gfx_begin_clip(i32 x, i32 y, i32 w, i32 h)
+{
+	Assert(_gfx_state);
+
+	if (_gfx_state->render_buffer.vtx_count > 0) {
+		gfx_flush();
+		gfx_prep();
+	}
+
+	Scissor_Rect new_rect = {x, y, w, h};
+
+	if (_gfx_state->scissor_stack_len > 0) {
+		Scissor_Rect *parent = &_gfx_state->scissor_stack[_gfx_state->scissor_stack_len - 1];
+
+		i32 x1 = Max(new_rect.x, parent->x);
+		i32 y1 = Max(new_rect.y, parent->y);
+		i32 x2 = Min(new_rect.x + new_rect.w, parent->x + parent->w);
+		i32 y2 = Min(new_rect.y + new_rect.h, parent->y + parent->h);
+
+		new_rect.x = x1;
+		new_rect.y = y1;
+		new_rect.w = Max(0, x2 - x1);
+		new_rect.h = Max(0, y2 - y1);
+	}
+
+	Assert(_gfx_state->scissor_stack_len < MAX_SCISSOR_DEPTH);
+	_gfx_state->scissor_stack[_gfx_state->scissor_stack_len] = new_rect;
+
+	_gfx_state->scissor_stack_len += 1;
+
+	if (!_gfx_state->scissor_enabled) {
+		glEnable(GL_SCISSOR_TEST);
+		_gfx_state->scissor_enabled = true;
+	}
+
+	i32 gl_y = _gfx_state->viewport.h - (new_rect.y + new_rect.h);
+	glScissor(new_rect.x, gl_y, new_rect.w, new_rect.h);
+}
+
+internal void
+gfx_end_clip(void)
+{
+	Assert(_gfx_state);
+	Assert(_gfx_state->scissor_stack_len > 0);
+
+	if (_gfx_state->render_buffer.vtx_count > 0) {
+		gfx_flush();
+		gfx_prep();
+	}
+
+	_gfx_state->scissor_stack_len -= 1;
+
+	if (_gfx_state->scissor_stack_len > 0) {
+		Scissor_Rect *current = &_gfx_state->scissor_stack[_gfx_state->scissor_stack_len - 1];
+		i32 gl_y = _gfx_state->viewport.h - (current->y + current->h);
+		glScissor(current->x, gl_y, current->w, current->h);
+	} else {
+		glDisable(GL_SCISSOR_TEST);
+		_gfx_state->scissor_enabled = false;
+	}
 }

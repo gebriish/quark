@@ -200,3 +200,48 @@ utf8_decode(String8 s, usize idx, rune *out, usize *consumed)
 		*consumed = len;
 	return UTF8_Err_None;
 }
+
+internal String8
+utf8_encode(rune codepoint, u8 *buf)
+{
+	usize len = 0;
+
+	if (codepoint <= 0x7F) {
+		buf[0] = (u8)codepoint;
+		len = 1;
+	}
+	else if (codepoint <= 0x7FF) {
+		buf[0] = 0xC0 | (u8)(codepoint >> 6);
+		buf[1] = 0x80 | (u8)(codepoint & 0x3F);
+		len = 2;
+	}
+	else if (codepoint <= 0xFFFF) {
+		if (codepoint >= 0xD800 && codepoint <= 0xDFFF) {
+			buf[0] = 0xEF;
+			buf[1] = 0xBF;
+			buf[2] = 0xBD;
+			len = 3;
+		}
+		else {
+			buf[0] = 0xE0 | (u8)(codepoint >> 12);
+			buf[1] = 0x80 | (u8)((codepoint >> 6) & 0x3F);
+			buf[2] = 0x80 | (u8)(codepoint & 0x3F);
+			len = 3;
+		}
+	}
+	else if (codepoint <= 0x10FFFF) {
+		buf[0] = 0xF0 | (u8)(codepoint >> 18);
+		buf[1] = 0x80 | (u8)((codepoint >> 12) & 0x3F);
+		buf[2] = 0x80 | (u8)((codepoint >> 6) & 0x3F);
+		buf[3] = 0x80 | (u8)(codepoint & 0x3F);
+		len = 4;
+	}
+	else {
+		buf[0] = 0xEF;
+		buf[1] = 0xBF;
+		buf[2] = 0xBD;
+		len = 3;
+	}
+
+	return str8(buf, len);
+}
