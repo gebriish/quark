@@ -1,9 +1,8 @@
 CompileFlags:
   Add:
-    - -std=gnu11
+    - -std=c11
     - -w
     - -x
     - c
-    - -I/usr/include/freetype2
 Diagnostics:
   UnusedIncludes: None
