@@ -3,12 +3,14 @@
 #include "draw.h"
 #include "glyph_cache.h"
 #include "buffer.h"
+#include "editor.h"
 
 #include "base.c"
 #include "gfx.c"
 #include "draw.c"
 #include "glyph_cache.c"
 #include "buffer.c"
+#include "editor.c"
 
 typedef u32 Cli_Parse_Mode;
 enum {
@@ -20,10 +22,6 @@ typedef struct {
 	Cli_Parse_Mode mode;
 	String8_List paths;
 } Command_Line_Args;
-
-typedef struct {
-} Editor_State;
-
 
 internal Command_Line_Args
 cli_parse(int argc, const char **argv, Allocator frame_alloc)
@@ -42,51 +40,19 @@ cli_parse(int argc, const char **argv, Allocator frame_alloc)
 		}
 
 		switch (cli_args.mode) {
-		case Cli_Path:
-			dyn_arr_append(&cli_args.paths, String8, arg);
-			break;
+			case Cli_Path:
+				dyn_arr_append(&cli_args.paths, String8, arg);
+				break;
 
-		case Cli_Memory_Limit:
-			cli_args.mode = Cli_Path;
-			break;
+			case Cli_Memory_Limit:
+				cli_args.mode = Cli_Path;
+				break;
 		}
 	}
 
 	return cli_args;
 }
 
-
-internal Q_Buffer *
-editor_handle_input(Q_Buffer *buf, Frame_Input input)
-{
-	if (input.text.len) {
-		return buffer_insert(buf, input.text);
-	}
-
-	u32 flags = input.special_key_presses;
-
-	if (MaskCheck(flags, Pressed_Enter)) {
-		rune c = '\n';
-		String8 s = {0};
-		s.str = cast(u8 *) &c;
-		s.len = 1;
-		return buffer_insert(buf, s);
-	}
-	else if (MaskCheck(flags, Pressed_Backspace)) {
-		if (buf->gap_pos <= 0) return buf;
-		buffer_move_left(buf);
-		buffer_erase(buf);
-	}
-	else if (MaskCheck(flags, Pressed_Delete)) {
-		buffer_erase(buf);
-	}
-	else if (MaskCheck(flags, Pressed_Move_Left))  buffer_move_left(buf);
-	else if (MaskCheck(flags, Pressed_Move_Right)) buffer_move_right(buf);
-	else if (MaskCheck(flags, Pressed_Move_Up))    buffer_move_up(buf);
-	else if (MaskCheck(flags, Pressed_Move_Down))  buffer_move_down(buf);
-
-	return buf;
-}
 
 internal void
 push_glyph(Glyph_Cache *cache, rune c, vec2 pos, vec2 size, u32 color)
@@ -140,25 +106,27 @@ smooth_damp(f32 current, f32 target, f32 time, f32 dt)
 internal void
 editor_render(Q_Buffer *buf, Allocator scratch, Glyph_Cache *cache, f32 y_level)
 {
-    f32 pen_x = 10.0f;
-    f32 pen_y = -y_level;
+	f32 pen_x = 10.0f;
+	f32 pen_y = -y_level;
 
-    f32 cell_w = (f32)cache->tile_width;
-    f32 cell_h = (f32)cache->tile_height;
+	f32 cell_w = (f32)cache->tile_width;
+	f32 cell_h = (f32)cache->tile_height;
 
-    Rect screen_rect = gfx_get_clip_rect();
+	Rect screen_rect = gfx_get_clip_rect();
 
-    vec2 cursor_target = { pen_x, pen_y };
-    bool cursor_found = false;
-    rune cursor_cp = 0;
+	vec2 cursor_target = { pen_x, pen_y };
+	bool cursor_found = false;
+	rune cursor_cp = 0;
 
-    Q_Iterator itr = {0};
+	Q_Iterator itr = {0};
 
 	while (buffer_iter(buf, &itr)) {
-
 		rune c = itr.codepoint;
 
-		vec2 pos = { pen_x, pen_y };
+		if (pen_y > screen_rect.to.y)
+			break;
+
+		vec2 pos  = { pen_x, pen_y };
 		vec2 size = { cell_w, cell_h };
 
 		bool visible =
@@ -167,12 +135,12 @@ editor_render(Q_Buffer *buf, Allocator scratch, Glyph_Cache *cache, f32 y_level)
 
 		if (itr.is_on_cursor) {
 			cursor_target = pos;
-			cursor_cp = c;
-			cursor_found = true;
+			cursor_cp     = c;
+			cursor_found  = true;
 		}
 
 		if (c == '\n') {
-			pen_x = 10.0f;
+			pen_x = 10.0;
 			pen_y += cell_h;
 			continue;
 		}
@@ -192,45 +160,46 @@ editor_render(Q_Buffer *buf, Allocator scratch, Glyph_Cache *cache, f32 y_level)
 		}
 
 		pen_x += cell_w;
-
-		if (pen_y > screen_rect.to.y)
-			break;
 	}
 
-    if (!cursor_found) {
-        cursor_target = (vec2){ pen_x, pen_y };
-    }
+	if (!cursor_found) {
+		cursor_target = (vec2){ pen_x, pen_y };
+	}
 
-    static vec2 cursor_visual = {0};
-    static bool initialized = false;
+	static vec2 cursor_visual = {0};
+	static bool initialized = false;
 
-    if (!initialized) {
-        cursor_visual = cursor_target;
-        initialized = true;
-    }
+	if (!initialized) {
+		cursor_visual = cursor_target;
+		initialized = true;
+	}
 
-    f32 dt = cast(f32) gfx_delta_time();
-    f32 smooth_time = 0.04f;
+	f32 dt = cast(f32) gfx_delta_time();
+	f32 smooth_time = 0.04f;
 
-    cursor_visual.x = smooth_damp(cursor_visual.x, cursor_target.x, smooth_time, dt);
-    cursor_visual.y = smooth_damp(cursor_visual.y, cursor_target.y, smooth_time, dt);
+	cursor_visual.x = smooth_damp(cursor_visual.x, cursor_target.x, smooth_time, dt);
+	cursor_visual.y = smooth_damp(cursor_visual.y, cursor_target.y, smooth_time, dt);
 
-    draw_cursor(cursor_visual,
-                (vec2){ cell_w, cell_h },
-                0x00ff00ff,
-                WHITE_TEXTURE);
+	draw_cursor(cursor_visual,
+			 (vec2){ cell_w, cell_h },
+			 0x00ff00ff,
+			 WHITE_TEXTURE);
 
 
-    if (cursor_found &&
-        cursor_cp != '\n' &&
-        cursor_cp != ' '  &&
-        cursor_cp != '\t') {
-        push_glyph(cache,
-                   cursor_cp,
-                   cursor_visual,
-                   (vec2){ cell_w, cell_h },
-                   0x000000ff);
-    }
+	if (cursor_found && !is_space(cursor_cp)) {
+		push_glyph(cache, cursor_cp, cursor_visual, (vec2){ cell_w, cell_h }, 0x000000ff);
+	}
+
+	vec2 quad_pos =  { screen_rect.from.x, screen_rect.to.y - cell_h };
+	vec2 quad_size = { screen_rect.to.x - screen_rect.from.x, cell_h };
+	draw_quad(quad_pos, quad_size, 0x99856aff);
+	
+	draw_string_aligned(
+		str8_tprintf(scratch, "[" STR "]", s_fmt(buf->name)),
+		quad_pos, quad_size, 0x131313ff, 4,
+		(Box_Alignment) {AlignH_Left, AlignV_Center}, cache
+	);
+
 }
 
 
@@ -241,12 +210,10 @@ int main(int argc, const char **argv)
 
 	Command_Line_Args cli_args = cli_parse(argc, argv, frame_alloc);
 
-	GFX_Context gfx = gfx_new(
-		S("quark"), 1000, 625, alloc, frame_alloc
-	);
+	Editor_Context ctx = editor_context(alloc, frame_alloc);
+	GFX_Context gfx = gfx_make(S("quark"), 1000, 625, alloc, frame_alloc);
 
-	String8 ttf_data =
-		os_data_from_path(S("./res/JetBrainsMono-Regular.ttf"), alloc);
+	String8 ttf_data = os_data_from_path(S("./res/JetBrainsMono-Regular.ttf"), alloc);
 
 	Glyph_Cache glyph_cache = {0};
 	Glyph_Table_Params params = {
@@ -256,40 +223,114 @@ int main(int argc, const char **argv)
 		.tiles_per_row  = 0,
 	};
 
-	glyph_cache_make(
-		&glyph_cache,
-		ttf_data.str,
-		20,
-		512, 512,
-		10, 20,
-		params,
-		alloc,
-		frame_alloc
-	);
+	glyph_cache_make(&glyph_cache,
+				  ttf_data.str,
+				  28,
+				  512,
+				  512,
+				  14,
+				  28,
+				  params,
+				  alloc,
+				  frame_alloc);
 
-	String8 file_data = S("");
-	if (cli_args.paths.len) {
-		file_data = os_data_from_path(
-			dyn_arr_index(&cli_args.paths, String8, 0),
-			frame_alloc
-		);
+	for (usize i = 0; i < cli_args.paths.len; ++i) {
+		String8 path = dyn_arr_index(&cli_args.paths, String8, i);
+
+		editor_push_cmd(&ctx, (Editor_Cmd){
+			.type = Cmd_Buffer_Open,
+			.buffer_open = { .name = path }
+		});
 	}
 
-	Q_Buffer *buf = buffer_new(file_data, NULL, alloc);
-
-	mem_free_all(frame_alloc);
+	if (!ctx.active_buffer) {
+		editor_push_cmd(&ctx, (Editor_Cmd){
+			.type = Cmd_Buffer_Open,
+			.buffer_open = { .name = S("untitled") }
+		});
+	}
 
 	for (;;) {
+		mem_free_all(frame_alloc);
 		if (!gfx_window_open()) break;
 
 		Frame_Input input = gfx_frame_begin(0x101010ff);
 
+		if (input.text.len) {
+			String8 pair_end = get_pair_end(cast(rune) input.text.str[0]);
+			editor_push_cmd(&ctx, (Editor_Cmd){
+				.type = Cmd_Insert_Text,
+				.text_insert = { .text = input.text }
+			});
 
-		buf = editor_handle_input(buf, input);
-		editor_render(buf, frame_alloc, &glyph_cache, 0);
+			if (pair_end.len)
+			{
+				editor_push_cmd(&ctx, (Editor_Cmd){
+					.type = Cmd_Insert_Text,
+					.text_insert = { .text = pair_end }
+				});
+				editor_push_cmd(&ctx, (Editor_Cmd){
+					.type = Cmd_Cursor_Move,
+					.cursor = { .dx = -1, .dy = 0 }
+				});
+			}
+		}
+
+		u32 flags = input.special_key_presses;
+
+		if (MaskCheck(flags, Pressed_Enter)) {
+			usize indent = buffer_current_indent_depth(ctx.active_buffer);
+			u8 *buf = alloc_array_nz(frame_alloc, u8, indent, NULL);
+			memset(buf, '\t', indent);
+			String8 indent_string = str8(buf, indent);
+
+			String8 s = str8_concat(S("\n"), indent_string, frame_alloc);
+
+			editor_push_cmd(&ctx, (Editor_Cmd){
+				.type = Cmd_Insert_Text,
+				.text_insert = { .text = s }
+			});
+		}
+		else if (MaskCheck(flags, Pressed_Backspace)) {
+			editor_push_cmd(&ctx, (Editor_Cmd){
+				.type = Cmd_Delete_Text,
+				.text_delete = { .amount = 1, .move = true }
+			});
+		}
+		else if (MaskCheck(flags, Pressed_Delete)) {
+			editor_push_cmd(&ctx, (Editor_Cmd){
+				.type = Cmd_Delete_Text,
+				.text_delete = { .amount = 1, .move = false }
+			});
+		}
+		else if (MaskCheck(flags, Pressed_Move_Left)) {
+			editor_push_cmd(&ctx, (Editor_Cmd){
+				.type = Cmd_Cursor_Move,
+				.cursor = { .dx = -1, .dy = 0 }
+			});
+		}
+		else if (MaskCheck(flags, Pressed_Move_Right)) {
+			editor_push_cmd(&ctx, (Editor_Cmd){
+				.type = Cmd_Cursor_Move,
+				.cursor = { .dx = 1, .dy = 0 }
+			});
+		}
+		else if (MaskCheck(flags, Pressed_Move_Up)) {
+			editor_push_cmd(&ctx, (Editor_Cmd){
+				.type = Cmd_Cursor_Move,
+				.cursor = { .dx = 0, .dy = -1 }
+			});
+		}
+		else if (MaskCheck(flags, Pressed_Move_Down)) {
+			editor_push_cmd(&ctx, (Editor_Cmd){
+				.type = Cmd_Cursor_Move,
+				.cursor = { .dx = 0, .dy = 1 }
+			});
+		}
+
+		editor_render(ctx.active_buffer, frame_alloc, &glyph_cache, 0);
 
 		gfx_frame_end();
-		mem_free_all(frame_alloc);
 	}
 
 	return 0;

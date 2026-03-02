@@ -1,16 +1,6 @@
 #include "buffer.h"
 
-struct Q_Buffer {
-    Allocator alloc;
-    Q_Buffer *prev;
-    Q_Buffer *next;
-
-    usize gap_pos;
-    usize gap_size;
-    usize cap;
-
-    u8 data[];
-};
+const global usize TAB_WIDTH = 4;
 
 internal usize
 _buf_len(Q_Buffer *b)
@@ -50,7 +40,9 @@ _grow(Q_Buffer *b, usize need)
     if (b->gap_size >= need) return b;
 
     usize new_cap = b->cap * 2 + need;
-    usize size = sizeof(Q_Buffer) + new_cap;
+
+    usize name_len = b->name.len;
+    usize size = sizeof(Q_Buffer) + new_cap + name_len;
 
     Alloc_Error err = 0;
     Q_Buffer *n = mem_alloc_aligned(b->alloc, size, AlignOf(Q_Buffer), false, &err);
@@ -63,6 +55,10 @@ _grow(Q_Buffer *b, usize need)
     n->next  = b->next;
     n->cap   = new_cap;
 
+    u8 *name_mem = n->data + new_cap;
+    MemMove(name_mem, b->name.str, name_len);
+    n->name = str8(name_mem, name_len);
+
     usize before = b->gap_pos;
     usize after  = b->cap - (b->gap_pos + b->gap_size);
 
@@ -70,13 +66,10 @@ _grow(Q_Buffer *b, usize need)
     n->gap_size = new_cap - (before + after);
 
     MemMove(n->data, b->data, before);
-    MemMove(n->data + n->gap_pos + n->gap_size,
-            b->data + b->gap_pos + b->gap_size,
-            after);
+    MemMove(n->data + n->gap_pos + n->gap_size, b->data + b->gap_pos + b->gap_size, after);
 
     if (n->prev) n->prev->next = n;
     if (n->next) n->next->prev = n;
-
 
     mem_free(b->alloc, b, NULL);
     return n;
@@ -113,31 +106,42 @@ _current_column(Q_Buffer *b)
     usize col = 0;
 
     while (off < b->gap_pos) {
-        u8 c = b->data[_real(b, off)];
+        usize r = _real(b, off);
+        u8 c = b->data[r];
+
         u32 w = UTF8_LEN_TABLE[c];
         if (!w) w = 1;
+
         off += w;
-        col++;
+
+        if (c == '\t') {
+            usize advance = TAB_WIDTH - (col % TAB_WIDTH);
+            col += advance;
+        } else {
+            col++;
+        }
     }
 
     return col;
 }
 
 internal Q_Buffer *
-buffer_new(String8 src, Q_Buffer *cur, Allocator alloc)
+buffer_make(String8 name, String8 src, Q_Buffer *cur, Allocator alloc)
 {
-    usize cap = Max(src.len * 2, Kb(32));
-    usize size = sizeof(Q_Buffer) + cap;
+    usize buffer_cap = Max(src.len * 2, Kb(32));
+    usize size = sizeof(Q_Buffer) + buffer_cap + name.len;
 
     Alloc_Error err = 0;
-    Q_Buffer *b = mem_alloc_aligned(alloc, size, AlignOf(Q_Buffer), false, &err);
+    Q_Buffer *b = cast(Q_Buffer *) mem_alloc_aligned(alloc, size, AlignOf(Q_Buffer), false, &err);
     if (err) return NULL;
 
     MemZeroStruct(b);
 
     b->alloc = alloc;
-    b->cap   = cap;
-    b->gap_size = cap - src.len;
+    b->cap   = buffer_cap;
+    b->gap_size = buffer_cap - src.len;
+	b->name = str8(cast(u8 *) b + sizeof(Q_Buffer) + buffer_cap, name.len);
+	MemMove(b->name.str, name.str, name.len);
 
     if (cur) {
         b->prev = cur;
@@ -149,6 +153,17 @@ buffer_new(String8 src, Q_Buffer *cur, Allocator alloc)
     MemMove(b->data + b->gap_size, src.str, src.len);
 
     return b;
+}
+
+internal void
+buffer_delete(Q_Buffer *b)
+{
+	if (!b) return;
+
+	if (b->prev) b->prev->next = b->next;
+	if (b->next) b->next->prev = b->prev;
+
+	mem_free(b->alloc, b, NULL);
 }
 
 internal Q_Buffer *
@@ -168,6 +183,9 @@ buffer_insert(Q_Buffer *b, String8 text)
 
     b->gap_pos  += text.len;
     b->gap_size -= text.len;
+
+    b->goal_col = _current_column(b);
+    b->goal_col_valid = true;
 
     return b;
 }
@@ -197,6 +215,9 @@ buffer_move_left(Q_Buffer *b)
         pos--;
 
     _move_gap(b, pos);
+
+    b->goal_col = _current_column(b);
+    b->goal_col_valid = true;
 }
 
 internal void
@@ -211,6 +232,9 @@ buffer_move_right(Q_Buffer *b)
     if (!w) w = 1;
 
     _move_gap(b, b->gap_pos + w);
+
+    b->goal_col = _current_column(b);
+    b->goal_col_valid = true;
 }
 
 
@@ -245,9 +269,12 @@ internal void
 buffer_move_up(Q_Buffer *b)
 {
     usize cur_start = _line_start(b, b->gap_pos);
-    if (!cur_start) return;
+    if (cur_start == 0) return;
 
-    usize target_col = _current_column(b);
+    if (!b->goal_col_valid) {
+        b->goal_col = _current_column(b);
+        b->goal_col_valid = true;
+    }
 
     usize prev_end   = cur_start - 1;
     usize prev_start = _line_start(b, prev_end);
@@ -255,12 +282,16 @@ buffer_move_up(Q_Buffer *b)
     usize off = prev_start;
     usize col = 0;
 
-    while (off < prev_end && col < target_col) {
+    while (off < prev_end && col < b->goal_col) {
         u8 c = b->data[_real(b, off)];
         u32 w = UTF8_LEN_TABLE[c];
         if (!w) w = 1;
-        off += w;
-        col++;
+
+		if (b->data[_real(b, off)] == '\t')
+			col += 4;
+		else
+			col++;
+		off += w;
     }
 
     _move_gap(b, off);
@@ -269,26 +300,64 @@ buffer_move_up(Q_Buffer *b)
 internal void
 buffer_move_down(Q_Buffer *b)
 {
-    usize len = _buf_len(b);
-    usize next_start = _next_line_start(b, b->gap_pos);
-    if (next_start >= len) return;
+	usize len = _buf_len(b);
 
-    usize target_col = _current_column(b);
+	usize next_start = _next_line_start(b, b->gap_pos);
+	if (next_start >= len) return;
 
-    usize off = next_start;
-    usize col = 0;
+	if (!b->goal_col_valid) {
+		b->goal_col = _current_column(b);
+		b->goal_col_valid = true;
+	}
 
-    while (off < len) {
-        usize r = _real(b, off);
-        if (b->data[r] == '\n') break;
-        if (col >= target_col) break;
+	usize off = next_start;
+	usize col = 0;
 
-        u8 c = b->data[r];
-        u32 w = UTF8_LEN_TABLE[c];
-        if (!w) w = 1;
-        off += w;
-        col++;
-    }
+	while (off < len) {
+		usize r = _real(b, off);
+		if (b->data[r] == '\n') break;
+		if (col >= b->goal_col) break;
 
-    _move_gap(b, off);
+		u8 c = b->data[r];
+		u32 w = UTF8_LEN_TABLE[c];
+		if (!w) w = 1;
+
+		off += w;
+
+		if (b->data[r] == '\t')
+			col += 4;
+		else
+			col++;
+	}
+
+	_move_gap(b, off);
+}
+
+
+internal usize
+buffer_current_indent_depth(Q_Buffer *buffer)
+{
+	usize start = _line_start(buffer, buffer->gap_pos);
+	usize off = start;
+	usize col = 0;
+
+	while (off < buffer->gap_pos) {
+		usize r = _real(buffer, off);
+		u8 c = buffer->data[r];
+
+		if (c == ' ') {
+			col += 1;
+			off += 1;
+		}
+		else if (c == '\t') {
+			usize advance = TAB_WIDTH - (col % TAB_WIDTH);
+			col += advance;
+			off += 1;
+		}
+		else {
+			break;
+		}
+	}
+
+	return col / TAB_WIDTH;
 }

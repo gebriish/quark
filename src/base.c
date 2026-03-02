@@ -223,7 +223,7 @@ heap_allocator(void)
 #define COMMIT_BLOCK_SIZE Kb(64)
 
 internal Arena *
-_arena_new(usize reserve_size)
+_arena_make(usize reserve_size)
 {
 	if (reserve_size > USIZE_MAX - sizeof(Arena))
 	{
@@ -429,7 +429,7 @@ internal Allocator_Proc(arena_allocator_proc)
 internal Allocator
 arena_allocator(usize reserve)
 {
-	Arena *arena = _arena_new(reserve);
+	Arena *arena = _arena_make(reserve);
 
 	return (Allocator){
 		.proc = arena_allocator_proc,
@@ -581,21 +581,40 @@ is_space(rune r)
 			r == cast(rune) '\r');
 }
 
+internal bool
+is_pair_begin(rune r)
+{
+	switch (r) {
+		case '(':
+		case '{':
+		case '[':
+		case '\'':
+		case '\"':
+			return true;
+	}
+	return false;
+}
 
 internal String8
-str8(usize len, Allocator alloc)
+get_pair_end(rune r)
+{
+	switch (r) {
+		case '(': return S(")");
+		case '{': return S("}");
+		case '[': return S("]");
+		case '\'': return S("\'");
+		case '\"': return S("\"");
+		default: return S("");
+	}
+}
+
+internal String8
+str8(u8 *ptr, usize len)
 {
 	String8 string = {
+		.str = ptr,
 		.len = len,
 	};
-
-	Alloc_Error err = 0;
-	string.str = alloc_array(alloc, u8, len, &err);
-	if (err)
-	{
-		return S("");
-	}
-
 	return string;
 }
 
@@ -637,6 +656,27 @@ str8_delete(Allocator alloc, String8 *str)
 	}
 
 	return Alloc_Err_None;
+}
+
+
+internal String8
+str8_concat(String8 s1, String8 s2, Allocator alloc)
+{
+	if (!s1.len && !s2.len) return S("");
+
+	usize combined_len = s1.len + s2.len;
+
+	Alloc_Error err = 0;
+	u8 *buffer = alloc_array_nz(alloc, u8, combined_len, &err);
+	if (err) return S("");
+
+	MemMove(buffer, s1.str, s1.len);
+	MemMove(buffer + s1.len, s2.str, s2.len);
+
+	String8 result;
+	result.str = buffer;
+	result.len = combined_len;
+	return result;
 }
 
 internal isize

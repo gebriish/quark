@@ -545,6 +545,7 @@ internal void dynamic_array_delete(Dynamic_Array *arr);
 internal bool dynamic_array_reserve(Dynamic_Array *arr, usize elem_size, usize elem_align, usize min_capacity);
 internal void dynamic_array_clear(Dynamic_Array *arr);
 
+
 ///////////////////////////////////
 // ~geb: String type ( UTF8 )
 // for simplicity it is best to use
@@ -591,9 +592,11 @@ global const u8 UTF8_LEN_TABLE[256] = {
 #define STR "%.*s"
 #define s_fmt(s) cast(int) s.len, cast(char *)s.str
 
-internal String8     str8(usize len, Allocator alloc);
+internal String8     str8(u8 *ptr, usize len);
 internal String8     str8_make(const char *cstring, Allocator allocator);
 internal Alloc_Error str8_delete(Allocator alloc, String8 *str);
+
+internal String8     str8_concat(String8 s1, String8 s2, Allocator alloc);
 
 internal isize find_left(String8 str, rune c);
 internal isize find_right(String8 str, rune c);
@@ -634,6 +637,9 @@ internal rune utf8_decode(u8 *ptr, UTF8_Error *err);
 internal bool is_letter(rune r);
 internal bool is_digit(rune r);
 internal bool is_space(rune r);
+
+internal bool is_pair_begin(rune r);
+internal String8 get_pair_end(rune r);
 
 ///////////////////////////////////
 // ~geb: OS layer

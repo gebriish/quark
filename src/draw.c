@@ -1,5 +1,11 @@
 #include "draw.h"
 
+////////////////////////////////////////
+
+internal vec2 _measure_string(String8 string, int tab_width, Glyph_Cache *cache);
+
+////////////////////////////////////////
+
 internal void
 draw_cursor(vec2 pos, vec2 size, color8_t color, u32 texture)
 {
@@ -117,4 +123,77 @@ draw_string(String8 string, vec2 position, color8_t color, int tab_width, Glyph_
 
         pen_x += cell_w;
     }
+}
+
+internal void
+draw_string_aligned(String8 string, vec2 position, vec2 box_size, color8_t color, int tab_width, Box_Alignment alignment, Glyph_Cache *cache)
+{
+    if (!string.len) return;
+
+    vec2 text_size = _measure_string(string, tab_width, cache);
+
+    vec2 offset = {0};
+
+	switch (alignment.h) {
+		case AlignH_Center:
+			offset.x = (box_size.x - text_size.x) * 0.5;
+			if (offset.x < 0) offset.x = 0;
+		break;
+		case AlignH_Right:
+			offset.x = box_size.x - text_size.x;
+			if (offset.x < 0) offset.x = 0;
+		break;
+	}
+
+	switch (alignment.v) {
+		case AlignV_Center:
+			offset.y = (box_size.y - text_size.y) * 0.5;
+			if (offset.y < 0) offset.y = 0;
+		break;
+		case AlignV_Bottom:
+			offset.y = box_size.y - text_size.y;
+			if (offset.y < 0) offset.y = 0;
+		break;
+	}
+
+    vec2 final_pos = {
+        position.x + offset.x,
+        position.y + offset.y,
+    };
+
+    draw_string(string, final_pos, color, tab_width, cache);
+}
+
+////////////////////////////////////////
+
+internal vec2
+_measure_string(String8 string, int tab_width, Glyph_Cache *cache)
+{
+    f32 cell_w = (f32)cache->tile_width;
+    f32 cell_h = (f32)cache->tile_height;
+
+    f32 pen_x = 0;
+    f32 max_x = 0;
+    f32 total_h = cell_h;
+
+    Str_Iterator itr = {0};
+    while (str8_iter(string, &itr))
+    {
+        rune c = itr.codepoint;
+
+        if (c == '\n') {
+            if (pen_x > max_x) max_x = pen_x;
+            pen_x = 0;
+            total_h += cell_h;
+        }
+        else if (c == '\t')
+            pen_x += cell_w * tab_width;
+        else 
+			pen_x += cell_w;
+    }
+
+    if (pen_x > max_x)
+		max_x = pen_x;
+
+    return (vec2){ max_x, total_h };
 }

@@ -191,7 +191,7 @@ _batch_flush_if_needed(u32 needed_vertices, u32 needed_indices, u32 tex_id)
 ///////////////////
 
 internal GFX_Context
-gfx_new(String8 title_cstring, i32 w, i32 h, Allocator allocator, Allocator temp_allocator)
+gfx_make(String8 title_cstring, i32 w, i32 h, Allocator allocator, Allocator temp_allocator)
 {
 	GFX_Context state = {0};
 
@@ -357,51 +357,25 @@ gfx_frame_begin(color8_t col)
 				g_ctx->mouse_y = event.mouse.y;
 			break;
 			case RGFW_keyPressed:
-				MaskSet(
-					input_data.special_key_presses,
-					event.key.value == RGFW_backSpace, 
-					Pressed_Backspace
-				);
-				MaskSet(
-					input_data.special_key_presses,
-					event.key.value == RGFW_enter, 
-					Pressed_Enter
-				);
-				MaskSet(
-					input_data.special_key_presses,
-					event.key.value == RGFW_delete, 
-					Pressed_Delete
-				);
-				MaskSet(
-					input_data.special_key_presses,
-					event.key.value == RGFW_left, 
-					Pressed_Move_Left
-				);
-				MaskSet(
-					input_data.special_key_presses,
-					event.key.value == RGFW_right, 
-					Pressed_Move_Right
-				);
-				MaskSet(
-					input_data.special_key_presses,
-					event.key.value == RGFW_up, 
-					Pressed_Move_Up
-				);
-				MaskSet(
-					input_data.special_key_presses,
-					event.key.value == RGFW_down, 
-					Pressed_Move_Down
-				);
+				MaskSet( input_data.special_key_presses, event.key.value == RGFW_backSpace, Pressed_Backspace);
+				MaskSet( input_data.special_key_presses, event.key.value == RGFW_enter, Pressed_Enter);
+				MaskSet( input_data.special_key_presses, event.key.value == RGFW_delete, Pressed_Delete);
+				MaskSet( input_data.special_key_presses, event.key.value == RGFW_left, Pressed_Move_Left);
+				MaskSet( input_data.special_key_presses, event.key.value == RGFW_right, Pressed_Move_Right);
+				MaskSet( input_data.special_key_presses, event.key.value == RGFW_up, Pressed_Move_Up);
+				MaskSet( input_data.special_key_presses, event.key.value == RGFW_down, Pressed_Move_Down);
 
 				if (RGFW_isKeyDown(RGFW_space)) {
-					input_data.text = str8(1, g_ctx->temp_allocator);
+					u8 *str = alloc_array_nz(g_ctx->temp_allocator, u8, 1, NULL);
+					input_data.text = str8(str, 1);
 					*input_data.text.str = cast(u8) ' ';
-				}
-				else if (RGFW_isKeyDown(RGFW_tab)) {
-					input_data.text = str8(1, g_ctx->temp_allocator);
+				} else if (RGFW_isKeyDown(RGFW_tab)) {
+					u8 *str = alloc_array_nz(g_ctx->temp_allocator, u8, 1, NULL);
+					input_data.text = str8(str, 1);
 					*input_data.text.str = cast(u8) '\t';
 				} else if (!input_data.special_key_presses && event.key.sym) {
-					input_data.text = str8(1, g_ctx->temp_allocator);
+					u8 *str = alloc_array_nz(g_ctx->temp_allocator, u8, 1, NULL);
+					input_data.text = str8(str, 1);
 					*input_data.text.str = cast(u8) event.key.sym;
 				}
 

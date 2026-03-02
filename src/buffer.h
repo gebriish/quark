@@ -11,6 +11,23 @@
 #include "base.h"
 
 typedef struct Q_Buffer Q_Buffer;
+struct Q_Buffer {
+    Allocator alloc;
+
+	String8 name;
+
+    Q_Buffer *prev;
+    Q_Buffer *next;
+
+    usize gap_pos;
+    usize gap_size;
+    usize cap;
+
+	usize goal_col;
+	bool goal_col_valid;
+
+    u8 data[];
+};
 
 typedef struct {
 	usize row;
@@ -26,7 +43,7 @@ typedef struct {
 
 internal bool buffer_iter(Q_Buffer *buf, Q_Iterator *itr);
 
-internal Q_Buffer *buffer_new(String8 src, Q_Buffer *current, Allocator alloc);
+internal Q_Buffer *buffer_make(String8 name, String8 src, Q_Buffer *current, Allocator alloc);
 internal void      buffer_delete(Q_Buffer *buffer);
 
 internal Q_Buffer *buffer_insert(Q_Buffer *buf, String8 text);
@@ -39,6 +56,8 @@ internal void buffer_move_down(Q_Buffer *b);
 
 internal Buffer_Position buffer_line_start(Q_Buffer *buffer);
 internal Buffer_Position buffer_line_end(Q_Buffer *buffer);
+
+internal usize buffer_current_indent_depth(Q_Buffer *buffer);
 
 
 #endif

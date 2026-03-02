@@ -134,14 +134,14 @@ typedef struct {
 } GFX_Context;
 
 enum {
-	Pressed_Backspace = Bit(0),
-	Pressed_Enter = Bit(1),
-	Pressed_Delete = Bit(2),
+	Pressed_Backspace  = Bit(0),
+	Pressed_Enter      = Bit(1),
+	Pressed_Delete     = Bit(2),
 
-	Pressed_Move_Left = Bit(3),
+	Pressed_Move_Left  = Bit(3),
 	Pressed_Move_Right = Bit(4),
-	Pressed_Move_Up = Bit(5),
-	Pressed_Move_Down = Bit(6),
+	Pressed_Move_Up    = Bit(5),
+	Pressed_Move_Down  = Bit(6),
 };
 
 typedef struct {
@@ -152,7 +152,7 @@ typedef struct {
 ///////////////////////
 // ~geb: Graphics State
 
-internal GFX_Context  gfx_new(String8 title_cstring, i32 w, i32 h, Allocator allocator, Allocator temp_allocator);
+internal GFX_Context  gfx_make(String8 title_cstring, i32 w, i32 h, Allocator allocator, Allocator temp_allocator);
 internal GFX_Context *gfx_set_context(GFX_Context *ctx);
 internal bool         gfx_window_open();
 internal void         gfx_mouse_position(f32 *x, f32 *y);
