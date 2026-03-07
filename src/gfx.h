@@ -147,6 +147,7 @@ enum {
 typedef struct {
 	String8 text;
 	u32 special_key_presses;
+	f32 scroll_x, scroll_y;
 } Frame_Input;
 
 ///////////////////////

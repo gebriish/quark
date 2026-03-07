@@ -632,13 +632,16 @@ enum {
 };
 
 internal bool str8_iter(String8 string, Str_Iterator *it);
+
 internal rune utf8_decode(u8 *ptr, UTF8_Error *err);
+internal usize utf8_codepoint_size(rune cp);
 
 internal bool is_letter(rune r);
 internal bool is_digit(rune r);
 internal bool is_space(rune r);
 
 internal bool is_pair_begin(rune r);
+internal bool is_pair_end(rune r);
 internal String8 get_pair_end(rune r);
 
 ///////////////////////////////////

@@ -6,10 +6,11 @@
 
 typedef u32 Editor_Mode;
 enum {
-	Mode_Normal,
+	Mode_Normal = 0,
 	Mode_Insert,
 	Mode_Visual,
 	Mode_CLI,
+	Mode_Count,
 };
 
 typedef struct {
@@ -18,8 +19,12 @@ typedef struct {
 	Allocator alloc;
 	Allocator frame_alloc;
 
+	int tab_width;
+
 	Q_Buffer *active_buffer;
 	Q_Buffer *buffer_list;
+
+	Q_Buffer *cli_buffer;
 } Editor_Context;
 
 typedef u32 Editor_Cmd_Type;

@@ -45,15 +45,50 @@ _cmd_buffer_close(Editor_Context *ctx, Buffer_Close cmd)
 internal void
 _cmd_text_insert(Editor_Context *ctx, Text_Insert cmd)
 {
-	if (!ctx->active_buffer) return;
+	if (ctx->mode != Mode_Insert) return;
 
-	ctx->active_buffer =
-		buffer_insert(ctx->active_buffer, cmd.text);
+	if (!ctx || !ctx->active_buffer) return;
+	if (cmd.text.len == 0) return;
+
+	Q_Buffer *buf = ctx->active_buffer;
+
+	UTF8_Error err = 0;
+	u32 cp = utf8_decode(cmd.text.str, &err);
+	if (err) {
+		ctx->active_buffer = buffer_insert(buf, cmd.text, ctx->tab_width);
+		return;
+	}
+
+	usize cp_size = utf8_codepoint_size(cp);
+	bool single_codepoint = (cp_size == cmd.text.len);
+
+	if (single_codepoint &&
+		is_pair_end(cp) &&
+		buffer_peek(buf) == cp)
+	{
+		buffer_move_right(buf, ctx->tab_width);
+		return;
+	}
+
+	ctx->active_buffer = buffer_insert(buf, cmd.text, ctx->tab_width);
+
+	rune cursor_cp = buffer_peek(buf);
+	bool should_pair = cursor_cp == 0 || is_space(cursor_cp) || is_pair_end(cursor_cp) || is_pair_begin(cursor_cp);
+
+	if (single_codepoint && should_pair) {
+		String8 pair = get_pair_end(cp);
+		if (pair.len) {
+			ctx->active_buffer = buffer_insert(ctx->active_buffer, pair, ctx->tab_width);
+			buffer_move_left(ctx->active_buffer, ctx->tab_width);
+		}
+	}
 }
 
 internal void
 _cmd_text_delete(Editor_Context *ctx, Text_Delete cmd)
 {
+	if (ctx->mode != Mode_Insert) return;	
+
 	if (!ctx->active_buffer) return;
 
 	Q_Buffer *buf = ctx->active_buffer;
@@ -61,7 +96,7 @@ _cmd_text_delete(Editor_Context *ctx, Text_Delete cmd)
 	for (int i = 0; i < cmd.amount; ++i) {
 		if (cmd.move) {
 			if (buf->gap_pos <= 0) break;
-			buffer_move_left(buf);
+			buffer_move_left(buf, ctx->tab_width);
 		}
 
 		buffer_erase(buf);
@@ -77,20 +112,20 @@ _cmd_cursor_move(Editor_Context *ctx, Cursor_Move cmd)
 
 	if (cmd.dx < 0) {
 		for (int i = 0; i < -cmd.dx; ++i)
-			buffer_move_left(buf);
+			buffer_move_left(buf, ctx->tab_width);
 	}
 	else if (cmd.dx > 0) {
 		for (int i = 0; i < cmd.dx; ++i)
-			buffer_move_right(buf);
+			buffer_move_right(buf, ctx->tab_width);
 	}
 
 	if (cmd.dy < 0) {
 		for (int i = 0; i < -cmd.dy; ++i)
-			buffer_move_up(buf);
+			buffer_move_up(buf, ctx->tab_width);
 	}
 	else if (cmd.dy > 0) {
 		for (int i = 0; i < cmd.dy; ++i)
-			buffer_move_down(buf);
+			buffer_move_down(buf, ctx->tab_width);
 	}
 }
 
@@ -104,7 +139,10 @@ editor_context(Allocator alloc, Allocator frame_alloc)
 	editor.mode = Mode_Normal;
 	editor.alloc = alloc;
 	editor.frame_alloc = frame_alloc;
+	editor.tab_width = 4;
 
+
+	editor.cli_buffer = buffer_make(S(""), S(""), NULL, alloc);
 	return editor;
 }
 

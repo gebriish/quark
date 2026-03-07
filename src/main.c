@@ -156,7 +156,7 @@ editor_render(Q_Buffer *buf, Allocator scratch, Glyph_Cache *cache, f32 y_level)
 		}
 
 		if (visible) {
-			push_glyph(cache, c, pos, size, 0x99856aff);
+			push_glyph(cache, c, pos, size, 0x131313ff);
 		}
 
 		pen_x += cell_w;
@@ -182,21 +182,33 @@ editor_render(Q_Buffer *buf, Allocator scratch, Glyph_Cache *cache, f32 y_level)
 
 	draw_cursor(cursor_visual,
 			 (vec2){ cell_w, cell_h },
-			 0x00ff00ff,
+			 0x131313ff,
 			 WHITE_TEXTURE);
 
 
 	if (cursor_found && !is_space(cursor_cp)) {
-		push_glyph(cache, cursor_cp, cursor_visual, (vec2){ cell_w, cell_h }, 0x000000ff);
+		push_glyph(cache, cursor_cp, cursor_visual, (vec2){ cell_w, cell_h }, 0x99856aff);
 	}
 
 	vec2 quad_pos =  { screen_rect.from.x, screen_rect.to.y - cell_h };
 	vec2 quad_size = { screen_rect.to.x - screen_rect.from.x, cell_h };
-	draw_quad(quad_pos, quad_size, 0x99856aff);
+	draw_quad(quad_pos, quad_size, 0x131313ff);
+
+	internal String8 mode_string[Mode_Count] = {
+		[Mode_Normal] = S("NORMAL"),
+		[Mode_Insert] = S("INSERT"),
+		[Mode_Visual] = S("VISUAL"),
+		[Mode_CLI]    = S("CMD_LN"),
+	};
 	
 	draw_string_aligned(
-		str8_tprintf(scratch, "[" STR "]", s_fmt(buf->name)),
-		quad_pos, quad_size, 0x131313ff, 4,
+		str8_tprintf(scratch, STR " ", s_fmt(buf->name)),
+		quad_pos, quad_size, 0x99856aff, 4,
+		(Box_Alignment) {AlignH_Right, AlignV_Center}, cache
+	);
+	draw_string_aligned(
+		str8_tprintf(scratch, " -- " STR " --" , mode_string[Mode_Normal]),
+		quad_pos, quad_size, 0x99856aff, 4,
 		(Box_Alignment) {AlignH_Left, AlignV_Center}, cache
 	);
 
@@ -225,11 +237,11 @@ int main(int argc, const char **argv)
 
 	glyph_cache_make(&glyph_cache,
 				  ttf_data.str,
-				  28,
+				  50,
 				  512,
 				  512,
-				  14,
-				  28,
+				  25,
+				  50,
 				  params,
 				  alloc,
 				  frame_alloc);
@@ -250,36 +262,29 @@ int main(int argc, const char **argv)
 		});
 	}
 
+
+	editor_push_cmd(&ctx, (Editor_Cmd){
+		.type = Cmd_Mode_Change,
+		.mode = { .to = Mode_Insert }
+	});
+
 	for (;;) {
 		mem_free_all(frame_alloc);
 		if (!gfx_window_open()) break;
 
-		Frame_Input input = gfx_frame_begin(0x101010ff);
+		Frame_Input input = gfx_frame_begin(0x99856aff);
 
 		if (input.text.len) {
-			String8 pair_end = get_pair_end(cast(rune) input.text.str[0]);
 			editor_push_cmd(&ctx, (Editor_Cmd){
 				.type = Cmd_Insert_Text,
 				.text_insert = { .text = input.text }
 			});
-
-			if (pair_end.len)
-			{
-				editor_push_cmd(&ctx, (Editor_Cmd){
-					.type = Cmd_Insert_Text,
-					.text_insert = { .text = pair_end }
-				});
-				editor_push_cmd(&ctx, (Editor_Cmd){
-					.type = Cmd_Cursor_Move,
-					.cursor = { .dx = -1, .dy = 0 }
-				});
-			}
 		}
 
 		u32 flags = input.special_key_presses;
 
 		if (MaskCheck(flags, Pressed_Enter)) {
-			usize indent = buffer_current_indent_depth(ctx.active_buffer);
+			usize indent = buffer_current_indent_depth(ctx.active_buffer, ctx.tab_width);
 			u8 *buf = alloc_array_nz(frame_alloc, u8, indent, NULL);
 			memset(buf, '\t', indent);
 			String8 indent_string = str8(buf, indent);
@@ -328,7 +333,12 @@ int main(int argc, const char **argv)
 			});
 		}
 
-		editor_render(ctx.active_buffer, frame_alloc, &glyph_cache, 0);
+		local_persist f32 scroll = -10.0;
+		if (scroll >= -10.0)
+			scroll -= input.scroll_y * 90;
+		else
+			scroll = -10.0;
+		editor_render(ctx.active_buffer, frame_alloc, &glyph_cache, scroll );
 
 		gfx_frame_end();
 	}

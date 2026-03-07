@@ -46,18 +46,20 @@ internal bool buffer_iter(Q_Buffer *buf, Q_Iterator *itr);
 internal Q_Buffer *buffer_make(String8 name, String8 src, Q_Buffer *current, Allocator alloc);
 internal void      buffer_delete(Q_Buffer *buffer);
 
-internal Q_Buffer *buffer_insert(Q_Buffer *buf, String8 text);
+internal Q_Buffer *buffer_insert(Q_Buffer *buf, String8 text, int tab_width);
 internal void buffer_erase(Q_Buffer *buf);
 
-internal void buffer_move_left(Q_Buffer *buffer);
-internal void buffer_move_right(Q_Buffer *buffer);
-internal void buffer_move_up(Q_Buffer *b);
-internal void buffer_move_down(Q_Buffer *b);
+internal void buffer_move_left(Q_Buffer *buffer, int tab_width);
+internal void buffer_move_right(Q_Buffer *buffer, int tab_width);
+internal void buffer_move_up(Q_Buffer *b, int tab_width);
+internal void buffer_move_down(Q_Buffer *b, int tab_width);
 
 internal Buffer_Position buffer_line_start(Q_Buffer *buffer);
 internal Buffer_Position buffer_line_end(Q_Buffer *buffer);
 
-internal usize buffer_current_indent_depth(Q_Buffer *buffer);
-
+internal usize   buffer_current_indent_depth(Q_Buffer *buffer, int tab_width);
+internal rune    buffer_peek(Q_Buffer *buffer);
+internal rune    buffer_peek_prev(Q_Buffer *buffer);
+internal String8 buffer_slice(Q_Buffer *buffer, usize begin, usize end, Allocator alloc);
 
 #endif

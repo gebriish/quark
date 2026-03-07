@@ -355,7 +355,7 @@ gfx_frame_begin(color8_t col)
 			case RGFW_mousePosChanged:
 				g_ctx->mouse_x = event.mouse.x;
 				g_ctx->mouse_y = event.mouse.y;
-			break;
+				break;
 			case RGFW_keyPressed:
 				MaskSet( input_data.special_key_presses, event.key.value == RGFW_backSpace, Pressed_Backspace);
 				MaskSet( input_data.special_key_presses, event.key.value == RGFW_enter, Pressed_Enter);
@@ -379,7 +379,11 @@ gfx_frame_begin(color8_t col)
 					*input_data.text.str = cast(u8) event.key.sym;
 				}
 
-			break;
+				break;
+			case RGFW_mouseScroll:
+				input_data.scroll_x = event.scroll.x;
+				input_data.scroll_y = event.scroll.y;
+				break;
 		}
 	}
 

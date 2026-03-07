@@ -1,6 +1,6 @@
 #include "buffer.h"
 
-const global usize TAB_WIDTH = 4;
+// const global usize TAB_WIDTH = 4;
 
 internal usize
 _buf_len(Q_Buffer *b)
@@ -54,6 +54,8 @@ _grow(Q_Buffer *b, usize need)
     n->prev  = b->prev;
     n->next  = b->next;
     n->cap   = new_cap;
+	n->goal_col = b->goal_col;
+	n->goal_col_valid = b->goal_col_valid;
 
     u8 *name_mem = n->data + new_cap;
     MemMove(name_mem, b->name.str, name_len);
@@ -99,7 +101,7 @@ _next_line_start(Q_Buffer *b, usize off)
 }
 
 internal usize
-_current_column(Q_Buffer *b)
+_current_column(Q_Buffer *b, int tab_width)
 {
     usize start = _line_start(b, b->gap_pos);
     usize off = start;
@@ -115,7 +117,7 @@ _current_column(Q_Buffer *b)
         off += w;
 
         if (c == '\t') {
-            usize advance = TAB_WIDTH - (col % TAB_WIDTH);
+            usize advance = (usize) (tab_width - (col % tab_width));
             col += advance;
         } else {
             col++;
@@ -128,7 +130,7 @@ _current_column(Q_Buffer *b)
 internal Q_Buffer *
 buffer_make(String8 name, String8 src, Q_Buffer *cur, Allocator alloc)
 {
-    usize buffer_cap = Max(src.len * 2, Kb(32));
+    usize buffer_cap = Max(src.len * 2, Kb(4));
     usize size = sizeof(Q_Buffer) + buffer_cap + name.len;
 
     Alloc_Error err = 0;
@@ -167,7 +169,7 @@ buffer_delete(Q_Buffer *b)
 }
 
 internal Q_Buffer *
-buffer_insert(Q_Buffer *b, String8 text)
+buffer_insert(Q_Buffer *b, String8 text, int tab_width)
 {
     b = _grow(b, text.len);
 
@@ -184,7 +186,7 @@ buffer_insert(Q_Buffer *b, String8 text)
     b->gap_pos  += text.len;
     b->gap_size -= text.len;
 
-    b->goal_col = _current_column(b);
+    b->goal_col = _current_column(b, tab_width);
     b->goal_col_valid = true;
 
     return b;
@@ -205,7 +207,7 @@ buffer_erase(Q_Buffer *b)
 }
 
 internal void
-buffer_move_left(Q_Buffer *b)
+buffer_move_left(Q_Buffer *b, int tab_width)
 {
     if (b->gap_pos == 0) return;
 
@@ -216,12 +218,12 @@ buffer_move_left(Q_Buffer *b)
 
     _move_gap(b, pos);
 
-    b->goal_col = _current_column(b);
+    b->goal_col = _current_column(b, tab_width);
     b->goal_col_valid = true;
 }
 
 internal void
-buffer_move_right(Q_Buffer *b)
+buffer_move_right(Q_Buffer *b, int tab_width)
 {
     usize len = _buf_len(b);
     if (b->gap_pos >= len) return;
@@ -233,46 +235,18 @@ buffer_move_right(Q_Buffer *b)
 
     _move_gap(b, b->gap_pos + w);
 
-    b->goal_col = _current_column(b);
+    b->goal_col = _current_column(b, tab_width);
     b->goal_col_valid = true;
 }
 
-
-internal bool
-buffer_iter(Q_Buffer *b, Q_Iterator *it)
-{
-    usize len = _buf_len(b);
-    if (it->offset >= len) return false;
-
-    usize real = _real(b, it->offset);
-    u8 *ptr = b->data + real;
-
-    UTF8_Error err;
-    it->codepoint = utf8_decode(ptr, &err);
-    it->is_on_cursor = (it->offset == b->gap_pos);
-
-    u32 w = UTF8_LEN_TABLE[*ptr];
-    if (!w) w = 1;
-    it->offset += w;
-
-    if (it->codepoint == '\n') {
-        it->position.row++;
-        it->position.col = 0;
-    } else {
-        it->position.col++;
-    }
-
-    return true;
-}
-
 internal void
-buffer_move_up(Q_Buffer *b)
+buffer_move_up(Q_Buffer *b, int tab_width)
 {
     usize cur_start = _line_start(b, b->gap_pos);
     if (cur_start == 0) return;
 
     if (!b->goal_col_valid) {
-        b->goal_col = _current_column(b);
+        b->goal_col = _current_column(b, tab_width);
         b->goal_col_valid = true;
     }
 
@@ -298,7 +272,7 @@ buffer_move_up(Q_Buffer *b)
 }
 
 internal void
-buffer_move_down(Q_Buffer *b)
+buffer_move_down(Q_Buffer *b, int tab_width)
 {
 	usize len = _buf_len(b);
 
@@ -306,7 +280,7 @@ buffer_move_down(Q_Buffer *b)
 	if (next_start >= len) return;
 
 	if (!b->goal_col_valid) {
-		b->goal_col = _current_column(b);
+		b->goal_col = _current_column(b, tab_width);
 		b->goal_col_valid = true;
 	}
 
@@ -335,7 +309,7 @@ buffer_move_down(Q_Buffer *b)
 
 
 internal usize
-buffer_current_indent_depth(Q_Buffer *buffer)
+buffer_current_indent_depth(Q_Buffer *buffer, int tab_width)
 {
 	usize start = _line_start(buffer, buffer->gap_pos);
 	usize off = start;
@@ -350,7 +324,7 @@ buffer_current_indent_depth(Q_Buffer *buffer)
 			off += 1;
 		}
 		else if (c == '\t') {
-			usize advance = TAB_WIDTH - (col % TAB_WIDTH);
+			usize advance = tab_width - (col % tab_width);
 			col += advance;
 			off += 1;
 		}
@@ -359,5 +333,107 @@ buffer_current_indent_depth(Q_Buffer *buffer)
 		}
 	}
 
-	return col / TAB_WIDTH;
+	return col / tab_width;
+}
+
+
+internal rune
+buffer_peek(Q_Buffer *buffer)
+{
+	if (!buffer) return 0;
+
+	usize pos = buffer->gap_pos + buffer->gap_size;
+	usize len = buffer->cap;
+
+	if (pos >= len) return 0;
+
+	UTF8_Error err = 0;
+	rune cp = utf8_decode(buffer->data + pos, &err);
+
+	if (err) return 0;
+
+	return cp;
+}
+
+internal rune
+buffer_peek_prev(Q_Buffer *buffer)
+{
+	return 0;
+}
+
+internal bool
+buffer_iter(Q_Buffer *b, Q_Iterator *it)
+{
+    usize len = _buf_len(b);
+    if (it->offset >= len) return false;
+
+    usize real = _real(b, it->offset);
+    u8 *ptr = b->data + real;
+
+    UTF8_Error err;
+    it->codepoint = utf8_decode(ptr, &err);
+    it->is_on_cursor = (it->offset == b->gap_pos);
+
+    u32 w = UTF8_LEN_TABLE[*ptr];
+    if (!w) w = 1;
+    it->offset += w;
+
+    if (it->codepoint == '\n') {
+        it->position.row++;
+        it->position.col = 0;
+    } else {
+        it->position.col++;
+    }
+
+    return true;
+}
+
+
+internal String8
+buffer_slice(Q_Buffer *buffer, usize begin, usize end, Allocator alloc)
+{
+    Assert(begin <= end);
+    Assert(end <= _buf_len(buffer));
+
+    usize begin_real = _real(buffer, begin);
+    usize end_real   = _real(buffer, end);
+
+    usize gap_begin = buffer->gap_pos;
+    usize gap_end   = buffer->gap_pos + buffer->gap_size;
+
+    usize size = end - begin;
+
+    if (end_real <= gap_begin)
+    {
+        return (String8){
+            .str  = buffer->data + begin_real,
+            .len = size
+        };
+    }
+
+    if (begin_real >= gap_end)
+    {
+        return (String8){
+            .str  = buffer->data + begin_real,
+            .len = size
+        };
+    }
+
+    u8 *dst = alloc_array_nz(alloc, u8, size, NULL);
+
+    usize left_size  = gap_begin - begin_real;
+    usize right_size = end_real - gap_end;
+
+	MemMove(dst,
+		 buffer->data + begin_real,
+		 left_size);
+
+	MemMove(dst + left_size,
+		 buffer->data + gap_end,
+		 right_size);
+
+    return (String8){
+        .str  = dst,
+        .len = size
+    };
 }

@@ -550,6 +550,26 @@ out_of_range:
 	return 0;
 }
 
+internal usize
+utf8_codepoint_size(rune cp)
+{
+	if (cp <= 0x7F) {
+		return 1;
+	}
+	else if (cp <= 0x7FF) {
+		return 2;
+	}
+	else if (cp <= 0xFFFF) {
+		return 3;
+	}
+	else if (cp <= 0x10FFFF) {
+		return 4;
+	}
+	else {
+		return 0; // invalid codepoint
+	}
+}
+
 internal bool
 is_letter(rune r)
 {
@@ -588,6 +608,21 @@ is_pair_begin(rune r)
 		case '(':
 		case '{':
 		case '[':
+		case '\'':
+		case '\"':
+			return true;
+	}
+	return false;
+}
+
+
+internal bool
+is_pair_end(rune r)
+{
+	switch (r) {
+		case ')':
+		case '}':
+		case ']':
 		case '\'':
 		case '\"':
 			return true;
