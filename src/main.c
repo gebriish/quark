@@ -12,6 +12,8 @@
 #include "buffer.c"
 #include "editor.c"
 
+#include "embed_data.h"
+
 typedef u32 Cli_Parse_Mode;
 enum {
 	Cli_Path = 0,
@@ -225,7 +227,9 @@ int main(int argc, const char **argv)
 	Editor_Context ctx = editor_context(alloc, frame_alloc);
 	GFX_Context gfx = gfx_make(S("quark"), 1000, 625, alloc, frame_alloc);
 
-	String8 ttf_data = os_data_from_path(S("./res/JetBrainsMono-Regular.ttf"), alloc);
+	String8 ttf_data = str8(
+		(u8 *) jetbrains_mono_font, (usize) jetbrains_mono_font_len
+	);
 
 	Glyph_Cache glyph_cache = {0};
 	Glyph_Table_Params params = {
@@ -279,59 +283,60 @@ int main(int argc, const char **argv)
 				.type = Cmd_Insert_Text,
 				.text_insert = { .text = input.text }
 			});
+		} else {
+			u32 flags = input.special_key_presses;
+
+			if (MaskCheck(flags, Pressed_Enter)) {
+				usize indent = buffer_current_indent_depth(ctx.active_buffer, ctx.tab_width);
+				u8 *buf = alloc_array_nz(frame_alloc, u8, indent, NULL);
+				memset(buf, '\t', indent);
+				String8 indent_string = str8(buf, indent);
+
+				String8 s = str8_concat(S("\n"), indent_string, frame_alloc);
+
+				editor_push_cmd(&ctx, (Editor_Cmd){
+					.type = Cmd_Insert_Text,
+					.text_insert = { .text = s }
+				});
+			}
+			else if (MaskCheck(flags, Pressed_Backspace)) {
+				editor_push_cmd(&ctx, (Editor_Cmd){
+					.type = Cmd_Delete_Text,
+					.text_delete = { .amount = 1, .move = true }
+				});
+			}
+			else if (MaskCheck(flags, Pressed_Delete)) {
+				editor_push_cmd(&ctx, (Editor_Cmd){
+					.type = Cmd_Delete_Text,
+					.text_delete = { .amount = 1, .move = false }
+				});
+			}
+			else if (MaskCheck(flags, Pressed_Move_Left)) {
+				editor_push_cmd(&ctx, (Editor_Cmd){
+					.type = Cmd_Cursor_Move,
+					.cursor = { .dx = -1, .dy = 0 }
+				});
+			}
+			else if (MaskCheck(flags, Pressed_Move_Right)) {
+				editor_push_cmd(&ctx, (Editor_Cmd){
+					.type = Cmd_Cursor_Move,
+					.cursor = { .dx = 1, .dy = 0 }
+				});
+			}
+			else if (MaskCheck(flags, Pressed_Move_Up)) {
+				editor_push_cmd(&ctx, (Editor_Cmd){
+					.type = Cmd_Cursor_Move,
+					.cursor = { .dx = 0, .dy = -1 }
+				});
+			}
+			else if (MaskCheck(flags, Pressed_Move_Down)) {
+				editor_push_cmd(&ctx, (Editor_Cmd){
+					.type = Cmd_Cursor_Move,
+					.cursor = { .dx = 0, .dy = 1 }
+				});
+			}
 		}
 
-		u32 flags = input.special_key_presses;
-
-		if (MaskCheck(flags, Pressed_Enter)) {
-			usize indent = buffer_current_indent_depth(ctx.active_buffer, ctx.tab_width);
-			u8 *buf = alloc_array_nz(frame_alloc, u8, indent, NULL);
-			memset(buf, '\t', indent);
-			String8 indent_string = str8(buf, indent);
-
-			String8 s = str8_concat(S("\n"), indent_string, frame_alloc);
-
-			editor_push_cmd(&ctx, (Editor_Cmd){
-				.type = Cmd_Insert_Text,
-				.text_insert = { .text = s }
-			});
-		}
-		else if (MaskCheck(flags, Pressed_Backspace)) {
-			editor_push_cmd(&ctx, (Editor_Cmd){
-				.type = Cmd_Delete_Text,
-				.text_delete = { .amount = 1, .move = true }
-			});
-		}
-		else if (MaskCheck(flags, Pressed_Delete)) {
-			editor_push_cmd(&ctx, (Editor_Cmd){
-				.type = Cmd_Delete_Text,
-				.text_delete = { .amount = 1, .move = false }
-			});
-		}
-		else if (MaskCheck(flags, Pressed_Move_Left)) {
-			editor_push_cmd(&ctx, (Editor_Cmd){
-				.type = Cmd_Cursor_Move,
-				.cursor = { .dx = -1, .dy = 0 }
-			});
-		}
-		else if (MaskCheck(flags, Pressed_Move_Right)) {
-			editor_push_cmd(&ctx, (Editor_Cmd){
-				.type = Cmd_Cursor_Move,
-				.cursor = { .dx = 1, .dy = 0 }
-			});
-		}
-		else if (MaskCheck(flags, Pressed_Move_Up)) {
-			editor_push_cmd(&ctx, (Editor_Cmd){
-				.type = Cmd_Cursor_Move,
-				.cursor = { .dx = 0, .dy = -1 }
-			});
-		}
-		else if (MaskCheck(flags, Pressed_Move_Down)) {
-			editor_push_cmd(&ctx, (Editor_Cmd){
-				.type = Cmd_Cursor_Move,
-				.cursor = { .dx = 0, .dy = 1 }
-			});
-		}
 
 		local_persist f32 scroll = -10.0;
 		if (scroll >= -10.0)

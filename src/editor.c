@@ -51,7 +51,6 @@ _cmd_text_insert(Editor_Context *ctx, Text_Insert cmd)
 	if (cmd.text.len == 0) return;
 
 	Q_Buffer *buf = ctx->active_buffer;
-
 	UTF8_Error err = 0;
 	u32 cp = utf8_decode(cmd.text.str, &err);
 	if (err) {
