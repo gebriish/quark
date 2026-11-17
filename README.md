@@ -1,0 +1,2 @@
+# quark
+Standalone text editor.
