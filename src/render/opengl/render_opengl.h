@@ -2,7 +2,7 @@
 #define RENDER_OPENGL_H
 
 //////////////////////////////////////
-// @note(gaureesh): procedure list
+// @section: opengl proc list
 
 #define R_OGL_ProcedureXList \
   X(glGenBuffers, void, (GLsizei n, GLuint *buffers))\
@@ -63,7 +63,7 @@ R_OGL_ProcedureXList
 //////////////////////////////////////
 // @section: types
 
-typedef U32 R_OGL_ShaderKind;
+typedef u32 R_OGL_ShaderKind;
 enum
 {
   R_OGL_ShaderKind_Quad,
@@ -84,8 +84,8 @@ struct R_OGL_Target
 {
   GLuint fbo;
   GLuint tex;
-  S32 w;
-  S32 h;
+  s32 w;
+  s32 h;
 };
 
 typedef struct R_OGL_Texture R_OGL_Texture;
@@ -131,9 +131,9 @@ global R_OGL_State *r_ogl_state = 0;
 // @section: ogl helper functions
 
 function GLuint r_ogl_compile_shader(String8 vert, String8 frag);
-function GLuint r_ogl_instance_buffer_from_size(U64 size);
-function void   r_ogl_target_generate(R_OGL_Target *t, S32 w, S32 h);
-function void   r_ogl_draw_instances(GLuint shader, void *data, S64 count, S64 stride, R_OGL_Attr *attrs, S64 attr_count, R_Handle tex);
+function GLuint r_ogl_instance_buffer_from_size(u64 size);
+function void   r_ogl_target_generate(R_OGL_Target *t, s32 w, s32 h);
+function void   r_ogl_draw_instances(GLuint shader, void *data, s64 count, s64 stride, R_OGL_Attr *attrs, s64 attr_count, R_Handle tex);
 
 //////////////////////////////////////
 // @section: target defined functions

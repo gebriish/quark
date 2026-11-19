@@ -1,9 +1,9 @@
 #ifndef RENDER_CORE_H
 #define RENDER_CORE_H
 
-const S64 QUAD_BATCH_SIZE = 2048;
+const s64 QUAD_BATCH_SIZE = 2048;
 
-typedef U32 R_DrawKind;
+typedef u32 R_DrawKind;
 enum
 {
   R_DrawKind_Quads,
@@ -17,7 +17,7 @@ enum
 typedef struct R_Handle R_Handle;
 struct R_Handle
 {
-  U64 u64[1];
+  u64 v[1];
 };
 
 typedef struct R_Quad R_Quad;
@@ -27,8 +27,8 @@ struct R_Quad
   Rng2F32 src;
   Vec4F32 col;
   Vec4F32 radii;
-  F32 thickness;
-  F32 edge_blur;
+  f32 thickness;
+  f32 edge_blur;
 };
 
 typedef struct R_Blur R_Blur;
@@ -37,7 +37,7 @@ struct R_Blur
   Rng2F32 rect;
   Vec4F32 tint;
   Vec4F32 radii;
-  F32 blur;
+  f32 blur;
 };
 
 typedef struct R_TextQuad R_TextQuad;
@@ -52,7 +52,7 @@ typedef struct R_QuadBatch R_QuadBatch;
 struct R_QuadBatch
 {
   R_Quad  *raw;
-  S64      len;
+  s64      len;
   R_Handle tex;
 };
 
@@ -60,7 +60,7 @@ typedef struct R_TextBatch R_TextBatch;
 struct R_TextBatch
 {
   R_TextQuad *raw;
-  S64         len;
+  s64         len;
   R_Handle    tex;
 };
 
@@ -85,10 +85,10 @@ struct R_DrawList
 {
   R_Draw *first;
   R_Draw *last;
-  S64        len;
+  s64        len;
 };
 
-typedef U32 R_TexFormat;
+typedef u32 R_TexFormat;
 enum
 {
   R_TexFormat_R8,
@@ -102,15 +102,15 @@ struct R_Image
 {
   R_TexFormat fmt;
   Vec2S32 dim;
-  U8 *data;
+  u8 *data;
 };
 
 /////////////////////////////
 // @section: handles
 
 function R_Handle r_empty_handle(void);
-function B32 r_handle_zero(R_Handle h);
-function B32 r_handle_matches(R_Handle a, R_Handle b);
+function b32 r_handle_zero(R_Handle h);
+function b32 r_handle_matches(R_Handle a, R_Handle b);
 
 /////////////////////////////
 // @section: state functions
@@ -123,9 +123,9 @@ function Arena *r_frame_arena(void);
 
 function void r_window_begin_frame(GFX_Window win);
 function void r_window_end_frame(GFX_Window win);
-function void r_window_set_vsync(GFX_Window win, B32 vsync);
+function void r_window_set_vsync(GFX_Window win, b32 vsync);
 
-function F32  r_frame_begin(void);
+function f32  r_frame_begin(void);
 function void r_frame_end(void);
 function void r_window_submit_frame(R_DrawList list);
 
@@ -134,7 +134,7 @@ function void r_window_submit_frame(R_DrawList list);
 
 function R_Handle r_tex_alloc(R_Image image);
 function void     r_tex_free(R_Handle h);
-function void     r_tex_update(R_Handle h, Rng2S32 range, U8 *data);
+function void     r_tex_update(R_Handle h, Rng2S32 range, u8 *data);
 function Vec2S32  r_tex_size(R_Handle h);
 function R_Image  r_blank_image(R_TexFormat fmt, Vec2S32 dim);
 
@@ -157,13 +157,13 @@ function void r_pop_clip(R_DrawList *list);
 
 #define WindowFrameScope(w)  DeferLoop(r_window_begin_frame(w), r_window_end_frame(w))
 #define Radius4(x) (Vec4F32) { x,x,x,x }
-#define Color8(x) V4(          \
+#define Color8(x) v4f32(       \
   ((x >> 24) & 0xff) / 255.0f, \
   ((x >> 16) & 0xff) / 255.0f, \
   ((x >>  8) & 0xff) / 255.0f, \
   ((x >>  0) & 0xff) / 255.0f  \
 )
 
-#define Color_White V4(1.f,1.f,1.f,1.f)
+#define Color_White v4f32(1.f,1.f,1.f,1.f)
 
 #endif // RENDER_CORE_H

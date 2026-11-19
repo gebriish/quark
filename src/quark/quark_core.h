@@ -4,7 +4,7 @@
 /////////////////////////////////
 // @section: types
 
-typedef U32 Q_Mode;
+typedef u32 Q_Mode;
 enum
 {
   Q_Mode_Normal,
@@ -20,7 +20,7 @@ read_only global String8 q_mode_strings[Q_Mode_COUNT] =
   [Q_Mode_Command] = S(":"),
 };
 
-typedef U32 Q_ActionKind;
+typedef u32 Q_ActionKind;
 enum
 {
   Q_ActionKind_Nil,
@@ -28,7 +28,7 @@ enum
   Q_ActionKind_COUNT,
 };
 
-typedef U32 Q_ColorKind;
+typedef u32 Q_ColorKind;
 enum
 {
   Q_ColorKind_Normal,
@@ -49,16 +49,10 @@ struct Q_Color
 typedef struct Q_Config Q_Config;
 struct Q_Config
 {
-  //
-  // UI Style
-  //
-
   R_Font ui_font;
   R_Font code_font;
-
-  U32 ui_font_size;
-  U32 code_font_size;
-
+  u32 ui_font_size;
+  u32 code_font_size;
   Q_Color colors[Q_ColorKind_COUNT];
 };
 
@@ -74,7 +68,7 @@ struct Q_Buffer
   Arena *arena;
   String8 path;
   String8 name;
-  FileProperty props;
+  File_Info file_info;
 
   String8 original;
 };
@@ -86,7 +80,7 @@ struct Q_BufferHashSlot
   Q_Buffer *last;
 };
 
-typedef U32 Q_PanelKind;
+typedef u32 Q_PanelKind;
 enum
 {
   Q_PanelKind_Editor,
@@ -135,7 +129,7 @@ struct Q_State
   Q_BufferHashSlot buffer_table[1024];
   Q_Buffer *first_buffer;
   Q_Buffer *last_buffer;
-  S64 buffer_count;
+  s64 buffer_count;
 
   Q_PanelTree panel_tree;
 
@@ -144,10 +138,10 @@ struct Q_State
   Q_Command *free_command_nodes;
 
   Q_Config config;
-  B32 quit;
+  b32 quit;
 };
 
-typedef B32 (*Q_CommandHook)(Q_State *quark);
+typedef b32 (*Q_CommandHook)(Q_State *quark);
 struct Q_Command
 {
   Q_CommandHook hook;
@@ -160,16 +154,16 @@ global Q_State *quark_state = 0;
 // @section: state management functions
 
 function void q_init(void);
-function B32 q_frame(void);
-function F32 q_frame_time(void);
+function b32 q_frame(void);
+function f32 q_frame_time(void);
 
 function void q_push_command(Q_CommandHook hook);
 
 /////////////////////////////////
 // @section: builtin command hooks
 
-function B32 q_command_quit(Q_State *quark);
-function B32 q_command_command_mode(Q_State *quark);
+function b32 q_command_quit(Q_State *quark);
+function b32 q_command_command_mode(Q_State *quark);
 
 /////////////////////////////////
 // @section: helper utils

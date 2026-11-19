@@ -25,7 +25,7 @@ vec2_mul(Vec2F32 a, Vec2F32 b)
 }
 
 function Vec2F32 
-vec2_scale(Vec2F32 a, F32 v)
+vec2_scale(Vec2F32 a, f32 v)
 {
   Vec2F32 r = { a.x * v, a.y * v };
   return r;
@@ -49,13 +49,13 @@ vec3_sub(Vec3F32 a, Vec3F32 b)
 }
 
 function Vec3F32 
-vec3_scale(Vec3F32 a, F32 v)
+vec3_scale(Vec3F32 a, f32 v)
 {
   Vec3F32 r = { a.x * v, a.y * v, a.z * v };
   return r;
 }
 
-function F32 
+function f32 
 vec3_dot(Vec3F32 a, Vec3F32 b)
 {
   return a.x * b.x + a.y * b.y + a.z * b.z;
@@ -75,7 +75,7 @@ vec3_cross(Vec3F32 a, Vec3F32 b)
 function Vec3F32 
 vec3_normalize(Vec3F32 a)
 {
-  F32 len = sqrtf(vec3_dot(a, a));
+  f32 len = sqrtf(vec3_dot(a, a));
   if(len == 0.f)
   {
     Vec3F32 zero = { 0, 0, 0 };
@@ -102,7 +102,7 @@ vec4_sub(Vec4F32 a, Vec4F32 b)
 }
 
 function Vec4F32 
-vec4_scale(Vec4F32 a, F32 v)
+vec4_scale(Vec4F32 a, f32 v)
 {
   Vec4F32 r = { a.x * v, a.y * v, a.z * v, a.w * v };
   return r;
@@ -112,7 +112,7 @@ vec4_scale(Vec4F32 a, F32 v)
 // Mat4x4
 
 function Mat4x4F32 
-mat4_scalar(F32 v)
+mat4_scalar(f32 v)
 {
   Mat4x4F32 r = {0};
   r.m[0][0] = v;
@@ -130,7 +130,7 @@ mat4_multiply(Mat4x4F32 a, Mat4x4F32 b)
   {
     for(int row = 0; row < 4; row += 1)
     {
-      F32 sum = 0.f;
+      f32 sum = 0.f;
       for(int k = 0; k < 4; k += 1)
       {
         sum += a.m[k][row] * b.m[c][k];
@@ -144,9 +144,9 @@ mat4_multiply(Mat4x4F32 a, Mat4x4F32 b)
 function Mat4x4F32 
 mat4_ortho(Rng3F32 box)
 {
-  F32 l = box.begin[0], r = box.end[0];
-  F32 b = box.begin[1], t = box.end[1];
-  F32 n = box.begin[2], f = box.end[2];
+  f32 l = box.begin[0], r = box.end[0];
+  f32 b = box.begin[1], t = box.end[1];
+  f32 n = box.begin[2], f = box.end[2];
 
   Mat4x4F32 m = {0};
   m.m[0][0] =  2.f / (r - l);
@@ -160,9 +160,9 @@ mat4_ortho(Rng3F32 box)
 }
 
 function Mat4x4F32 
-mat4_perspective(F32 fov_y_rad, F32 aspect, F32 z_near, F32 z_far)
+mat4_perspective(f32 fov_y_rad, f32 aspect, f32 z_near, f32 z_far)
 {
-  F32 f = 1.f / tanf(fov_y_rad * 0.5f);
+  f32 f = 1.f / tanf(fov_y_rad * 0.5f);
 
   Mat4x4F32 m = {0};
   m.m[0][0] = f / aspect;
@@ -195,7 +195,6 @@ mat4_look_at(Vec3F32 eye, Vec3F32 target, Vec3F32 up)
 function Axis2D 
 axis2d_flip(Axis2D axis)
 {
-  Assert(axis < 2);
-  return (1 - axis);
+  return (Axis2D) !(axis);
 }
 

@@ -1,13 +1,13 @@
-function B32
+function b32
 ui_key_zero(UI_Key key)
 {
-  return (key.u64[0] == 0);
+  return (key.v[0] == 0);
 }
 
-function B32
+function b32
 ui_key_matches(UI_Key a, UI_Key b)
 {
-  return (a.u64[0] == b.u64[0]);
+  return (a.v[0] == b.v[0]);
 }
 
 function void
@@ -35,16 +35,14 @@ function void
 ui_end_layout(R_DrawList *draw_list)
 {
   UI_Box *root_node = ui_state->root;
-  Assert(root_node == ui_state->call_list);
-
 
   if (ui_state->curr_input.mouse_down == false) 
   {
-    ui_state->hot.u64[0] = 0;
+    ui_state->hot.v[0] = 0;
   }
   if (ui_state->curr_input.mouse_down && !ui_state->last_input.mouse_down) 
   {
-    ui_state->active.u64[0] = 0;
+    ui_state->active.v[0] = 0;
   }
 
   // due to referencing the parent, recursion should
@@ -68,7 +66,6 @@ ui_end_layout(R_DrawList *draw_list)
   }
 
   // run persist gc
-
   for EachIndex(i, CArrayLength(ui_state->persist_buckets))
   {
     UI_Persist *next = 0;
@@ -156,7 +153,7 @@ ui_close(void)
     content_dim.xy[layout_perp] = Max(content_dim.xy[layout_perp], child->final_dim.xy[layout_perp]);
   }
 
-  F32 gap_size = Max(box->child_count - 1, 0) * box->gap;
+  f32 gap_size = Max(box->child_count - 1, 0) * box->gap;
 
   content_dim.xy[layout_axis] += gap_size;
 
@@ -181,26 +178,18 @@ ui_close(void)
 function void
 ui_grow_layout_pass(UI_Box *box)
 {
+  f32 k = 1.f - expf(-40.f * ui_state->curr_input.delta_time);
 
-  // smoothing dimenstions
-  UI_Persist *p = box->persist;
-  if (p)
+  if (box->persist)
   {
-    F32 k = 1.f - expf(-30.f * ui_state->curr_input.delta_time);
-    Vec2F32 scale = V2(1.f, 1.f);
-    F32 blur_scale = 1.f;
-
-    if (box->flags & UI_BoxFlag_SmoothWidth) scale.x = k;
-    if (box->flags & UI_BoxFlag_SmoothHeight) scale.y = k;
-
-    p->last_dim = vec2_add(p->last_dim, vec2_mul(vec2_sub(box->final_dim, p->last_dim), scale));
-    p->last_blur = Lerp(p->last_blur, box->blur_radius, blur_scale);
-
-    box->final_dim = p->last_dim;
+    box->persist->last_blur = Lerp(box->persist->last_blur, box->blur_radius, 1.f);
   }
 
   Axis2D layout_axis = box->layout;
   Axis2D layout_perp = axis2d_flip(layout_axis);
+
+  u64 layout_flag = (layout_axis == Axis2D_Horizontal) ? UI_BoxFlag_SmoothWidth  : UI_BoxFlag_SmoothHeight;
+  u64 perp_flag   = (layout_axis == Axis2D_Horizontal) ? UI_BoxFlag_SmoothHeight : UI_BoxFlag_SmoothWidth;
 
   Vec2F32 padding_sum =
   {
@@ -209,43 +198,76 @@ ui_grow_layout_pass(UI_Box *box)
   };
 
   Vec2F32 available = vec2_sub(box->final_dim, padding_sum);
-  F32 gap_size = Max(box->child_count - 1, 0) * box->gap;
+  f32 gap_size = Max(box->child_count - 1, 0) * box->gap;
 
-  // pass 1: resolve percent sizes and measure fixed/fit children and grow weights
-  F32 occupied = gap_size;
-  F32 grow_weight = 0.f;
+  // pass 1: resolve percent sizes, smooth non-grow axes, measure occupied space
+  f32 occupied = gap_size;
+  f32 grow_weight = 0.f;
   for EachNode(child, UI_Box, box->first)
   {
+    UI_Persist *p = child->persist;
     UI_SizeAxis *w_size = &child->size.width;
     UI_SizeAxis *h_size = &child->size.height;
 
-    if (w_size->kind == UI_SizeKind_Percent)
-      child->final_dim.x = available.x * w_size->value;
-    if (h_size->kind == UI_SizeKind_Percent)
-      child->final_dim.y = available.y * h_size->value;
+    if (w_size->kind == UI_SizeKind_Percent) child->final_dim.x = available.x * w_size->value;
+    if (h_size->kind == UI_SizeKind_Percent) child->final_dim.y = available.y * h_size->value;
 
-    UI_SizeAxis size = child->size.axes[layout_axis];
-    if (size.kind == UI_SizeKind_Grow)
-      grow_weight += size.value;
-    else
-      occupied += child->final_dim.xy[layout_axis];
-  }
+    if (p && w_size->kind != UI_SizeKind_Grow)
+    {
+      f32 s = (child->flags & UI_BoxFlag_SmoothWidth) ? k : 1.f;
+      p->last_dim.x += (child->final_dim.x - p->last_dim.x) * s;
+      child->final_dim.x = p->last_dim.x;
+    }
 
-  F32 remaining = Max(available.xy[layout_axis] - occupied, 0.f);
+    if (p && h_size->kind != UI_SizeKind_Grow)
+    {
+      f32 s = (child->flags & UI_BoxFlag_SmoothHeight) ? k : 1.f;
+      p->last_dim.y += (child->final_dim.y - p->last_dim.y) * s;
+      child->final_dim.y = p->last_dim.y;
+    }
 
-  // pass 2: distribute layout-axis grow, resolve perp grow, and accumulate content size
-  Vec2F32 content_dim = {0};
-  for EachNode(child, UI_Box, box->first)
-  {
     UI_SizeAxis size = child->size.axes[layout_axis];
     if (size.kind == UI_SizeKind_Grow)
     {
+      grow_weight += size.value;
+    }
+    else
+    {
+      occupied += child->final_dim.xy[layout_axis];
+    }
+  }
+
+  f32 remaining = Max(available.xy[layout_axis] - occupied, 0.f);
+
+  // pass 2: resolve grow axes, smooth them, accumulate smoothed content size
+  Vec2F32 content_dim = {0};
+  for EachNode(child, UI_Box, box->first)
+  {
+    UI_Persist *p = child->persist;
+    UI_SizeAxis size = child->size.axes[layout_axis];
+
+    if (size.kind == UI_SizeKind_Grow)
+    {
       child->final_dim.xy[layout_axis] = (grow_weight > 0.f) ? remaining * size.value / grow_weight : 0.f;
+
+      if (p)
+      {
+        f32 s = (child->flags & layout_flag) ? k : 1.f;
+        p->last_dim.xy[layout_axis] += (child->final_dim.xy[layout_axis] - p->last_dim.xy[layout_axis]) * s;
+        child->final_dim.xy[layout_axis] = p->last_dim.xy[layout_axis];
+      }
     }
 
     if (child->size.axes[layout_perp].kind == UI_SizeKind_Grow)
     {
       child->final_dim.xy[layout_perp] = available.xy[layout_perp];
+
+      if (p)
+      {
+        f32 s = (child->flags & perp_flag) ? k : 1.f;
+        p->last_dim.xy[layout_perp] += (child->final_dim.xy[layout_perp] - p->last_dim.xy[layout_perp]) * s;
+        child->final_dim.xy[layout_perp] = p->last_dim.xy[layout_perp];
+      }
     }
 
     content_dim.xy[layout_axis] += child->final_dim.xy[layout_axis];
@@ -254,7 +276,7 @@ ui_grow_layout_pass(UI_Box *box)
   content_dim.xy[layout_axis] += gap_size;
   box->content_dim = content_dim;
 
-  // recurse
+  // recurse: children's final_dim is already smoothed
   for EachNode(child, UI_Box, box->first)
   {
     ui_grow_layout_pass(child);
@@ -267,8 +289,8 @@ ui_position_layout_pass(UI_Box *box)
   UI_Persist *p = box->persist;
   if (p)
   {
-    F32 k = 1.f - expf(-30.f * ui_state->curr_input.delta_time);
-    Vec2F32 scale = V2(1.f, 1.f);
+    f32 k = 1.f - expf(-30.f * ui_state->curr_input.delta_time);
+    Vec2F32 scale = v2f32(1.f, 1.f);
 
     if (box->flags & UI_BoxFlag_SmoothX) scale.x = k;
     if (box->flags & UI_BoxFlag_SmoothY) scale.y = k;
@@ -292,7 +314,7 @@ ui_position_layout_pass(UI_Box *box)
     box->final_dim.y - box->padding.values[Edge_Top]  - box->padding.values[Edge_Bottom],
   };
 
-  F32 leftover_main = inner_dim.xy[layout_axis] - box->content_dim.xy[layout_axis];
+  f32 leftover_main = inner_dim.xy[layout_axis] - box->content_dim.xy[layout_axis];
   Vec2F32 offset = pivot_offsets[box->pivot];
 
   Vec2F32 cursor = inner_min;
@@ -342,8 +364,8 @@ ui_draw_layout_pass(UI_Box *box, R_DrawList *draw_list)
 
   Rng2F32 inner_rect =
   {
-    .min = vec2_add(box_rect.min, V2(box->padding.values[Edge_Left], box->padding.values[Edge_Top])),
-    .max = vec2_sub(box_rect.max, V2(box->padding.values[Edge_Right], box->padding.values[Edge_Bottom])),
+    .min = vec2_add(box_rect.min, v2f32(box->padding.values[Edge_Left], box->padding.values[Edge_Top])),
+    .max = vec2_sub(box_rect.max, v2f32(box->padding.values[Edge_Right], box->padding.values[Edge_Bottom])),
   };
 
   box_rect.min.x = floorf(box_rect.min.x);
@@ -412,22 +434,20 @@ ui_draw_layout_pass(UI_Box *box, R_DrawList *draw_list)
   {
     if (child->shadow_color.a > 0.05f)
     {
-      const F32 shadow_blur = 50.f;
-      const F32 shadow_offset = 30.f;
+      const f32 shadow_blur = 50.f;
+      const f32 shadow_offset = 30.f;
       Rng2F32 shadow_rect =
       {
-        .min = vec2_sub(child->final_pos, V2(shadow_offset,shadow_offset)),
-        .max = vec2_add(vec2_add(child->final_pos, child->final_dim), V2(shadow_offset,shadow_offset)),
+        .min = vec2_sub(child->final_pos, v2f32(shadow_offset,shadow_offset)),
+        .max = vec2_add(vec2_add(child->final_pos, child->final_dim), v2f32(shadow_offset,shadow_offset)),
       };
-
-
 
       r_push_quad(draw_list, r_empty_handle(),
                   .dst = shadow_rect,
                   .edge_blur = shadow_blur,
                   .src = { .min = {0,0}, .max = {1,1} },
                   .col = child->shadow_color,
-                  .radii = V4(shadow_blur, shadow_blur, shadow_blur, shadow_blur));
+                  .radii = v4f32(shadow_blur, shadow_blur, shadow_blur, shadow_blur));
     }
 
     ui_draw_layout_pass(child, draw_list);
@@ -440,7 +460,7 @@ ui_draw_layout_pass(UI_Box *box, R_DrawList *draw_list)
 }
 
 function UI_SizeAxis
-ui_size_fixed(F32 x)
+ui_size_fixed(f32 x)
 {
   UI_SizeAxis size = {
     .kind = UI_SizeKind_Fixed,
@@ -450,7 +470,7 @@ ui_size_fixed(F32 x)
 }
 
 function UI_SizeAxis
-ui_size_percent(F32 x)
+ui_size_percent(f32 x)
 {
   UI_SizeAxis size = {
     .kind = UI_SizeKind_Percent,
@@ -460,7 +480,7 @@ ui_size_percent(F32 x)
 }
 
 function UI_SizeAxis
-ui_size_grow(F32 x)
+ui_size_grow(f32 x)
 {
   UI_SizeAxis size = {
     .kind = UI_SizeKind_Grow,
@@ -480,14 +500,14 @@ ui_size_fit(void)
 }
 
 function UI_Padding
-ui_padding(F32 v)
+ui_padding(f32 v)
 {
   UI_Padding pad = { v, v, v, v };
   return pad;
 }
 
 function UI_Padding
-ui_padding_xy(F32 x, F32 y)
+ui_padding_xy(f32 x, f32 y)
 {
   UI_Padding pad;
   pad.values[Edge_Left]   = x;
@@ -500,20 +520,20 @@ ui_padding_xy(F32 x, F32 y)
 function UI_Key
 ui_key_from_string(UI_Key seed, String8 string)
 {
-  U64 h = 14695981039346656037ull ^ seed.u64[0];
-  for (U64 i = 0; i < string.len; i += 1)
+  u64 h = 14695981039346656037ull ^ seed.v[0];
+  for (u64 i = 0; i < string.len; i += 1)
   {
     h ^= string.raw[i];
     h *= 1099511628211ull;
   }
-  UI_Key key = { .u64 = { h } };
+  UI_Key key = { .v = { h } };
   return key;
 }
 
 function UI_Persist *
 ui_get_persist_node(UI_Key key)
 {
-  U64 bucket_index = key.u64[0] % CArrayLength(ui_state->persist_buckets);
+  u64 bucket_index = key.v[0] % CArrayLength(ui_state->persist_buckets);
   UI_Persist *persist =0;
   for (UI_Persist *p = ui_state->persist_buckets[bucket_index]; p; p = p->hash_next)
   {

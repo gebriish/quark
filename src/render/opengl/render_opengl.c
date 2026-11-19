@@ -52,9 +52,9 @@ r_init(void)
 
   // texture initialization
   {
-    U32 white = 0xffffffff;
+    u32 white = 0xffffffff;
     R_Image white_img = {
-      .data = (U8 *) &white,
+      .data = (u8 *) &white,
       .dim = { 1, 1 },
       .fmt = R_TexFormat_RGBA8,
     };
@@ -71,17 +71,17 @@ r_window_begin_frame(GFX_Window win)
 
   Vec2F32 size = gfx_window_size(win);
 
-  r_ogl_target_generate(&r_ogl_state->targets[0], (S32)size.x, (S32)size.y);
-  r_ogl_target_generate(&r_ogl_state->targets[1], (S32)size.x, (S32)size.y);
+  r_ogl_target_generate(&r_ogl_state->targets[0], (s32)size.x, (s32)size.y);
+  r_ogl_target_generate(&r_ogl_state->targets[1], (s32)size.x, (s32)size.y);
 
   glBindFramebuffer(GL_FRAMEBUFFER, r_ogl_state->targets[0].fbo);
-  glViewport(0, 0, (S32)size.x, (S32)size.y);
+  glViewport(0, 0, (s32)size.x, (s32)size.y);
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   Rng3F32 view_box = {
-    .min = V3(0,size.y,-1),
-    .max = V3(size.x,0, 1),
+    .min = v3f32(0,size.y,-1),
+    .max = v3f32(size.x,0, 1),
   };
   Mat4x4F32 proj = mat4_ortho(view_box);
 
@@ -101,7 +101,7 @@ r_window_end_frame(GFX_Window win)
   Vec2F32 size = gfx_window_size(win);
   glBindFramebuffer(GL_READ_FRAMEBUFFER, r_ogl_state->targets[0].fbo);
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-  glBlitFramebuffer(0, 0, (S32)size.x, (S32)size.y, 0, 0, (S32)size.x, (S32)size.y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+  glBlitFramebuffer(0, 0, (s32)size.x, (s32)size.y, 0, 0, (s32)size.x, (s32)size.y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
   r_ogl_window_swap_buffers(win);
 }
@@ -129,7 +129,6 @@ r_window_submit_frame(R_DrawList list)
 
     case R_DrawKind_ClipPop:
     {
-      Assert(clip_stack->next != 0);
       SLLStackPop(clip_stack);
       r_ogl_set_scissor(clip_stack->rect);
     } break;
@@ -154,7 +153,7 @@ r_window_submit_frame(R_DrawList list)
 
       GLuint shader = r_ogl_state->shaders[R_OGL_ShaderKind_Text];
       glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC1_COLOR, 
-          GL_ONE, GL_ONE_MINUS_SRC1_ALPHA);
+                          GL_ONE, GL_ONE_MINUS_SRC1_ALPHA);
 
       R_OGL_Attr attrs[] =
       {
@@ -165,33 +164,33 @@ r_window_submit_frame(R_DrawList list)
       r_ogl_draw_instances(shader, b->raw, b->len, sizeof(R_TextQuad), attrs, CArrayLength(attrs), b->tex);
 
       glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, 
-          GL_ONE,       GL_ONE_MINUS_SRC_ALPHA);
+                          GL_ONE,       GL_ONE_MINUS_SRC_ALPHA);
     } break;
 
     case R_DrawKind_Blur:
     {
       R_Blur *params = &draw->blur;
-      Vec2F32 viewport_dim = V2(r_ogl_state->targets[0].w, r_ogl_state->targets[0].h);
+      Vec2F32 viewport_dim = v2f32(r_ogl_state->targets[0].w, r_ogl_state->targets[0].h);
       GLuint shader = r_ogl_state->shaders[R_OGL_ShaderKind_Blur];
 
       glUseProgramScope(shader) glBindVertexArrayScope(r_ogl_state->gen_purpose_vao)
       {
         // making the blur kernel
         Vec4F32 kernel[64] = {0};
-        U64 blur_count = 0;
+        u64 blur_count = 0;
         {
-          F32 weights[CArrayLength(kernel) * 2] = {0};
-          F32 blur_size = Min(params->blur, CArrayLength(weights));
-          blur_count = (U64) floorf(blur_size);
-          F32 stdev = (blur_size-1.f)/2.f;
-          F32 one_over_root_2pi_stdev2 = 1/sqrtf(2*3.14159265f*stdev*stdev);
-          F32 euler32 = 2.718281828459045f;
+          f32 weights[CArrayLength(kernel) * 2] = {0};
+          f32 blur_size = Min(params->blur, CArrayLength(weights));
+          blur_count = (u64) floorf(blur_size);
+          f32 stdev = (blur_size-1.f)/2.f;
+          f32 one_over_root_2pi_stdev2 = 1/sqrtf(2*3.14159265f*stdev*stdev);
+          f32 euler32 = 2.718281828459045f;
           weights[0] = 1.f;
           if(stdev > 0.f)
           {
-            for(U64 idx = 0; idx < blur_count; idx += 1)
+            for(u64 idx = 0; idx < blur_count; idx += 1)
             {
-              F32 kx = (F32)idx;
+              f32 kx = (f32)idx;
               weights[idx] = one_over_root_2pi_stdev2*powf(euler32, -kx*kx/(2.f*stdev*stdev));
             }
           }
@@ -202,25 +201,25 @@ r_window_submit_frame(R_DrawList list)
           }
           else
           {
-            for(U64 idx = 1; idx < blur_count; idx += 2)
+            for(u64 idx = 1; idx < blur_count; idx += 2)
             {
-              F32 w0 = weights[idx + 0];
-              F32 w1 = weights[idx + 1];
-              F32 w = w0 + w1;
-              F32 t = w1 / w;
-              kernel[(idx+1)/2] = V4(w, (F32)idx + t, 0, 0);
+              f32 w0 = weights[idx + 0];
+              f32 w1 = weights[idx + 1];
+              f32 w = w0 + w1;
+              f32 t = w1 / w;
+              kernel[(idx+1)/2] = v4f32(w, (f32)idx + t, 0, 0);
             }
           }
           kernel[0].x = weights[0];
         }
 
         // uniforms
-        glUniform4fv(glGetUniformLocation(shader, "rect"), 1, (F32 *)&params->rect);
-        glUniform4fv(glGetUniformLocation(shader, "corner_radii_px"), 1, (F32 *)&params->radii);
-        glUniform4fv(glGetUniformLocation(shader, "tint"), 1, (F32 *)&params->tint);
+        glUniform4fv(glGetUniformLocation(shader, "rect"), 1, (f32 *)&params->rect);
+        glUniform4fv(glGetUniformLocation(shader, "corner_radii_px"), 1, (f32 *)&params->radii);
+        glUniform4fv(glGetUniformLocation(shader, "tint"), 1, (f32 *)&params->tint);
         glUniform2f(glGetUniformLocation(shader, "viewport_size"), viewport_dim.x, viewport_dim.y);
         glUniform1i(glGetUniformLocation(shader, "blur_count"), (GLint)blur_count);
-        glUniform4fv(glGetUniformLocation(shader, "kernel"), CArrayLength(kernel), (F32 *)&kernel[0]);
+        glUniform4fv(glGetUniformLocation(shader, "kernel"), CArrayLength(kernel), (f32 *)&kernel[0]);
         glUniform1i(glGetUniformLocation(shader, "tex"), 0);
         glActiveTexture(GL_TEXTURE0);
 
@@ -311,21 +310,21 @@ r_tex_alloc(R_Image image)
   }
 
   R_Handle result = {0};
-  result.u64[0] = (U64) tex;
+  result.v[0] = (u64) tex;
   return result;
 }
 
 function Vec2S32
 r_tex_size(R_Handle h)
 {
-	R_OGL_Texture *tex = (R_OGL_Texture *) h.u64[0];
+	R_OGL_Texture *tex = (R_OGL_Texture *) h.v[0];
 	return tex->dim;
 }
 
 function void
 r_tex_free(R_Handle h)
 {
-	R_OGL_Texture *t = (R_OGL_Texture *)h.u64[0];
+	R_OGL_Texture *t = (R_OGL_Texture *)h.v[0];
 	if (t != 0 && t->id != 0)
 	{
 		glDeleteTextures(1, &t->id);
@@ -334,15 +333,15 @@ r_tex_free(R_Handle h)
 }
 
 function void
-r_tex_update(R_Handle h, Rng2S32 range, U8 *data)
+r_tex_update(R_Handle h, Rng2S32 range, u8 *data)
 {
-	R_OGL_Texture *tex = (R_OGL_Texture *) h.u64[0];
+	R_OGL_Texture *tex = (R_OGL_Texture *) h.v[0];
 
-	S32 x = range.begin[0];
-	S32 y = range.begin[1];
+	s32 x = range.begin[0];
+	s32 y = range.begin[1];
 
-	S32 width = range.end[0] - x;
-	S32 height = range.end[1] - y;
+	s32 width  = range.end[0] - x;
+	s32 height = range.end[1] - y;
 
 	glBindTextureScope(GL_TEXTURE_2D, tex->id)
 	{
@@ -361,7 +360,7 @@ r_tex_update(R_Handle h, Rng2S32 range, U8 *data)
 function void *
 r_ogl_os_load_procedure(const char *name)
 {
-  void *result = (void *) glXGetProcAddressARB((U8 *) name);
+  void *result = (void *) glXGetProcAddressARB((u8 *) name);
   return result;
 }
 
@@ -370,13 +369,13 @@ r_ogl_compile_shader(String8 vert, String8 frag)
 {
 	GLuint vs_id = glCreateShader(GL_VERTEX_SHADER);
 	char *vs_src = (char *)vert.raw;
-	S64 vs_len = vert.len;
+	s64 vs_len = vert.len;
 	glShaderSource(vs_id, 1, &vs_src, (int*)&vs_len);
 	glCompileShader(vs_id);
 
 	GLuint fs_id = glCreateShader(GL_FRAGMENT_SHADER);
 	char *fs_src = (char *)frag.raw;
-	S64 fs_len = frag.len;
+	s64 fs_len = frag.len;
 	glShaderSource(fs_id, 1, &fs_src, (int*)&fs_len);
 	glCompileShader(fs_id);
 
@@ -392,7 +391,7 @@ r_ogl_compile_shader(String8 vert, String8 frag)
 }
 
 function GLuint 
-r_ogl_instance_buffer_from_size(U64 size)
+r_ogl_instance_buffer_from_size(u64 size)
 {
 	GLuint buf = r_ogl_state->scratch_vbo;
 	if(size > QUAD_BATCH_SIZE * sizeof(R_Quad))
@@ -408,7 +407,7 @@ r_ogl_instance_buffer_from_size(U64 size)
 }
 
 function void 
-r_ogl_target_generate(R_OGL_Target *t, S32 w, S32 h)
+r_ogl_target_generate(R_OGL_Target *t, s32 w, s32 h)
 {
 	if(t->fbo && t->w == w && t->h == h) 
 	{
@@ -433,11 +432,11 @@ r_ogl_target_generate(R_OGL_Target *t, S32 w, S32 h)
 }
 
 function void 
-r_ogl_draw_instances(GLuint shader, void *data, S64 count, S64 stride, R_OGL_Attr *attrs, S64 attr_count, R_Handle tex_h)
+r_ogl_draw_instances(GLuint shader, void *data, s64 count, s64 stride, R_OGL_Attr *attrs, s64 attr_count, R_Handle tex_h)
 {
-	S64 bytes = count * stride;
-	R_OGL_Texture *tex = (R_OGL_Texture *) tex_h.u64[0];
-	if(tex == 0) tex = (R_OGL_Texture *) r_ogl_state->white_tex.u64[0];
+	s64 bytes = count * stride;
+	R_OGL_Texture *tex = (R_OGL_Texture *) tex_h.v[0];
+	if(tex == 0) tex = (R_OGL_Texture *) r_ogl_state->white_tex.v[0];
 
 	glUseProgramScope(shader)
 	{
@@ -466,7 +465,7 @@ r_ogl_draw_instances(GLuint shader, void *data, S64 count, S64 stride, R_OGL_Att
 function void 
 r_ogl_set_scissor(Rng2S32 rect)
 {
-	S32 h = r_ogl_state->targets[0].h;
+	s32 h = r_ogl_state->targets[0].h;
 	glScissor(rect.min.x,
 	          h - rect.max.y,
 	          rect.max.x - rect.min.x,

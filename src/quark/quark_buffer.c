@@ -2,27 +2,27 @@
 function Q_Buffer *
 q_open_buffer_from_path(String8 path)
 {
-  FileProperty props = file_property(path);
-  if (props.kind != FileKind_Regular)
+  File_Info info = file_get_info(path);
+  if (info.kind != File_Kind_Regular)
   {
     return 0;
   }
 
-  FileId id = props.id;
+  File_Id id = info.id;
 
-  U128 packed_key =
+  u128 packed_key =
   {
-    .lo = id.u64[0],
-    .hi = id.u64[1],
+    .lo = id.v[0],
+    .hi = id.v[1],
   };
 
-  U64 hash = u128_hash(packed_key);
-  U64 index = hash % CArrayLength(quark_state->buffer_table);
+  u64 hash = u128_hash(packed_key);
+  u64 index = hash % CArrayLength(quark_state->buffer_table);
 
   Q_Buffer *buffer = 0;
   for (Q_Buffer *node = quark_state->buffer_table[index].first; node; node = node->hash_next)
   {
-    if (file_id_matches(node->props.id, id))
+    if (file_id_matches(node->file_info.id, id))
     {
       buffer = node;
       break;
@@ -35,15 +35,15 @@ q_open_buffer_from_path(String8 path)
     buffer = arena_push(arena, Q_Buffer, 1);
     buffer->arena = arena;
     buffer->path  = str8_push_copy(buffer->arena, path);
-    buffer->props = props;
+    buffer->file_info = info;
 
 #if OS_WINDOW
-    S32 file_sep = '\\';
+    s32 file_sep = '\\';
 #else 
-    S64 file_sep = '/';
+    s64 file_sep = '/';
 #endif
 
-    S64 slash_index = str8_find_last(buffer->path, file_sep);
+    s64 slash_index = str8_find_last(buffer->path, file_sep);
     buffer->name = str8_skip(buffer->path, slash_index+1);
 
     buffer->original = load_entire_file(arena, path);
@@ -54,13 +54,13 @@ q_open_buffer_from_path(String8 path)
   }
   else
   {
-    buffer->props = props;
+    buffer->file_info = info;
     if (str8_matches(buffer->path, path) == false)
     {
       buffer->path = str8_push_copy(buffer->arena, path);
     }
 
-    if (buffer->props.modified < props.modified)
+    if (buffer->file_info.modified < info.modified)
     {
       // @todo: reload the data.
     }
@@ -77,14 +77,14 @@ q_close_buffer(Q_Buffer *buf)
     return;
   }
 
-  U128 packed_key = 
+  u128 packed_key = 
   {
-    .lo = buf->props.id.u64[0],
-    .hi = buf->props.id.u64[1],
+    .lo = buf->file_info.id.v[0],
+    .hi = buf->file_info.id.v[1],
   };
 
-  U64 hash = u128_hash(packed_key);
-  U64 index = hash % CArrayLength(quark_state->buffer_table);
+  u64 hash = u128_hash(packed_key);
+  u64 index = hash % CArrayLength(quark_state->buffer_table);
 
   DLLRemove_N(quark_state->buffer_table[index].first, quark_state->buffer_table[index].last, buf, hash_next, hash_prev);
   DLLRemove(quark_state->first_buffer, quark_state->last_buffer, buf);

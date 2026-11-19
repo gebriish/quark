@@ -4,25 +4,25 @@
 typedef struct Arena Arena;
 struct Arena
 {
-  U64 reserved;
-  U64 committed;
-  U64 used;
+  u64 reserved;
+  u64 committed;
+  u64 used;
 };
 
 typedef struct Temp Temp;
 struct Temp
 {
   Arena *arena;
-  U64    mark;
+  u64    mark;
 };
 
 /////////////////////////
 // @section: allocation interface
 
-function Arena *arena_reserve(U64 reserved);
+function Arena *arena_reserve(u64 reserved);
 function void   arena_release(Arena *arena);
-function void  *arena_alloc(Arena *arena, void *old_ptr, U64 old_size, U64 new_size, U64 alignment); 
-function void   arena_free(Arena *arena, B32 decommit);
+function void  *arena_alloc(Arena *arena, void *old_ptr, u64 old_size, u64 new_size, u64 alignment); 
+function void   arena_free(Arena *arena, b32 decommit);
 
 function Temp   temp_begin(Arena *arena);
 function void   temp_end(Temp temp);
@@ -60,9 +60,9 @@ do {                                                           \
 /////////////////////////
 // @note(gaurees): OS specific hooks
 
-function void *memory_reserve(U64 size);
-function B32   memory_commit(void *ptr, U64 size);
-function B32   memory_decommit(void *ptr, U64 size);
-function void  memory_release(void *ptr, U64 size);
+function void *memory_reserve(u64 size);
+function b32   memory_commit(void *ptr, u64 size);
+function b32   memory_decommit(void *ptr, u64 size);
+function void  memory_release(void *ptr, u64 size);
 
 #endif // BASE_ARENA_H 

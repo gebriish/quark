@@ -1,17 +1,17 @@
 
-function S64
-mod_s64(S64 a, S64 b)
+function s64
+mod_s64(s64 a, s64 b)
 {
-  S64 r = a % b;
+  s64 r = a % b;
   if (r != 0 && ((r < 0) != (b < 0)))
     r += b;
   return r;
 }
 
-function S64
-digit_count(S64 n)
+function s64
+digit_count(s64 n)
 {
-  S64 count = 1;
+  s64 count = 1;
 
   if (n < 0) {
     count += 1;
@@ -26,17 +26,17 @@ digit_count(S64 n)
   return count;
 }
 
-function U64 
-align_up_power2(U64 a, U64 b)
+function u64 
+align_up_power2(u64 a, u64 b)
 {
   return (a + (b - 1)) & ~(b - 1);
 }
 
-function U64
-u128_hash(U128 v)
+function u64
+u128_hash(u128 v)
 {
-  U64 x = v.lo;
-  U64 y = v.hi;
+  u64 x = v.lo;
+  u64 y = v.hi;
 
   x ^= y + 0x9e3779b97f4a7c15ULL + (x << 6) + (x >> 2);
 
@@ -49,8 +49,8 @@ u128_hash(U128 v)
   return x;
 }
 
-function B32 
-u128_matches(U128 a, U128 b)
+function b32 
+u128_matches(u128 a, u128 b)
 {
   return a.lo == b.lo && a.hi == b.hi;
 }

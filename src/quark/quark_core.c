@@ -14,7 +14,7 @@ q_init(void)
 
   // creating root window
   {
-    quark_state->root_window = gfx_window_open(S("quark"), V2(1280, 800), 0);
+    quark_state->root_window = gfx_window_open(S("quark"), v2f32(1280, 800), 0);
     gfx_window_set_min_size(quark_state->root_window, 120,120);
     gfx_window_set_background(quark_state->root_window, Color8(0x131314ff));
     r_window_set_vsync(quark_state->root_window, false);
@@ -46,7 +46,7 @@ q_init(void)
 }
 
 
-function B32
+function b32
 q_frame(void)
 {
   //---------------------------------------------------------------------------//
@@ -68,7 +68,6 @@ q_frame(void)
 
     case GFX_EventKind_Press:
     {
-
       if (ev->keycode == GFX_Key_Semicolon && ev->modifiers == (GFX_Modifier_Shift))
       {
         q_push_command(q_command_command_mode);
@@ -77,19 +76,18 @@ q_frame(void)
       {
         quark_state->mode = Q_Mode_Normal;
       }
-
     } break;
   }
 
-  Q_Command *cmd = quark_state->first_command;
-  if (cmd && cmd->hook(quark_state))
+  if (quark_state->first_command)
   {
+    quark_state->first_command->hook(quark_state);
     SLLQueuePop(quark_state->first_command, quark_state->last_command);
   }
 
   //---------------------------------------------------------------------------//
 
-  F32 delta_time = r_frame_begin();
+  f32 delta_time = r_frame_begin();
 
   WindowFrameScope(quark_state->root_window)
   {
@@ -150,27 +148,23 @@ q_frame(void)
       }
 
       if (quark_state->mode == Q_Mode_Command)
-        ui_fullscreen(.padding = ui_padding(32.f),
+        ui_fullscreen(.padding = ui_padding(20.f),
                       .layout = Axis2D_Vertical,
-                      .fill_color = Color_White,
-                      .blur_radius = 5.f,
-                      .pivot = Pivot_TopCenter,)
+                      .pivot = Pivot_TopCenter)
       {
         UI(.label = S("command_palette"),
-           .flags =  UI_BoxFlag_SmoothY | UI_BoxFlag_SmoothWidth,
+           .flags =  UI_BoxFlag_SmoothY,
            .size = { ui_size_percent(.7f), ui_size_percent(.7f) },
            .fill_color = q_color(Q_ColorKind_Floating).bg,
            .shadow_color = Color8(0x00000040),
-           .radii = Radius4(6.f),
            .border_color = q_color(Q_ColorKind_Border).bg,
-           .padding = ui_padding(4),
+           .padding = ui_padding(6),
            .layout = Axis2D_Vertical)
         {
           UI(.size = {ui_size_grow(1.f), ui_size_fit()},
              .padding = ui_padding(4),
              .flags = UI_BoxFlag_Clip | UI_BoxFlag_Text,
              .label = S("command_form"),
-           .radii = Radius4(2.f),
              .border_color = q_color(Q_ColorKind_Border).fg,
              .fill_color = q_color(Q_ColorKind_TextBox).bg)
           {
@@ -196,14 +190,14 @@ q_frame(void)
 /////////////////////////////////
 // @section: builtin command hooks
 
-function B32 
+function b32 
 q_command_quit(Q_State *quark)
 {
   quark->quit = true;
   return true;
 }
 
-function B32 
+function b32 
 q_command_command_mode(Q_State *quark)
 {
   quark->mode = Q_Mode_Command;

@@ -12,17 +12,17 @@
 typedef struct GFX_Window GFX_Window;
 struct GFX_Window
 {
-  U64 u64[1];
+  u64 v[1];
 };
 
-typedef U32 GFX_WindowFlags;
+typedef u32 GFX_WindowFlags;
 enum
 {
   GFX_WindowFlag_None         = 0,
   GFX_WindowFlag_CustomBorder = (1u << 0),
 };
 
-typedef U32 GFX_EventKind;
+typedef u32 GFX_EventKind;
 enum
 {
   GFX_EventKind_None,
@@ -36,7 +36,7 @@ enum
   GFX_EventKind_COUNT,
 };
 
-typedef U32 GFX_Cursor;
+typedef u32 GFX_Cursor;
 enum
 {
   GFX_Cursor_Pointer,
@@ -54,7 +54,7 @@ enum
   GFX_Cursor_COUNT,
 };
 
-typedef U32 GFX_Modifiers;
+typedef u32 GFX_Modifiers;
 enum
 {
   GFX_Modifier_Ctrl  = 1 << 0,
@@ -62,7 +62,7 @@ enum
   GFX_Modifier_Alt   = 1 << 2,
 };
 
-typedef U32 GFX_Key;
+typedef u32 GFX_Key;
 enum
 {
   GFX_Key_Null,
@@ -153,7 +153,7 @@ enum
   GFX_Key_COUNT,
 };
 
-typedef U32 GFX_MoveResize;
+typedef u32 GFX_MoveResize;
 enum
 {
   GFX_MoveResize_TopLeft     = 0,
@@ -173,7 +173,7 @@ struct GFX_Event
   GFX_EventKind  kind;
   GFX_Event     *prev;
   GFX_Event     *next;
-  U32           character;
+  u32           character;
   GFX_Key       keycode;
   GFX_Modifiers modifiers;
   Vec2F32       size;
@@ -187,7 +187,7 @@ struct GFX_EventList
 {
   GFX_Event *first;
   GFX_Event *last;
-  S64 len;
+  s64 len;
 };
 
 ///////////////////////////
@@ -198,25 +198,25 @@ function void gfx_init(void);
 function GFX_EventList gfx_get_events(Arena *arena);
 function GFX_Event *gfx_event_list_push(Arena *arena, GFX_EventList *list, GFX_EventKind kind);
 
-function B32 gfx_key_is_down(GFX_Key key);
+function b32 gfx_key_is_down(GFX_Key key);
 function Vec2F32 gfx_mouse_in_window(GFX_Window win);
 function void gfx_set_cursor(GFX_Cursor cursor);
 
 ///////////////////////////
 // @section: window creation procedures
 
-function B32 gfx_window_zero(GFX_Window w);
-function B32 gfx_window_matches(GFX_Window a, GFX_Window b);
+function b32 gfx_window_zero(GFX_Window w);
+function b32 gfx_window_matches(GFX_Window a, GFX_Window b);
 
 function GFX_Window gfx_window_open(String8 title, Vec2F32 resolution, GFX_WindowFlags flags);
 function void gfx_window_close(GFX_Window window);
 
-function void gfx_window_set_min_size(GFX_Window win, S32 w, S32 h);
-function void gfx_window_set_move_region(GFX_Window win, F32 regions[Edge_COUNT]);
+function void gfx_window_set_min_size(GFX_Window win, s32 w, s32 h);
+function void gfx_window_set_move_region(GFX_Window win, f32 regions[Edge_COUNT]);
 function void gfx_window_set_background(GFX_Window win, Vec4F32 col);
 
 function Vec2F32        gfx_window_size(GFX_Window win);
-function GFX_MoveResize gfx_window_moveresize_code(GFX_Window win, Vec2F32 pos, B32 *in_client);
+function GFX_MoveResize gfx_window_moveresize_code(GFX_Window win, Vec2F32 pos, b32 *in_client);
 function GFX_Cursor     gfx_cursor_from_moveresize(GFX_MoveResize code);
 function Vec4F32        gfx_window_move_region(GFX_Window win);
 

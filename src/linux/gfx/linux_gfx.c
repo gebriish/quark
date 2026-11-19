@@ -63,7 +63,7 @@ gfx_window_open(String8 title, Vec2F32 resolution, GFX_WindowFlags flags)
   // @todo(gaureesh): take flags into consideration while making window
   lnx_win->window = XCreateWindow(display,
                                   XDefaultRootWindow(display),
-                                  0, 0, (U32) resolution.x, (U32) resolution.y,
+                                  0, 0, (u32) resolution.x, (u32) resolution.y,
                                   0,
                                   depth,
                                   InputOutput,
@@ -90,7 +90,7 @@ gfx_window_open(String8 title, Vec2F32 resolution, GFX_WindowFlags flags)
     XSyncIntToValue(&initial_value, 0);
     lnx_win->counter_xid = XSyncCreateCounter(display, initial_value);
   }
-  XChangeProperty(display, lnx_win->window, lnx_gfx_state->wm_sync_req_counter, XA_CARDINAL, 32, PropModeReplace, (U8 *)&lnx_win->counter_xid, 1);
+  XChangeProperty(display, lnx_win->window, lnx_gfx_state->wm_sync_req_counter, XA_CARDINAL, 32, PropModeReplace, (u8 *)&lnx_win->counter_xid, 1);
 
   lnx_win->xic = XCreateIC(lnx_gfx_state->xim,
                            XNInputStyle, XIMPreeditNothing|XIMStatusNothing,
@@ -105,11 +105,11 @@ gfx_window_open(String8 title, Vec2F32 resolution, GFX_WindowFlags flags)
   {
     struct
     {
-      U32 flags;
-      U32 functions;
-      U32 decorations;
-      S32 inputMode;
-      U32 status;
+      u32 flags;
+      u32 functions;
+      u32 decorations;
+      s32 inputMode;
+      u32 status;
     } hints = {0};
 
     hints.flags = 2;
@@ -148,7 +148,7 @@ gfx_window_open(String8 title, Vec2F32 resolution, GFX_WindowFlags flags)
   }
 
   scratch_end(scratch);
-  GFX_Window result = {(U64) lnx_win};
+  GFX_Window result = {(u64) lnx_win};
   return result;
 }
 
@@ -158,7 +158,7 @@ gfx_window_close(GFX_Window window)
   if (gfx_window_zero(window)) return;
   // @todo(gaureesh): confirm window is in list ? 
 
-  LNX_GFX_Window *win = (LNX_GFX_Window *) window.u64[0];
+  LNX_GFX_Window *win = (LNX_GFX_Window *) window.v[0];
   XDestroyWindow(lnx_gfx_state->display, win->window);
   DLLRemove(lnx_gfx_state->windows.first, lnx_gfx_state->windows.last, win);
   SLLStackPush(lnx_gfx_state->free_windows, win);
@@ -197,8 +197,8 @@ gfx_get_events(Arena *arena)
           w->height = event.xconfigure.height;
 
           GFX_Event *e = gfx_event_list_push(arena, &event_list, GFX_EventKind_Resize);
-          e->window.u64[0] = (U64) w;
-          e->size = V2(w->width, w->height);
+          e->window.v[0] = (u64) w;
+          e->size = v2f32(w->width, w->height);
 
           Atom net_wm_opaque_region = XInternAtom(lnx_gfx_state->display, "_NET_WM_OPAQUE_REGION", False);
           long data[4] = {
@@ -230,8 +230,8 @@ gfx_get_events(Arena *arena)
         KeySym keysym   = XLookupKeysym(&event.xkey, 0);
         GFX_Key keycode = lnx_keycode_from_keysym(keysym);
 
-        U64 text_size = 0;
-        static U8 text[256] = {0};
+        u64 text_size = 0;
+        static u8 text[256] = {0};
 
         if (event.type == KeyPress && window != 0)
         {
@@ -253,14 +253,14 @@ gfx_get_events(Arena *arena)
         if (event.type == KeyPress && text_size != 0)
         {
           String8 string = { text, text_size };
-          for (S64 i=0; i<text_size;)
+          for (s64 i=0; i<text_size;)
           {
-            S32 increment = 0;
-            U32 codepoint = utf8_decode(string, i, &increment);
+            s32 increment = 0;
+            u32 codepoint = utf8_decode(string, i, &increment);
             if (codepoint != 0 && codepoint != 127 && codepoint >= 32)
             {
               GFX_Event *e = gfx_event_list_push(arena, &event_list, GFX_EventKind_Text);
-              e->window.u64[0] = (U64) window;
+              e->window.v[0] = (u64) window;
               e->character = codepoint;
             }
             if (increment == 0) 
@@ -272,7 +272,7 @@ gfx_get_events(Arena *arena)
         }
 
         GFX_Event *e = gfx_event_list_push(arena, &event_list, event.type == KeyPress ? GFX_EventKind_Press : GFX_EventKind_Release);
-        e->window.u64[0] = (U64) window;
+        e->window.v[0] = (u64) window;
         e->modifiers = mods;
         e->keycode = keycode;
       } break;
@@ -282,10 +282,10 @@ gfx_get_events(Arena *arena)
       {
         LNX_GFX_Window *window = lnx_window_from_xwindow(event.xbutton.window);
 
-        GFX_Window win = {(U64)window};
-        Vec2F32 button_pos = V2((F32)event.xbutton.x, (F32)event.xbutton.y);
+        GFX_Window win = {(u64)window};
+        Vec2F32 button_pos = v2f32((f32)event.xbutton.x, (f32)event.xbutton.y);
 
-        B32 in_client = false;
+        b32 in_client = false;
         GFX_MoveResize moveresize_code = gfx_window_moveresize_code(win, button_pos, &in_client);
         if (!in_client && window->custom_titlebar)
         {
@@ -327,7 +327,7 @@ gfx_get_events(Arena *arena)
           if (key != GFX_Key_Null)
           {
             GFX_Event *e = gfx_event_list_push(arena, &event_list, event.type == ButtonPress ? GFX_EventKind_Press : GFX_EventKind_Release);
-            e->window.u64[0] = (U64) window;
+            e->window.v[0] = (u64) window;
             e->modifiers = mods;
             e->keycode = key;
             e->pos = button_pos;
@@ -338,10 +338,10 @@ gfx_get_events(Arena *arena)
               event.xbutton.button == 7)
           {
             GFX_Event *e = gfx_event_list_push(arena, &event_list, GFX_EventKind_Scroll);
-            e->window.u64[0] = (U64) window;
+            e->window.v[0] = (u64) window;
             e->modifiers = mods;
-            e->delta = V2(.x = event.xbutton.button == 6 ? -120.f : event.xbutton.button == 7 ? +120.f : 0.f,
-                .y = event.xbutton.button == Button4 ? -120.f : event.xbutton.button == Button5 ? +120.f : 0.f);
+            e->delta = v2f32(.x = event.xbutton.button == 6 ? -120.f : event.xbutton.button == 7 ? +120.f : 0.f,
+                             .y = event.xbutton.button == Button4 ? -120.f : event.xbutton.button == Button5 ? +120.f : 0.f);
             e->pos = button_pos;
           }
         }
@@ -352,14 +352,14 @@ gfx_get_events(Arena *arena)
       {
         LNX_GFX_Window *window = lnx_window_from_xwindow(event.xmotion.window);
 
-        GFX_Window win_h  = (GFX_Window) {(U64) window};
-        Vec2F32 mouse_pos = V2((F32) event.xmotion.x, (F32) event.xmotion.y);;
+        GFX_Window win_h  = (GFX_Window) {(u64) window};
+        Vec2F32 mouse_pos = v2f32((f32) event.xmotion.x, (f32) event.xmotion.y);;
 
-        GFX_Event *e     = gfx_event_list_push(arena, &event_list, GFX_EventKind_MouseMove);
-        e->window.u64[0] = (U64) window;
-        e->pos           = mouse_pos;
+        GFX_Event *e   = gfx_event_list_push(arena, &event_list, GFX_EventKind_MouseMove);
+        e->window.v[0] = (u64) window;
+        e->pos         = mouse_pos;
 
-        B32 in_client = false;
+        b32 in_client = false;
         GFX_MoveResize moveresize_code = gfx_window_moveresize_code(win_h, mouse_pos, &in_client);
 
         if (window->custom_titlebar)
@@ -389,16 +389,16 @@ gfx_get_events(Arena *arena)
         {
           LNX_GFX_Window *window = lnx_window_from_xwindow(event.xclient.window);
           GFX_Event *e = gfx_event_list_push(arena, &event_list, GFX_EventKind_WindowClose);
-          e->window.u64[0] = (U64) window;
+          e->window.v[0] = (u64) window;
         }
         else if(protocol == lnx_gfx_state->wm_sync_request)
         {
           LNX_GFX_Window *window = lnx_window_from_xwindow(event.xclient.window);
           if(window != 0)
           {
-            U32 counter_low = (U32)event.xclient.data.l[2];
-            U32 counter_hi  = (U32)event.xclient.data.l[3];
-            window->counter_value = (counter_low | ((U64)counter_hi << 32));
+            u32 counter_low = (u32)event.xclient.data.l[2];
+            u32 counter_hi  = (u32)event.xclient.data.l[3];
+            window->counter_value = (counter_low | ((u64)counter_hi << 32));
             window->sync_pending = 1;
           }
         }
@@ -564,19 +564,19 @@ gfx_set_cursor(GFX_Cursor cursor)
   }
 }
 
-function B32 
+function b32 
 gfx_key_is_down(GFX_Key key)
 {
-  B32 result = !!(lnx_gfx_state->key_down_state[key >> 6] & ( 1ull << (key & 0x3F)));
+  b32 result = !!(lnx_gfx_state->key_down_state[key >> 6] & ( 1ull << (key & 0x3F)));
   return result;
 }
 
 function Vec2F32 
 gfx_mouse_in_window(GFX_Window win)
 {
-  if (gfx_window_zero(win)) return V2(0,0);
+  if (gfx_window_zero(win)) return v2f32(0,0);
 
-  LNX_GFX_Window *w = (LNX_GFX_Window *) win.u64[0];
+  LNX_GFX_Window *w = (LNX_GFX_Window *) win.v[0];
   Vec2F32 result = {0};
 
   Window root_window = 0;
@@ -596,9 +596,9 @@ gfx_mouse_in_window(GFX_Window win)
 }
 
 function void
-gfx_window_set_min_size(GFX_Window win, S32 w, S32 h)
+gfx_window_set_min_size(GFX_Window win, s32 w, s32 h)
 {
-  LNX_GFX_Window *lnx_win = (LNX_GFX_Window *) win.u64[0];
+  LNX_GFX_Window *lnx_win = (LNX_GFX_Window *) win.v[0];
 
   XSizeHints *size_hints = XAllocSizeHints();
   size_hints->flags      = PMinSize;
@@ -608,25 +608,24 @@ gfx_window_set_min_size(GFX_Window win, S32 w, S32 h)
   XFree(size_hints);
 }
 
-
 function void 
 gfx_window_set_background(GFX_Window win, Vec4F32 col)
 {
-  LNX_GFX_Window *lnx_win = (LNX_GFX_Window *) win.u64[0];
+  LNX_GFX_Window *lnx_win = (LNX_GFX_Window *) win.v[0];
   lnx_win->bg_color = col;
 }
 
 function Vec2F32
 gfx_window_size(GFX_Window win)
 {
-  LNX_GFX_Window *w = (LNX_GFX_Window *) win.u64[0];
-  return V2(w->width, w->height);
+  LNX_GFX_Window *w = (LNX_GFX_Window *) win.v[0];
+  return v2f32(w->width, w->height);
 }
 
 function void
-gfx_window_set_move_region(GFX_Window win, F32 regions[Edge_COUNT])
+gfx_window_set_move_region(GFX_Window win, f32 regions[Edge_COUNT])
 {
-  LNX_GFX_Window *w = (LNX_GFX_Window *) win.u64[0];
+  LNX_GFX_Window *w = (LNX_GFX_Window *) win.v[0];
   for EachIndex(i, Edge_COUNT) {
     w->move_hit_region[i] = regions[i];
   }
@@ -635,7 +634,7 @@ gfx_window_set_move_region(GFX_Window win, F32 regions[Edge_COUNT])
 function Vec4F32  
 gfx_window_move_region(GFX_Window win)
 {
-  LNX_GFX_Window *w = (LNX_GFX_Window *) win.u64[0];
+  LNX_GFX_Window *w = (LNX_GFX_Window *) win.v[0];
   Vec4F32 region = {0};
   for EachIndex(i, Edge_COUNT)
   {
@@ -647,7 +646,7 @@ gfx_window_move_region(GFX_Window win)
 function void 
 gfx_window_present(GFX_Window win)
 {
-  LNX_GFX_Window *w = (LNX_GFX_Window *) win.u64[0];
+  LNX_GFX_Window *w = (LNX_GFX_Window *) win.v[0];
   if (w == 0 || !w->sync_pending) 
   {
     return;

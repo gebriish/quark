@@ -15,17 +15,17 @@ struct LNX_GFX_Window
   LNX_GFX_Window *prev;
   LNX_GFX_Window *next;
 
-  S32     width;
-  S32     height;
+  s32     width;
+  s32     height;
   Vec4F32 bg_color;
 
   Window window;
   XIC xic;
   XID counter_xid;
-  U64 counter_value;
-  B32 sync_pending;
-  B32 custom_titlebar;
-  F32 move_hit_region[Edge_COUNT];
+  u64 counter_value;
+  b32 sync_pending;
+  b32 custom_titlebar;
+  f32 move_hit_region[Edge_COUNT];
 };
 
 typedef struct LNX_GFX_WindowList LNX_GFX_WindowList;
@@ -33,7 +33,7 @@ struct LNX_GFX_WindowList
 {
   LNX_GFX_Window *first;
   LNX_GFX_Window *last;
-  S64 len;
+  s64 len;
 };
 
 typedef struct LNX_GFX_State LNX_GFX_State;
@@ -54,7 +54,7 @@ struct LNX_GFX_State
   LNX_GFX_WindowList windows;
   LNX_GFX_Window *free_windows;
   GFX_Modifiers modifiers;
-  U64 key_down_state[(GFX_Key_COUNT + 63) / 64];
+  u64 key_down_state[(GFX_Key_COUNT + 63) / 64];
   Cursor xcursors[GFX_Cursor_COUNT];
 };
 

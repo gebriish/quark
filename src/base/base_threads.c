@@ -2,15 +2,15 @@
 /////////////////////////////
 // @section: thread context
 
-thread_static ThreadCtx *tctx_thread_local = 0;
+thread_static Thread_Ctx *tctx_thread_local = 0;
 
-function ThreadCtx *
+function Thread_Ctx *
 tctx_alloc(void)
 {
   Arena *arena_0 = arena_reserve(Gigabytes(2));
   Arena *arena_1 = arena_reserve(Gigabytes(2));
 
-  ThreadCtx *tctx = arena_push(arena_0, ThreadCtx, 1);
+  Thread_Ctx *tctx = arena_push(arena_0, Thread_Ctx, 1);
   tctx->arenas[0] = arena_0;
   tctx->arenas[1] = arena_1;
 
@@ -18,35 +18,35 @@ tctx_alloc(void)
 }
 
 function void
-tctx_release(ThreadCtx *tctx)
+tctx_release(Thread_Ctx *tctx)
 {
   arena_release(tctx->arenas[1]);
   arena_release(tctx->arenas[0]);
 }
 
 function void
-tctx_select(ThreadCtx *tctx)
+tctx_select(Thread_Ctx *tctx)
 {
   tctx_thread_local = tctx;
 }
 
-function ThreadCtx *
+function Thread_Ctx *
 tctx_selected(void)
 {
   return tctx_thread_local;
 }
 
 function Arena *
-tctx_get_scratch(Arena **conflicts, U64 count)
+tctx_get_scratch(Arena **conflicts, u64 count)
 {
-  ThreadCtx *tctx = tctx_selected();
+  Thread_Ctx *tctx = tctx_selected();
   Arena *result = 0;
   Arena **arena_ptr = tctx->arenas;
   for EachIndex(i, CArrayLength(tctx->arenas))
   {
     Arena **conflict_ptr = conflicts;
-    B32 has_conflict = 0;
-    for(U64 j = 0; j < count; j += 1, conflict_ptr += 1)
+    b32 has_conflict = 0;
+    for(u64 j = 0; j < count; j += 1, conflict_ptr += 1)
     {
       if(*arena_ptr == *conflict_ptr)
       {
@@ -67,15 +67,15 @@ tctx_get_scratch(Arena **conflicts, U64 count)
 /////////////////////////////
 // @section: timing
 
-  function TimeDuration
+function Time_Duration
 time_diff(Time begin, Time end)
 {
   Time ns = end - begin;
 
-  TimeDuration result = {
-    .seconds      = (F64) ns / 1e9,
-    .milliseconds = (F64) ns / 1e6,
-    .microseconds = (F64) ns / 1e3
+  Time_Duration result = {
+    .seconds      = (f64) ns / 1e9,
+    .milliseconds = (f64) ns / 1e6,
+    .microseconds = (f64) ns / 1e3
   };
 
   return result;
@@ -84,19 +84,19 @@ time_diff(Time begin, Time end)
 /////////////////////////////
 // @section: main thread
 
-function void entry_point(CmdLine *cmd); // implemented by target
+function void entry_point(Cmd_Line *cmd); // implemented by target
 
 function void
 main_thread_base_entry_point(int argc, char **argv)
 {
-  CmdLine cmd = {0};
-  cmd.exe_name = str8_cstring((U8 *) argv[0]);
+  Cmd_Line cmd = {0};
+  cmd.exe_name = str8_cstring((u8 *) argv[0]);
 
   Temp scratch = scratch_begin(0, 0);
   for EachRange(i, 1, argc-1)
   {
-    String8 arg = str8_cstring((U8 *) argv[i]);
-    String8List *category = 0;
+    String8 arg = str8_cstring((u8 *) argv[i]);
+    String8_List *category = 0;
 
     switch (arg.raw[0])
     {

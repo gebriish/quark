@@ -2,54 +2,77 @@
 #define BASE_MATH_H
 
 ////////////////////////////////////
-// @section: math types
+// @section: 2 Vectors
 
 typedef union Vec2S16 Vec2S16;
 union Vec2S16
 {
-  struct { S16 x, y; };
-  S16 xy[2];
+  struct { s16 x, y; };
+  s16 xy[2];
 };
 
 typedef union Vec2S32 Vec2S32;
 union Vec2S32
 {
-  struct { S32 x, y; };
-  S32 xy[2];
+  struct { s32 x, y; };
+  s32 xy[2];
 };
 
 typedef union Vec2F32 Vec2F32;
 union Vec2F32
 {
-  struct { F32 x, y; };
-  F32 xy[2];
+  struct { f32 x, y; };
+  f32 xy[2];
 };
+
+#define v2s16(...) (Vec2S16) { __VA_ARGS__ }
+#define v2s32(...) (Vec2S32) { __VA_ARGS__ }
+#define v2f32(...) (Vec2F32) { __VA_ARGS__ }
+
+function Vec2F32 vec2_add(Vec2F32 a, Vec2F32 b);
+function Vec2F32 vec2_sub(Vec2F32 a, Vec2F32 b);
+function Vec2F32 vec2_mul(Vec2F32 a, Vec2F32 b);
+function Vec2F32 vec2_scale(Vec2F32 a, f32 v);
+
+////////////////////////////////////
+// @section: 3 Vectors
 
 typedef union Vec3F32 Vec3F32;
 union Vec3F32
 {
-  struct { F32 x, y, z; };
-  F32 xyz[3];
+  struct { f32 x, y, z; };
+  f32 xyz[3];
 };
+
+#define v3f32(...) (Vec3F32) { __VA_ARGS__ }
+function Vec3F32 vec3_add(Vec3F32 a, Vec3F32 b);
+function Vec3F32 vec3_sub(Vec3F32 a, Vec3F32 b);
+function Vec3F32 vec3_scale(Vec3F32 a, f32 v);
+function f32     vec3_dot(Vec3F32 a, Vec3F32 b);
+function Vec3F32 vec3_cross(Vec3F32 a, Vec3F32 b);
+function Vec3F32 vec3_normalize(Vec3F32 a);
+
+////////////////////////////////////
+// @section: 4 Vectors
 
 typedef union Vec4F32 Vec4F32;
 union Vec4F32
 {
-  struct { F32 x, y, z, w; };
-  struct { F32 r, g, b, a; };
-  F32 xyzw[4];
-  F32 rgba[4];
+  struct { f32 x, y, z, w; };
+  struct { f32 r, g, b, a; };
+  f32 xyzw[4];
+  f32 rgba[4];
 };
 
-typedef union Mat4x4F32 Mat4x4F32;
-union Mat4x4F32
-{
-  Vec4F32 cols[4];
-  F32     m[4][4];
-  F32     raw[16];
-};
+#define v4f32(...) (Vec4F32) { __VA_ARGS__ }
+function Vec4F32 vec4_add(Vec4F32 a, Vec4F32 b);
+function Vec4F32 vec4_sub(Vec4F32 a, Vec4F32 b);
+function Vec4F32 vec4_scale(Vec4F32 a, f32 v);
 
-typedef U32 Pivot;
+////////////////////////////////////
+// @section: Util contructs
+
+typedef u32 Pivot;
 enum
 {
   Pivot_TopLeft, Pivot_TopCenter, Pivot_TopRight,
@@ -65,7 +88,7 @@ global read_only Vec2F32 pivot_offsets[Pivot_COUNT] =
   { 0.f, 1.f }, { .5f, 1.f }, { 1.f, 1.f },
 };
 
-typedef U32 Corner;
+typedef u32 Corner;
 enum
 {
   Corner_TopLeft, Corner_TopRight,
@@ -73,7 +96,7 @@ enum
   Corner_COUNT,
 };
 
-typedef U32 Edge;
+typedef u32 Edge;
 enum
 {
   Edge_Top, Edge_Right, 
@@ -81,7 +104,7 @@ enum
   Edge_COUNT,
 };
 
-typedef U32 Axis2D;
+typedef u32 Axis2D;
 enum
 {
   Axis2D_Horizontal = 0,
@@ -91,15 +114,15 @@ enum
 typedef struct Rng1F32 Rng1F32;
 struct Rng1F32
 {
-  F32 min;
-  F32 max;
+  f32 begin;
+  f32 end;
 };
 
 typedef struct Rng1S64 Rng1S64;
 struct Rng1S64
 {
-  S64 min;
-  S64 max;
+  s64 begin;
+  s64 end;
 };
 
 typedef union Rng2S32 Rng2S32;
@@ -107,8 +130,8 @@ union Rng2S32
 {
   struct 
   {
-    S32 begin[2];
-    S32   end[2];
+    s32 begin[2];
+    s32   end[2];
   };
   struct
   {
@@ -122,8 +145,8 @@ union Rng2S16
 {
   struct 
   {
-    S16 begin[2];
-    S16   end[2];
+    s16 begin[2];
+    s16   end[2];
   };
   struct 
   {
@@ -142,8 +165,8 @@ union Rng2F32
   };
   struct
   {
-    F32 begin[2];
-    F32   end[2];
+    f32 begin[2];
+    f32   end[2];
   };
 };
 
@@ -157,8 +180,8 @@ union Rng3F32
   };
   struct
   {
-    F32 begin[3];
-    F32   end[3];
+    f32 begin[3];
+    f32   end[3];
   };
 };
 
@@ -172,45 +195,23 @@ union Rng3F32
    (v)[1] >= (rng).begin[1] && (v)[1] <= (rng).end[1] && \
    (v)[2] >= (rng).begin[2] && (v)[2] <= (rng).end[2])
 
-////////////////////////////////////
-// @section: constructors
-
-#define V2(...) (Vec2F32) { __VA_ARGS__ }
-#define V3(...) (Vec3F32) { __VA_ARGS__ }
-#define V4(...) (Vec4F32) { __VA_ARGS__ }
-
-#define V2_Params(v) (v).x, (v).y
-#define V3_Params(v) (v).x, (v).y, (v).z
-#define V4_Params(v) (v).x, (v).y, (v).z, (v).w
+function Axis2D axis2d_flip(Axis2D axis);
 
 ////////////////////////////////////
-// @section: vector math functions
+// @section: 4x4 Matrix
 
-function Vec2F32 vec2_add(Vec2F32 a, Vec2F32 b);
-function Vec2F32 vec2_sub(Vec2F32 a, Vec2F32 b);
-function Vec2F32 vec2_mul(Vec2F32 a, Vec2F32 b);
-function Vec2F32 vec2_scale(Vec2F32 a, F32 v);
+typedef union Mat4x4F32 Mat4x4F32;
+union Mat4x4F32
+{
+  Vec4F32 cols[4];
+  f32     m[4][4];
+  f32     raw[16];
+};
 
-function Vec3F32 vec3_add(Vec3F32 a, Vec3F32 b);
-function Vec3F32 vec3_sub(Vec3F32 a, Vec3F32 b);
-function Vec3F32 vec3_scale(Vec3F32 a, F32 v);
-function F32     vec3_dot(Vec3F32 a, Vec3F32 b);
-function Vec3F32 vec3_cross(Vec3F32 a, Vec3F32 b);
-function Vec3F32 vec3_normalize(Vec3F32 a);
-
-function Vec4F32 vec4_add(Vec4F32 a, Vec4F32 b);
-function Vec4F32 vec4_sub(Vec4F32 a, Vec4F32 b);
-function Vec4F32 vec4_scale(Vec4F32 a, F32 v);
-
-function Mat4x4F32 mat4_scalar(F32 v);
+function Mat4x4F32 mat4_scalar(f32 v);
 function Mat4x4F32 mat4_multiply(Mat4x4F32 a, Mat4x4F32 b);
 function Mat4x4F32 mat4_ortho(Rng3F32 box);
-function Mat4x4F32 mat4_perspective(F32 fov_y_rad, F32 aspect, F32 z_near, F32 z_far);
+function Mat4x4F32 mat4_perspective(f32 fov_y_rad, f32 aspect, f32 z_near, f32 z_far);
 function Mat4x4F32 mat4_look_at(Vec3F32 eye, Vec3F32 target, Vec3F32 up);
-
-///////////////////////////////
-// @section utilities
-
-function Axis2D axis2d_flip(Axis2D axis);
 
 #endif // BASE_MATH_H

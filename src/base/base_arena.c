@@ -1,15 +1,15 @@
 
-const U64 COMMIT_CHUNK_SIZE = Kilobytes(16);
+const u64 COMMIT_CHUNK_SIZE = Kilobytes(16);
 
 function Arena *
-arena_reserve(U64 reserved)
+arena_reserve(u64 reserved)
 {
   assert(sizeof(Arena) < reserved);
 
   Arena *arena = 0;
 
   void *mem = memory_reserve(reserved);
-  U64 commit = Min(reserved, COMMIT_CHUNK_SIZE);
+  u64 commit = Min(reserved, COMMIT_CHUNK_SIZE);
   memory_commit(mem, commit);
 
   arena = (Arena *) mem;
@@ -29,7 +29,7 @@ arena_release(Arena *arena)
 
 
 function void *
-arena_alloc(Arena *arena, void *old_ptr, U64 old_size, U64 new_size, U64 alignment)
+arena_alloc(Arena *arena, void *old_ptr, u64 old_size, u64 new_size, u64 alignment)
 {
   if (!arena)
   {
@@ -37,18 +37,18 @@ arena_alloc(Arena *arena, void *old_ptr, U64 old_size, U64 new_size, U64 alignme
   }
 
   void *result = 0;
-  U8   *mem    = (U8 *)arena;
+  u8   *mem    = (u8 *)arena;
 
   if (old_ptr == 0)
   {
-    U64 start = align_up_power2(arena->used, alignment);
-    U64 end = start + new_size;
+    u64 start = align_up_power2(arena->used, alignment);
+    u64 end = start + new_size;
 
     if (end <= arena->reserved)
     {
       if (end > arena->committed)
       {
-        U64 new_commit = align_up_power2(end, COMMIT_CHUNK_SIZE);
+        u64 new_commit = align_up_power2(end, COMMIT_CHUNK_SIZE);
         new_commit = Min(new_commit, arena->reserved);
 
         memory_commit(mem + arena->committed, new_commit - arena->committed);
@@ -62,16 +62,16 @@ arena_alloc(Arena *arena, void *old_ptr, U64 old_size, U64 new_size, U64 alignme
       // AsanPoison(mem + arena->used, arena->committed - arena->used);
     }
   }
-  else if ((U8 *)old_ptr + old_size == mem + arena->used)
+  else if ((u8 *)old_ptr + old_size == mem + arena->used)
   {
-    U64 start = (U64)((U8 *)old_ptr - mem);
-    U64 end   = start + new_size;
+    u64 start = (u64)((u8 *)old_ptr - mem);
+    u64 end   = start + new_size;
 
     if (end <= arena->reserved)
     {
       if (end > arena->committed)
       {
-        U64 new_commit = align_up_power2(end, COMMIT_CHUNK_SIZE);
+        u64 new_commit = align_up_power2(end, COMMIT_CHUNK_SIZE);
         new_commit = Min(new_commit, arena->reserved);
         memory_commit(mem + arena->committed, new_commit - arena->committed);
         arena->committed = new_commit;
@@ -85,14 +85,14 @@ arena_alloc(Arena *arena, void *old_ptr, U64 old_size, U64 new_size, U64 alignme
   }
   else
   {
-    U64 start = (U64)align_up_power2((U64)arena->used, (U64)alignment);
-    U64 end = start + new_size;
+    u64 start = (u64)align_up_power2((u64)arena->used, (u64)alignment);
+    u64 end = start + new_size;
 
     if (end <= arena->reserved)
     {
       if (end > arena->committed)
       {
-        U64 new_commit = align_up_power2(end, COMMIT_CHUNK_SIZE);
+        u64 new_commit = align_up_power2(end, COMMIT_CHUNK_SIZE);
         new_commit = Min(new_commit, arena->reserved);
         memory_commit(mem + arena->committed, new_commit - arena->committed);
         arena->committed = new_commit;
@@ -101,7 +101,7 @@ arena_alloc(Arena *arena, void *old_ptr, U64 old_size, U64 new_size, U64 alignme
       result = mem + start;
       arena->used = end;
 
-      U64 copy_size = Min(old_size, new_size);
+      u64 copy_size = Min(old_size, new_size);
       MemMove(result, old_ptr, copy_size);
 
       // AsanUnpoison(result, new_size);
@@ -114,15 +114,15 @@ arena_alloc(Arena *arena, void *old_ptr, U64 old_size, U64 new_size, U64 alignme
 }
 
 function void
-arena_free(Arena *arena, B32 decommit)
+arena_free(Arena *arena, b32 decommit)
 {
   // AsanPoison((U8 *)arena + sizeof(Arena), arena->used - sizeof(Arena));
   arena->used = sizeof(Arena);
 
-  U64 keep = align_up_power2(arena->used, COMMIT_CHUNK_SIZE);
+  u64 keep = align_up_power2(arena->used, COMMIT_CHUNK_SIZE);
   if (decommit)
   {
-    memory_decommit((U8 *)arena + keep, arena->committed - keep);
+    memory_decommit((u8 *)arena + keep, arena->committed - keep);
     arena->committed = keep;
   }
 }

@@ -1,54 +1,54 @@
 #ifndef BASE_FILES_H
 #define BASE_FILES_H
 
-typedef struct FileId FileId;
-struct FileId
+typedef struct File_Id File_Id;
+struct File_Id
 {
-  U64 u64[2];
+  u64 v[2];
 };
 
-typedef U32 FileFlags;
+typedef u32 File_Flags;
 enum
 {
-  FileFlag_Readable  = (1u << 0),
-  FileFlag_Writeable = (1u << 1),
+  File_Flag_Readable  = (1u << 0),
+  File_Flag_Writeable = (1u << 1),
 };
 
-typedef U32 FileKind;
+typedef u32 File_Kind;
 enum
 {
-  FileKind_DNE,
-  FileKind_Regular,
-  FileKind_Directory,
-  FileKind_Undetermined,
-  FileKind_Symlink,
-  FileKind_COUNT,
+  File_Kind_DNE,
+  File_Kind_Regular,
+  File_Kind_Directory,
+  File_Kind_Undetermined,
+  File_Kind_Symlink,
+  File_Kind_COUNT,
 };
 
-typedef struct FileProperty FileProperty;
-struct FileProperty
+typedef struct File_Info File_Info;
+struct File_Info
 {
-  FileId id;
-  FileKind kind;
-  FileFlags flags;
+  File_Id id;
+  File_Kind kind;
+  File_Flags flags;
   Time created;
   Time modified;
-  S64 size;
+  s64 size;
 };
 
 ///////////////////////////////
 // @section: handle helpers
 
-function B32 file_id_zero(FileId id);
-function B32 file_id_matches(FileId a, FileId b);
+function b32 file_id_zero(File_Id id);
+function b32 file_id_matches(File_Id a, File_Id b);
 
 ///////////////////////////////
 // @section: file loading and handling
 
-function FileProperty file_property(String8 path);
-function S64     load_file_to_buffer(String8 path, U8 *raw, S64 cap);
+function File_Info file_get_info(String8 path);
+function s64     load_file_to_buffer(String8 path, u8 *raw, s64 cap);
 function String8 load_entire_file(Arena *arena, String8 path);
-function B32     write_file_to_path(String8 data, String8 path);
-function B32     create_directory(String8 path);
+function b32     write_file_to_path(String8 data, String8 path);
+function b32     create_directory(String8 path);
 
 #endif // BASE_FILES_H

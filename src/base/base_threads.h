@@ -4,21 +4,21 @@
 /////////////////////////////
 // @section: timing types
 
-typedef U64 Time; // monotonic ns ( arbitrary origin ).
+typedef u64 Time; // monotonic ns ( arbitrary origin ).
 
-typedef struct TimeDuration TimeDuration;
-struct TimeDuration
+typedef struct Time_Duration Time_Duration;
+struct Time_Duration
 {
-  F64 seconds;
-  F64 milliseconds;
-  F64 microseconds;
+  f64 seconds;
+  f64 milliseconds;
+  f64 microseconds;
 };
 
 /////////////////////////////
 // @section: thread context types
 
-typedef struct ThreadCtx ThreadCtx;
-struct ThreadCtx
+typedef struct Thread_Ctx Thread_Ctx;
+struct Thread_Ctx
 {
   Arena *arenas[2];
 };
@@ -26,36 +26,34 @@ struct ThreadCtx
 /////////////////////////////
 // @section: main thread types
 
-typedef struct CmdLine CmdLine;
-struct CmdLine
+typedef struct Cmd_Line Cmd_Line;
+struct Cmd_Line
 {
   String8 exe_name;   // just the executable name
-  String8List args;   // arguments apart from the executable name
-  String8List flags;  // flags that are in the command
-  String8List inputs; // non flag inputs
+  String8_List args;   // arguments apart from the executable name
+  String8_List flags;  // flags that are in the command
+  String8_List inputs; // non flag inputs
 };
 
 /////////////////////////////
 // @section: thread context procs
 
-function ThreadCtx *tctx_alloc(void);
-function void       tctx_release(ThreadCtx *tctx);
-function void       tctx_select(ThreadCtx *tctx);
-function ThreadCtx *tctx_selected(void);
-function Arena     *tctx_get_scratch(Arena **conflicts, U64 count);
+function Thread_Ctx *tctx_alloc(void);
+function void        tctx_release(Thread_Ctx *tctx);
+function void        tctx_select(Thread_Ctx *tctx);
+function Thread_Ctx *tctx_selected(void);
+function Arena      *tctx_get_scratch(Arena **conflicts, u64 count);
 
 #define scratch_begin(conflicts, count) temp_begin(tctx_get_scratch((conflicts), (count)))
 #define scratch_end(scratch) temp_end(scratch)
 #define ScratchScope(_t, _ar, _n) for (Temp _t = scratch_begin(_ar, _n); (_t).arena; scratch_end(_t), (_t).arena = 0)
-
-function S32 run_shell_command(String8List args);
 
 /////////////////////////////
 // @section: timing procs
 
 function Time time_now(void);
 function void time_sleep_ns(Time t);
-function TimeDuration time_diff(Time begin, Time end);
+function Time_Duration time_diff(Time begin, Time end);
 
 /////////////////////////////
 // @section: main thread procs

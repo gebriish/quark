@@ -89,27 +89,27 @@
 ///////////////////////////
 // @section: builtin basic types
 
-typedef uint8_t  U8;
-typedef  int8_t  S8;
-typedef uint16_t U16;
-typedef  int16_t S16;
-typedef uint32_t U32;
-typedef  int32_t S32;
-typedef uint64_t U64;
-typedef  int64_t S64;
+typedef uint8_t  u8;
+typedef  int8_t  s8;
+typedef uint16_t u16;
+typedef  int16_t s16;
+typedef uint32_t u32;
+typedef  int32_t s32;
+typedef uint64_t u64;
+typedef  int64_t s64;
 
-typedef struct U128 U128;
-struct U128
+typedef struct u128 u128;
+struct u128
 {
-  U64 lo;
-  U64 hi;
+  u64 lo;
+  u64 hi;
 };
 
-typedef float  F32;
-typedef double F64;
+typedef float  f32;
+typedef double f64;
 
-typedef U8  B8;
-typedef U32 B32;
+typedef u8  b8;
+typedef u32 b32;
 
 #define true  1
 #define false 0
@@ -121,8 +121,8 @@ typedef U32 B32;
 
 #define DeferLoop(begin, end) for(int _i_ = ((begin), 0); !_i_; _i_ += 1, (end))
 
-#define EachIndex(itr, n) (S64 (itr)=0; (itr) < (S64)(n); ++(itr))
-#define EachRange(itr, b, e) (S64 (itr)=b; (itr) <= (S64)(e); ++(itr))
+#define EachIndex(itr, n) (s64 (itr)=0; (itr) < (s64)(n); ++(itr))
+#define EachRange(itr, b, e) (s64 (itr)=b; (itr) <= (s64)(e); ++(itr))
 #define EachNode(it, T, first) (T *it = first; it != 0; it = it->next)
 
 #define Max(a, b) ((a) > (b) ? (a) : (b))
@@ -130,9 +130,9 @@ typedef U32 B32;
 #define Clamp(min, v, max) Max(min, Min(v, max))
 #define Lerp(_curr, _tar, _t) ((_curr) + ((_tar) - (_curr)) * (_t))
 
-#define Kilobytes(x) (S64) ((S64)(x) << 10)
-#define Megabytes(x) (S64) ((S64)(x) << 20)
-#define Gigabytes(x) (S64) ((S64)(x) << 30)
+#define Kilobytes(x) (u64) ((u64)(x) << 10)
+#define Megabytes(x) (u64) ((u64)(x) << 20)
+#define Gigabytes(x) (u64) ((u64)(x) << 30)
 
 #define MemMove(dst, src, len) memmove((dst), (src), (len))
 #define MemZero(dst, len)      memset((dst), 0x0, (len))
@@ -148,15 +148,13 @@ typedef U32 B32;
 # error align_of not defined for this compiler.
 #endif
 
-#define Assert(x) assert(x)
-
 /*
   @note(gaureesh): slice should look like this.
   
   struct
   {
-  T     *raw;
-  S64   len;
+    T     *raw;
+    S64   len;
   }
   
   @note(gaureesh): arrays ( growable )  should look like this
@@ -299,10 +297,10 @@ do {                                    \
 ///////////////////////////////
 // @section: helper procs
 
-function S64 mod_s64(S64 a, S64 b);         // mathematical a mod b
-function S64 digit_count(S64 n);            // number of digits in any signed integer
-function U64 align_up_power2(U64 a, U64 b); // aligns a to nearest multiple of a 2's power b
-function U64 u128_hash(U128 v);
-function B32 u128_matches(U128 a, U128 b);
+function s64 mod_s64(s64 a, s64 b);         // mathematical a mod b
+function s64 digit_count(s64 n);            // number of digits in any signed integer
+function u64 align_up_power2(u64 a, u64 b); // aligns a to nearest multiple of a 2's power b
+function u64 u128_hash(u128 v);
+function b32 u128_matches(u128 a, u128 b);
 
 #endif // BASE_CORE_H

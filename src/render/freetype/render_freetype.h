@@ -10,8 +10,8 @@ typedef struct R_FT_Font R_FT_Font;
 struct R_FT_Font
 {
   String8    data;
-  U64        hash;
-  S64        ref_count;
+  u64        hash;
+  s64        ref_count;
   FT_Face    face;
   R_FT_Font *hash_prev;
   R_FT_Font *hash_next;

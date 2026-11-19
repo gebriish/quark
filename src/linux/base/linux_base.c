@@ -4,7 +4,7 @@
 
 
 function void *
-memory_reserve(U64 size)
+memory_reserve(u64 size)
 {
   void *result = mmap(0, (size_t)size, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_NORESERVE, -1, 0);
   if (result == MAP_FAILED)
@@ -14,21 +14,21 @@ memory_reserve(U64 size)
   return(result);
 }
 
-function B32
-memory_commit(void *ptr, U64 size)
+function b32
+memory_commit(void *ptr, u64 size)
 {
   return (mprotect(ptr, (size_t)size, PROT_READ|PROT_WRITE) == 0);
 }
 
-function B32
-memory_decommit(void *ptr, U64 size)
+function b32
+memory_decommit(void *ptr, u64 size)
 {
   madvise(ptr, (size_t)size, MADV_DONTNEED);
   return (mprotect(ptr, (size_t)size, PROT_NONE) == 0);
 }
 
 function void 
-memory_release(void *ptr, U64 size)
+memory_release(void *ptr, u64 size)
 {
   munmap(ptr, (size_t)size);
 }
@@ -56,64 +56,64 @@ time_sleep_ns(Time ns)
 //////////////////////////////
 // @section: files
 
-function void 
-lnx_file_properties_from_stat(struct stat st, FileProperty *props)
+function void
+lnx_file_info_from_stat(struct stat st, File_Info *info)
 {
-  props->id.u64[0] = (U64)st.st_ino;
-  props->id.u64[1] = (U64)st.st_dev;
-  props->size      = (S64)st.st_size;
-  props->created   = (Time)st.st_ctim.tv_sec * 1000000000ull +
+  info->id.v[0]   = (u64)st.st_ino;
+  info->id.v[1]   = (u64)st.st_dev;
+  info->size      = (s64)st.st_size;
+  info->created   = (Time)st.st_ctim.tv_sec * 1000000000ull +
                      (Time)st.st_ctim.tv_nsec;
-  props->modified  = (Time)st.st_mtim.tv_sec * 1000000000ull +
+  info->modified  = (Time)st.st_mtim.tv_sec * 1000000000ull +
                      (Time)st.st_mtim.tv_nsec;
 
-  props->flags = (!!(st.st_mode & (S_IRUSR | S_IRGRP | S_IROTH)) * FileFlag_Readable) |
-                 (!!(st.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH)) * FileFlag_Writeable);
+  info->flags = (!!(st.st_mode & (S_IRUSR | S_IRGRP | S_IROTH)) * File_Flag_Readable) |
+                 (!!(st.st_mode & (S_IWUSR | S_IWGRP | S_IWOTH)) * File_Flag_Writeable);
 
-  if      (S_ISREG(st.st_mode)) props->kind = FileKind_Regular;
-  else if (S_ISDIR(st.st_mode)) props->kind = FileKind_Directory;
-  else if (S_ISLNK(st.st_mode)) props->kind = FileKind_Symlink;
-  else                          props->kind = FileKind_Undetermined;
+  if      (S_ISREG(st.st_mode)) info->kind = File_Kind_Regular;
+  else if (S_ISDIR(st.st_mode)) info->kind = File_Kind_Directory;
+  else if (S_ISLNK(st.st_mode)) info->kind = File_Kind_Symlink;
+  else                          info->kind = File_Kind_Undetermined;
 }
 
-function FileProperty 
-file_property(String8 path)
+function File_Info
+file_get_info(String8 path)
 {
-  FileProperty result = {0};
+  File_Info result = {0};
   Temp scratch = scratch_begin(0, 0);
   
-  const U8 *path_cstring = str8_push_cstring(scratch.arena, path);
+  const u8 *path_cstring = str8_push_cstring(scratch.arena, path);
   
   struct stat st = {0};
   if (lstat((char *) path_cstring, &st) == 0)
   {
-    lnx_file_properties_from_stat(st, &result);
+    lnx_file_info_from_stat(st, &result);
   }
   
   scratch_end(scratch);
   return result;
 }
 
-function S64 
-load_file_to_buffer(String8 path, U8 *raw, S64 cap)
+function s64
+load_file_to_buffer(String8 path, u8 *raw, s64 cap)
 {
-  S64 result = 0;
+  s64 result = 0;
   if (raw == 0)
   {
-    FileProperty props = file_property(path);
-    result = props.size;
+    File_Info info = file_get_info(path);
+    result = info.size;
   }
   else
   {
     Temp scratch = scratch_begin(0, 0);
-    const U8 *path_cstring = str8_push_cstring(scratch.arena, path);
+    const u8 *path_cstring = str8_push_cstring(scratch.arena, path);
     int fd = open((char *) path_cstring, O_RDONLY);
     if (fd >= 0)
     {
-      S64 total = 0;
+      s64 total = 0;
       while (total < cap)
       {
-        S64 want = Min(cap - total, 0x7ffff000);
+        s64 want = Min(cap - total, 0x7ffff000);
         ssize_t n = read(fd, raw + total, (size_t) want);
         if (n < 0)
         {
@@ -131,23 +131,23 @@ load_file_to_buffer(String8 path, U8 *raw, S64 cap)
   return result;
 }
 
-function B32 
+function b32 
 write_file_to_path(String8 data, String8 path)
 {
   Temp scratch = scratch_begin(0, 0);
-  B32 ok = false;
+  b32 ok = false;
 
-  const U8 *path_cstring = str8_push_cstring(scratch.arena, path);
+  const u8 *path_cstring = str8_push_cstring(scratch.arena, path);
   int fd = open((char *)path_cstring, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 
   if (fd >= 0)
   {
-    S64 total = 0;
-    B32 failed = false;
+    s64 total = 0;
+    b32 failed = false;
 
     while (total < data.len)
     {
-      S64 want = Min(data.len - total, 0x7ffff000);
+      s64 want = Min(data.len - total, 0x7ffff000);
       ssize_t n = write(fd, data.raw + total, (size_t) want);
       if (n < 0)
       {
@@ -155,7 +155,7 @@ write_file_to_path(String8 data, String8 path)
         failed = true;
         break;
       }
-      total += (S64)n;
+      total += (s64)n;
     }
 
     // @todo(gaureesh): Apprently close() can fail? I should look this up later.
@@ -171,17 +171,17 @@ write_file_to_path(String8 data, String8 path)
   return ok;
 }
 
-function B32
+function b32
 create_directory(String8 path)
 {
-  B32 ok = false;
-  FileProperty prop = file_property(path);
+  b32 ok = false;
+  File_Info info = file_get_info(path);
 
-  if (prop.kind == FileKind_DNE)
+  if (info.kind == File_Kind_DNE)
   {
     Temp scratch = scratch_begin(0, 0);
 
-    const U8 *path_cstring = str8_push_cstring(scratch.arena, path);
+    const u8 *path_cstring = str8_push_cstring(scratch.arena, path);
     int err = mkdir((char *) path_cstring, 0777);
 
     scratch_end(scratch);
@@ -192,35 +192,12 @@ create_directory(String8 path)
 }
 
 //////////////////////////////
-// @section: threading
-
-function S32 
-run_shell_command(String8List args)
-{
-  Temp scratch = scratch_begin(0, 0);
-  String8 arg_string = str8_list_join(scratch.arena, &args, ' ');
-
-  pid_t pid = fork();
-  if (pid == 0)
-  {
-    execl("/bin/sh", "sh", "-c", (char *) arg_string.raw, (char *) 0);
-    _exit(127);
-  }
-
-  int status;
-  waitpid(pid, &status, 0);
-  scratch_end(scratch);
-
-  return (S32) status;
-}
-
-//////////////////////////////
 // @section: startup
 
 int 
 main(int argc, char **argv)
 {
-  ThreadCtx *tctx = tctx_alloc();
+  Thread_Ctx *tctx = tctx_alloc();
   tctx_select(tctx);
   main_thread_base_entry_point(argc, argv);
 }

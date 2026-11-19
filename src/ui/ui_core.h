@@ -6,10 +6,10 @@ typedef struct UI_Box UI_Box;
 typedef struct UI_Key UI_Key;
 struct UI_Key
 {
-  U64 u64[1];
+  u64 v[1];
 };
 
-typedef U32 UI_BoxFlags;
+typedef u32 UI_BoxFlags;
 enum
 {
   UI_BoxFlag_Clip         = (1u << 0),
@@ -24,7 +24,7 @@ enum
   UI_BoxFlag_Clickable    = (1u << 9),
 };
 
-typedef U32 UI_SizeKind;
+typedef u32 UI_SizeKind;
 enum
 {
   UI_SizeKind_Fixed,
@@ -38,7 +38,7 @@ typedef struct UI_SizeAxis UI_SizeAxis;
 struct UI_SizeAxis
 {
   UI_SizeKind kind;
-  F32 value;
+  f32 value;
 };
 
 typedef union UI_Size UI_Size;
@@ -51,8 +51,8 @@ union UI_Size
 typedef union UI_Padding UI_Padding;
 union UI_Padding
 {
-  struct { U16 v0, v1, v2, v3; };
-  U16 values[Edge_COUNT];
+  struct { u16 v0, v1, v2, v3; };
+  u16 values[Edge_COUNT];
 };
 
 typedef void (*UI_BoxDrawProc)(UI_Box *box);
@@ -65,18 +65,18 @@ typedef void (*UI_BoxDrawProc)(UI_Box *box);
   X(Axis2D,      layout) \
   X(UI_Size,     size) \
   X(UI_Padding,  padding) \
-  X(F32,         gap) \
-  X(F32,         scroll_scale) \
+  X(f32,         gap) \
+  X(f32,         scroll_scale) \
   X(R_Font,      font) \
   X(String8,     text) \
-  X(U32,         text_size) \
-  X(B32,         text_bold) \
+  X(u32,         text_size) \
+  X(b32,         text_bold) \
   X(Vec4F32,     text_color) \
-  X(F32,         blur_radius) \
+  X(f32,         blur_radius) \
   X(Vec4F32,     fill_color) \
   X(Vec4F32,     shadow_color) \
   X(Vec4F32,     border_color) \
-  X(F32,         border_thickness) \
+  X(f32,         border_thickness) \
   X(Vec4F32,     radii) \
   X(R_Handle,    texture) \
 
@@ -90,10 +90,10 @@ struct UI_Persist
   UI_Persist *hash_prev;
 
   UI_Persist *next; // persist stack linkage
-  U64 last_touched_frame;
+  u64 last_touched_frame;
 
-  F32 spawn_t;
-  F32 last_blur;
+  f32 spawn_t;
+  f32 last_blur;
   Vec2F32 last_dim;
   Vec2F32 last_pos;
 };
@@ -107,7 +107,7 @@ struct UI_Box
   UI_Box *next;
   UI_Box *prev;
   UI_Box *call_prev;
-  S64 child_count;
+  s64 child_count;
   UI_Persist *persist;
 
 #define X(type, name) type name;
@@ -133,9 +133,9 @@ typedef struct UI_FrameInput UI_FrameInput;
 struct UI_FrameInput
 {
   Vec2F32 resolution;
-  B32 mouse_down;
+  b32 mouse_down;
   Vec2F32 mouse_pos;
-  F32 delta_time;
+  f32 delta_time;
 };
 
 typedef struct UI_State UI_State;
@@ -145,7 +145,7 @@ struct UI_State
   Arena  *build_arena;
   UI_Box *call_list;
   UI_Box *root;
-  U64 frame_index;
+  u64 frame_index;
   
   UI_Persist *persist_buckets[UI_BOX_BUCKET_COUNT];
   UI_Persist *persist_stack;
@@ -161,11 +161,11 @@ struct UI_State
 typedef struct UI_Signal UI_Signal;
 struct UI_Signal
 {
-  B8 active;
-  B8 pressed;
-  B8 clicked;
-  B8 released;
-  B8 hovered;
+  b8 active;
+  b8 pressed;
+  b8 clicked;
+  b8 released;
+  b8 hovered;
 };
 
 global UI_State *ui_state = 0;
@@ -173,8 +173,8 @@ global UI_State *ui_state = 0;
 ////////////////////
 // @section: handle functions
 
-function B32 ui_key_zero(UI_Key key);
-function B32 ui_key_matches(UI_Key a, UI_Key b);
+function b32 ui_key_zero(UI_Key key);
+function b32 ui_key_matches(UI_Key a, UI_Key b);
 
 ////////////////////
 // @section: ui state functions
@@ -210,13 +210,13 @@ function UI_Signal ui_get_signal_from_box(UI_Box *box);
 ////////////////////
 // @section: config utilities
 
-function UI_SizeAxis ui_size_fixed(F32 x);
-function UI_SizeAxis ui_size_percent(F32 x);
-function UI_SizeAxis ui_size_grow(F32 x);
+function UI_SizeAxis ui_size_fixed(f32 x);
+function UI_SizeAxis ui_size_percent(f32 x);
+function UI_SizeAxis ui_size_grow(f32 x);
 function UI_SizeAxis ui_size_fit(void);
 
-function UI_Padding ui_padding(F32 v);
-function UI_Padding ui_padding_xy(F32 x, F32 y);
+function UI_Padding ui_padding(f32 v);
+function UI_Padding ui_padding_xy(f32 x, f32 y);
 
 function UI_Box *ui_get_current_box(void);
 

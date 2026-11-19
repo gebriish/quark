@@ -20,6 +20,6 @@
 ////////////////////////////////////////////
 // @section: internal lnx helpers
 
-function void lnx_file_properties_from_stat(struct stat st, FileProperty *props);
+function void lnx_file_info_from_stat(struct stat st, File_Info *info);
 
 #endif // LINUX_BASE_H

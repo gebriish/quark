@@ -44,13 +44,13 @@ do                                                        \
 ////////////////////////////
 // @section: function components
 
-function void ui_text(String8 text, R_Font font, U32 size, B32 bold, Vec4F32 color);
+function void ui_text(String8 text, R_Font font, u32 size, b32 bold, Vec4F32 color);
 function void ui_image(R_Handle tex);
 function void ui_image_grown(R_Handle tex);
 
-function B32 ui_button(String8 label, 
+function b32 ui_button(String8 label, 
                        R_Font font, 
-                       U32 size, 
+                       u32 size, 
                        Vec4F32 fg,
                        Vec4F32 bg);
 
@@ -58,6 +58,6 @@ function B32 ui_button(String8 label,
 // @section: components making helpers
 
 function UI_Size ui_layout_aligned_size(UI_SizeAxis along, UI_SizeAxis perp);
-function UI_Size ui_grow_proportional(F32 aspect_ratio);
+function UI_Size ui_grow_proportional(f32 aspect_ratio);
 
 #endif // UI_WIDGETS_H

@@ -18,11 +18,11 @@
 #include "quark/quark_inc.c"
 
 function void
-entry_point(CmdLine *cmd)
+entry_point(Cmd_Line *cmd)
 {
   q_init();
 
-  for (B32 quit=0; !quit;)
+  for (b32 quit=0; !quit;)
   {
     quit = q_frame();
   }

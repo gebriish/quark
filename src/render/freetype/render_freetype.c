@@ -16,8 +16,8 @@ r_fnt_provider_init(void)
 function R_Font 
 r_fnt_alloc(String8 data, R_FontAllocFlags flags)
 {
-  U64 hash  = str8_hash(data);
-  U64 index = hash & (R_FNT_BUCKET_COUNT - 1);
+  u64 hash  = str8_hash(data);
+  u64 index = hash & (R_FNT_BUCKET_COUNT - 1);
 
   R_FT_Font *font = 0;
 
@@ -62,40 +62,40 @@ r_fnt_alloc(String8 data, R_FontAllocFlags flags)
   font->ref_count += 1;
 
   R_Font result = {0};
-  result.u64[0] = (U64) font;
+  result.v[0] = (u64) font;
   return result;
 }
 
 function void
 r_fnt_free(R_Font font)
 {
-  R_FT_Font *ft_font = (R_FT_Font *) font.u64[0];
+  R_FT_Font *ft_font = (R_FT_Font *) font.v[0];
   if (ft_font == 0) return;
 
   ft_font->ref_count -= 1;
   if (ft_font->ref_count <= 0)
   {
-    U64 index = ft_font->hash & (R_FNT_BUCKET_COUNT - 1);
+    u64 index = ft_font->hash & (R_FNT_BUCKET_COUNT - 1);
     DLLRemove_N( r_ft_state->fonts[index].first,
-        r_ft_state->fonts[index].last,
-        ft_font, hash_next, hash_prev );
+                 r_ft_state->fonts[index].last,
+                 ft_font, hash_next, hash_prev );
     FT_Done_Face(ft_font->face);
     arena_release(ft_font->data_arena);
     SLLStackPush_N(r_ft_state->free_fonts, ft_font, free_next);
   }
 }
 
-function U32
-r_fnt_glyph_index(R_Font font, U32 codepoint)
+function u32
+r_fnt_glyph_index(R_Font font, u32 codepoint)
 {
-  R_FT_Font *f = (R_FT_Font *) font.u64[0];
+  R_FT_Font *f = (R_FT_Font *) font.v[0];
   return FT_Get_Char_Index(f->face, codepoint);
 }
 
 function R_FontMetrics
-r_fnt_metrics(R_Font font, U32 size)
+r_fnt_metrics(R_Font font, u32 size)
 {
-  R_FT_Font *f = (R_FT_Font *) font.u64[0];
+  R_FT_Font *f = (R_FT_Font *) font.v[0];
   FT_Set_Pixel_Sizes(f->face, 0, (FT_UInt) (size));
   FT_Size_Metrics *m = &f->face->size->metrics;
 
@@ -109,9 +109,9 @@ r_fnt_metrics(R_Font font, U32 size)
 }
 
 function R_FontRaster 
-r_fnt_raster(R_Font font, U32 size, U32 index, B32 bold, Arena *arena)
+r_fnt_raster(R_Font font, u32 size, u32 index, b32 bold, Arena *arena)
 {
-  R_FT_Font *f = (R_FT_Font *) font.u64[0];
+  R_FT_Font *f = (R_FT_Font *) font.v[0];
   FT_Set_Pixel_Sizes(f->face, 0, (FT_UInt) size);
 
   R_FontRaster result = {0};
@@ -132,18 +132,18 @@ r_fnt_raster(R_Font font, U32 size, U32 index, B32 bold, Arena *arena)
   {
     result.dim.x   = bmp->width / 3;
     result.dim.y   = bmp->rows;
-    result.advance = (F32) (slot->advance.x >> 6);
+    result.advance = (f32) (slot->advance.x >> 6);
     result.offset  = (Vec2S16) { slot->bitmap_left, slot->bitmap_top };
 
     if (arena && bmp->buffer && bmp->rows)
     {
-      result.data = arena_push(arena, U8, (S64) bmp->width * bmp->rows);
+      result.data = arena_push(arena, u8, (s64) bmp->width * bmp->rows);
 
       for EachIndex(y, bmp->rows)
       {
-        MemMove(result.data + (S64) y * bmp->width,
-            bmp->buffer + (S64) y * bmp->pitch,
-            bmp->width);
+        MemMove(result.data + (s64) y * bmp->width,
+                bmp->buffer + (s64) y * bmp->pitch,
+                bmp->width);
       }
     }
   }

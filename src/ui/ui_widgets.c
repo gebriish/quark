@@ -1,5 +1,5 @@
 function void 
-ui_text(String8 text, R_Font font, U32 size, B32 bold, Vec4F32 color)
+ui_text(String8 text, R_Font font, u32 size, b32 bold, Vec4F32 color)
 {
   Vec2F32 txt_size = r_measure_text_simple(font, text, size, 2);
   UI(
@@ -27,7 +27,7 @@ function void
 ui_image_grown(R_Handle tex)
 {
   Vec2S32 size = r_tex_size(tex);
-  UI_Size proportional_size = ui_grow_proportional((F32) size.x / (F32) size.y);
+  UI_Size proportional_size = ui_grow_proportional((f32) size.x / (f32) size.y);
   UI(
     .size = proportional_size,
     .fill_color = Color8(0xffffffff),
@@ -35,13 +35,13 @@ ui_image_grown(R_Handle tex)
   );
 }
 
-function B32 ui_button( String8 label, 
+function b32 ui_button( String8 label, 
                         R_Font font, 
-                        U32 size, 
+                        u32 size, 
                         Vec4F32 fg,
                         Vec4F32 bg )
 {
-  B32 ok = false;
+  b32 ok = false;
   ui_fit(.label = label,
          .fill_color = bg,
          .padding = ui_padding(5),
@@ -84,7 +84,7 @@ ui_layout_aligned_size(UI_SizeAxis along, UI_SizeAxis perp)
 }
 
 function UI_Size
-ui_grow_proportional(F32 aspect_ratio)
+ui_grow_proportional(f32 aspect_ratio)
 {
   UI_Size size = {0};
   UI_Box *parent = ui_state->call_list;
@@ -105,13 +105,13 @@ ui_grow_proportional(F32 aspect_ratio)
       parent->padding.values[Edge_Top]  + parent->padding.values[Edge_Bottom],
     };
 
-    F32 avail_main  = Max(dim.xy[layout_axis] - padding_sum.xy[layout_axis], 0.f);
-    F32 avail_cross = Max(dim.xy[layout_perp] - padding_sum.xy[layout_perp], 0.f);
+    f32 avail_main  = Max(dim.xy[layout_axis] - padding_sum.xy[layout_axis], 0.f);
+    f32 avail_cross = Max(dim.xy[layout_perp] - padding_sum.xy[layout_perp], 0.f);
 
     if (avail_main > 0.f && avail_cross > 0.f)
     {
-      F32 cross = Min(avail_cross, avail_main / aspect_ratio);
-      F32 main  = cross * aspect_ratio;
+      f32 cross = Min(avail_cross, avail_main / aspect_ratio);
+      f32 main  = cross * aspect_ratio;
 
       size.axes[layout_axis] = ui_size_fixed(main);
       size.axes[layout_perp] = ui_size_fixed(cross);
