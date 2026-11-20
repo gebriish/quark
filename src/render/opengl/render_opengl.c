@@ -65,11 +65,11 @@ r_init(void)
 }
 
 function void 
-r_window_begin_frame(GFX_Window win)
+r_window_begin_frame(Win_Handle win)
 {
   r_ogl_select_window(win);
 
-  Vec2F32 size = gfx_window_size(win);
+  Vec2F32 size = window_get_size(win);
 
   r_ogl_target_generate(&r_ogl_state->targets[0], (s32)size.x, (s32)size.y);
   r_ogl_target_generate(&r_ogl_state->targets[1], (s32)size.x, (s32)size.y);
@@ -96,9 +96,9 @@ r_window_begin_frame(GFX_Window win)
 }
 
 function void 
-r_window_end_frame(GFX_Window win)
+r_window_end_frame(Win_Handle win)
 {
-  Vec2F32 size = gfx_window_size(win);
+  Vec2F32 size = window_get_size(win);
   glBindFramebuffer(GL_READ_FRAMEBUFFER, r_ogl_state->targets[0].fbo);
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
   glBlitFramebuffer(0, 0, (s32)size.x, (s32)size.y, 0, 0, (s32)size.x, (s32)size.y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
@@ -170,7 +170,7 @@ r_window_submit_frame(R_DrawList list)
     case R_DrawKind_Blur:
     {
       R_Blur *params = &draw->blur;
-      Vec2F32 viewport_dim = v2f32(r_ogl_state->targets[0].w, r_ogl_state->targets[0].h);
+      Vec2F32 viewport_dim = v2f32((f32) r_ogl_state->targets[0].w, (f32) r_ogl_state->targets[0].h);
       GLuint shader = r_ogl_state->shaders[R_OGL_ShaderKind_Blur];
 
       glUseProgramScope(shader) glBindVertexArrayScope(r_ogl_state->gen_purpose_vao)
@@ -398,7 +398,7 @@ r_ogl_instance_buffer_from_size(u64 size)
 	{
 		glGenBuffers(1, &buf);
 		glBindBuffer(GL_ARRAY_BUFFER, buf);
-		glBufferData(GL_ARRAY_BUFFER, size, 0, GL_DYNAMIC_DRAW);
+		glBufferData(GL_ARRAY_BUFFER, (ptrdiff_t) size, 0, GL_DYNAMIC_DRAW);
 		R_OGL_Buffer *node = arena_push(r_frame_arena(), R_OGL_Buffer, 1);
 		node->id = buf;
 		SLLStackPush(r_ogl_state->flush_buffers, node);
@@ -440,16 +440,16 @@ r_ogl_draw_instances(GLuint shader, void *data, s64 count, s64 stride, R_OGL_Att
 
 	glUseProgramScope(shader)
 	{
-		GLuint buf = r_ogl_instance_buffer_from_size(bytes);
+		GLuint buf = r_ogl_instance_buffer_from_size((u64) bytes);
 		glBindVertexArrayScope(r_ogl_state->gen_purpose_vao)
 		glBindBufferScope(GL_ARRAY_BUFFER, buf)
 		{
 			glBufferSubData(GL_ARRAY_BUFFER, 0, bytes, data);
 			for EachIndex(i, attr_count)
 			{
-				glEnableVertexAttribArray(i);
-				glVertexAttribPointer(i, attrs[i].n, GL_FLOAT, GL_FALSE, (GLsizei)stride, (void *) attrs[i].off);
-				glVertexAttribDivisor(i, 1);
+				glEnableVertexAttribArray((GLuint) i);
+				glVertexAttribPointer((GLuint) i, attrs[i].n, GL_FLOAT, GL_FALSE, (GLsizei)stride, (void *) attrs[i].off);
+				glVertexAttribDivisor((GLuint) i, 1);
 			}
 	
 			glUniform1i(glGetUniformLocation(shader, "tex"), 0);

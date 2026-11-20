@@ -215,8 +215,8 @@ function UI_SizeAxis ui_size_percent(f32 x);
 function UI_SizeAxis ui_size_grow(f32 x);
 function UI_SizeAxis ui_size_fit(void);
 
-function UI_Padding ui_padding(f32 v);
-function UI_Padding ui_padding_xy(f32 x, f32 y);
+function UI_Padding ui_padding(u16 v);
+function UI_Padding ui_padding_xy(u16 x, u16 y);
 
 function UI_Box *ui_get_current_box(void);
 

@@ -1,5 +1,5 @@
-#ifndef LINUX_GFX_H
-#define LINUX_GFX_H
+#ifndef LINUX_GFX_CORE_H
+#define LINUX_GFX_CORE_H
 
 #undef function // `function` is used in Xorg
 # include <X11/Xlib.h>
@@ -53,9 +53,9 @@ struct LNX_GFX_State
   Atom wm_sync_req_counter;
   LNX_GFX_WindowList windows;
   LNX_GFX_Window *free_windows;
-  GFX_Modifiers modifiers;
-  u64 key_down_state[(GFX_Key_COUNT + 63) / 64];
-  Cursor xcursors[GFX_Cursor_COUNT];
+  Key_Modifiers modifiers;
+  u64 key_down_state[(Key_COUNT + 63) / 64];
+  Cursor xcursors[Win_Cursor_COUNT];
 };
 
 global LNX_GFX_State *lnx_gfx_state = 0;
@@ -64,6 +64,6 @@ global LNX_GFX_State *lnx_gfx_state = 0;
 // @section: local linux gfx helpers
 
 function LNX_GFX_Window *lnx_window_from_xwindow(Window window);
-function GFX_Key lnx_keycode_from_keysym(KeySym ks);
+function Key lnx_keycode_from_keysym(KeySym ks);
 
-#endif // LINUX_GFX_H
+#endif // LINUX_GFX_CORE_H

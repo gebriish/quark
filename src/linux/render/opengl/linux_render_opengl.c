@@ -48,7 +48,7 @@ r_ogl_os_init(void)
 }
 
 function void 
-r_ogl_select_window(GFX_Window window)
+r_ogl_select_window(Win_Handle window)
 {
   LNX_GFX_Window *w = (LNX_GFX_Window *) window.v[0];
   glXMakeCurrent(lnx_gfx_state->display, w->window, r_ogl_lnx_ctx);
@@ -57,7 +57,7 @@ r_ogl_select_window(GFX_Window window)
 }
 
 function void 
-r_window_set_vsync(GFX_Window win, b32 vsync)
+r_window_set_vsync(Win_Handle win, b32 vsync)
 {
   LNX_GFX_Window *w = (LNX_GFX_Window *) win.v[0];
   glXMakeCurrent(lnx_gfx_state->display, w->window, r_ogl_lnx_ctx);
@@ -65,9 +65,9 @@ r_window_set_vsync(GFX_Window win, b32 vsync)
 }
 
 function void 
-r_ogl_window_swap_buffers(GFX_Window window)
+r_ogl_window_swap_buffers(Win_Handle window)
 {
   LNX_GFX_Window *w = (LNX_GFX_Window *) window.v[0];
   glXSwapBuffers(lnx_gfx_state->display, w->window);
-  gfx_window_present(window);
+  window_sync_frame(window);
 }

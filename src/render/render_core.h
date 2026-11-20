@@ -121,9 +121,9 @@ function Arena *r_frame_arena(void);
 /////////////////////////////
 // @section: frame marker hooks
 
-function void r_window_begin_frame(GFX_Window win);
-function void r_window_end_frame(GFX_Window win);
-function void r_window_set_vsync(GFX_Window win, b32 vsync);
+function void r_window_begin_frame(Win_Handle win);
+function void r_window_end_frame(Win_Handle win);
+function void r_window_set_vsync(Win_Handle win, b32 vsync);
 
 function f32  r_frame_begin(void);
 function void r_frame_end(void);

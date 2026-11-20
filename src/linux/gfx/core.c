@@ -1,3 +1,4 @@
+
 function void
 gfx_init(void)
 {
@@ -17,8 +18,8 @@ gfx_init(void)
   lnx_gfx_state->wm_sync_req_counter = XInternAtom(display, "_NET_WM_SYNC_REQUEST_COUNTER", 0);
 }
 
-function GFX_Window 
-gfx_window_open(String8 title, Vec2F32 resolution, GFX_WindowFlags flags)
+function Win_Handle 
+window_open(String8 title, Vec2F32 resolution, Win_Flags flags)
 {
   Temp scratch = scratch_begin(0, 0);
 
@@ -101,7 +102,7 @@ gfx_window_open(String8 title, Vec2F32 resolution, GFX_WindowFlags flags)
   const char *title_cstr = (char *) str8_push_cstring(scratch.arena, title);
   XStoreName(display, lnx_win->window, title_cstr);
 
-  if (flags & GFX_WindowFlag_CustomBorder)
+  if (flags & Win_Flag_CustomBorder)
   {
     struct
     {
@@ -126,36 +127,39 @@ gfx_window_open(String8 title, Vec2F32 resolution, GFX_WindowFlags flags)
   XMapWindow(display, lnx_win->window);
   XFlush(display);
 
-  struct { GFX_Cursor cursor; unsigned int id; }
+  struct { Win_Cursor cursor; unsigned int id; }
   map[] =
   {
-    {GFX_Cursor_Pointer,             XC_left_ptr},
-    {GFX_Cursor_IBar,                XC_xterm},
-    {GFX_Cursor_LeftRight,           XC_sb_h_double_arrow},
-    {GFX_Cursor_UpDown,              XC_sb_v_double_arrow},
-    {GFX_Cursor_UpLeft,              XC_top_left_corner},
-    {GFX_Cursor_UpRight,             XC_top_right_corner},
-    {GFX_Cursor_DownLeft,            XC_bottom_left_corner},
-    {GFX_Cursor_DownRight,           XC_bottom_right_corner},
-    {GFX_Cursor_UpDownLeftRight,     XC_fleur},
-    {GFX_Cursor_HandPoint,           XC_hand2},
-    {GFX_Cursor_HandGrab,            XC_hand1},
-    {GFX_Cursor_Disabled,            XC_X_cursor},
+    {Win_Cursor_Pointer,             XC_left_ptr},
+    {Win_Cursor_IBar,                XC_xterm},
+    {Win_Cursor_LeftRight,           XC_sb_h_double_arrow},
+    {Win_Cursor_UpDown,              XC_sb_v_double_arrow},
+    {Win_Cursor_UpLeft,              XC_top_left_corner},
+    {Win_Cursor_UpRight,             XC_top_right_corner},
+    {Win_Cursor_DownLeft,            XC_bottom_left_corner},
+    {Win_Cursor_DownRight,           XC_bottom_right_corner},
+    {Win_Cursor_UpDownLeftRight,     XC_fleur},
+    {Win_Cursor_HandPoint,           XC_hand2},
+    {Win_Cursor_HandGrab,            XC_hand1},
+    {Win_Cursor_Disabled,            XC_X_cursor},
   };
-  for EachIndex(idx, GFX_Cursor_COUNT)
+  for EachIndex(idx, Win_Cursor_COUNT)
   {
     lnx_gfx_state->xcursors[map[idx].cursor] = XCreateFontCursor(display, map[idx].id);
   }
 
   scratch_end(scratch);
-  GFX_Window result = {(u64) lnx_win};
+  Win_Handle result = {(u64) lnx_win};
   return result;
 }
 
 function void
-gfx_window_close(GFX_Window window)
+window_close(Win_Handle window)
 {
-  if (gfx_window_zero(window)) return;
+  if (window_zero(window)) 
+  {
+    return;
+  }
   // @todo(gaureesh): confirm window is in list ? 
 
   LNX_GFX_Window *win = (LNX_GFX_Window *) window.v[0];
@@ -164,11 +168,10 @@ gfx_window_close(GFX_Window window)
   SLLStackPush(lnx_gfx_state->free_windows, win);
 }
 
-function GFX_EventList 
-gfx_get_events(Arena *arena)
+function Win_Event_List 
+get_window_events(Arena *arena)
 {
-  GFX_EventList event_list = {0};
-
+  Win_Event_List event_list = {0};
   while (XPending(lnx_gfx_state->display))
   {
     XEvent event = {0};
@@ -183,7 +186,7 @@ gfx_get_events(Arena *arena)
         LNX_GFX_Window *window = lnx_window_from_xwindow(event.xcrossing.window);
         if (window != 0 && window->custom_titlebar)
         {
-          gfx_set_cursor(GFX_Cursor_Pointer);
+          gfx_set_cursor(Win_Cursor_Pointer);
         }
       } break;
 
@@ -196,9 +199,9 @@ gfx_get_events(Arena *arena)
           w->width = event.xconfigure.width;
           w->height = event.xconfigure.height;
 
-          GFX_Event *e = gfx_event_list_push(arena, &event_list, GFX_EventKind_Resize);
+          Win_Event *e = window_event_push(arena, &event_list, Win_Event_Kind_Resize);
           e->window.v[0] = (u64) w;
-          e->size = v2f32(w->width, w->height);
+          e->size = v2f32((f32) w->width, (f32) w->height);
 
           Atom net_wm_opaque_region = XInternAtom(lnx_gfx_state->display, "_NET_WM_OPAQUE_REGION", False);
           long data[4] = {
@@ -221,16 +224,16 @@ gfx_get_events(Arena *arena)
       case KeyPress:
       case KeyRelease:
       {
-        GFX_Modifiers mods = 0;
-        if(event.xkey.state & ShiftMask)   { mods |= GFX_Modifier_Shift; }
-        if(event.xkey.state & ControlMask) { mods |= GFX_Modifier_Ctrl; }
-        if(event.xkey.state & Mod1Mask)    { mods |= GFX_Modifier_Alt; }
+        Key_Modifiers mods = 0;
+        if(event.xkey.state & ShiftMask)   { mods |= Key_Modifier_Shift; }
+        if(event.xkey.state & ControlMask) { mods |= Key_Modifier_Ctrl; }
+        if(event.xkey.state & Mod1Mask)    { mods |= Key_Modifier_Alt; }
 
         LNX_GFX_Window *window = lnx_window_from_xwindow(event.xkey.window);
         KeySym keysym   = XLookupKeysym(&event.xkey, 0);
-        GFX_Key keycode = lnx_keycode_from_keysym(keysym);
+        Key keycode = lnx_keycode_from_keysym(keysym);
 
-        u64 text_size = 0;
+        s32 text_size = 0;
         static u8 text[256] = {0};
 
         if (event.type == KeyPress && window != 0)
@@ -259,7 +262,7 @@ gfx_get_events(Arena *arena)
             u32 codepoint = utf8_decode(string, i, &increment);
             if (codepoint != 0 && codepoint != 127 && codepoint >= 32)
             {
-              GFX_Event *e = gfx_event_list_push(arena, &event_list, GFX_EventKind_Text);
+              Win_Event *e = window_event_push(arena, &event_list, Win_Event_Kind_Text);
               e->window.v[0] = (u64) window;
               e->character = codepoint;
             }
@@ -271,7 +274,7 @@ gfx_get_events(Arena *arena)
           }
         }
 
-        GFX_Event *e = gfx_event_list_push(arena, &event_list, event.type == KeyPress ? GFX_EventKind_Press : GFX_EventKind_Release);
+        Win_Event *e = window_event_push(arena, &event_list, event.type == KeyPress ? Win_Event_Kind_Press : Win_Event_Kind_Release);
         e->window.v[0] = (u64) window;
         e->modifiers = mods;
         e->keycode = keycode;
@@ -282,11 +285,11 @@ gfx_get_events(Arena *arena)
       {
         LNX_GFX_Window *window = lnx_window_from_xwindow(event.xbutton.window);
 
-        GFX_Window win = {(u64)window};
+        Win_Handle win = {(u64)window};
         Vec2F32 button_pos = v2f32((f32)event.xbutton.x, (f32)event.xbutton.y);
 
         b32 in_client = false;
-        GFX_MoveResize moveresize_code = gfx_window_moveresize_code(win, button_pos, &in_client);
+        Win_Region moveresize_code = window_region_from_pixel(win, button_pos, &in_client);
         if (!in_client && window->custom_titlebar)
         {
           XUngrabPointer(lnx_gfx_state->display, event.xbutton.time);
@@ -310,23 +313,23 @@ gfx_get_events(Arena *arena)
         }
         else
         {
-          GFX_Modifiers mods = 0;
-          if(event.xbutton.state & ShiftMask)   { mods |= GFX_Modifier_Shift; }
-          if(event.xbutton.state & ControlMask) { mods |= GFX_Modifier_Ctrl; }
-          if(event.xbutton.state & Mod1Mask)    { mods |= GFX_Modifier_Alt; }
+          Key_Modifiers mods = 0;
+          if(event.xbutton.state & ShiftMask)   { mods |= Key_Modifier_Shift; }
+          if(event.xbutton.state & ControlMask) { mods |= Key_Modifier_Ctrl; }
+          if(event.xbutton.state & Mod1Mask)    { mods |= Key_Modifier_Alt; }
 
-          GFX_Key key = GFX_Key_Null;
+          Key key = Key_Null;
           switch (event.xbutton.button)
           {
             default: break;
-            case Button1: key = GFX_Key_LeftMouseButton; break;
-            case Button2: key = GFX_Key_MiddleMouseButton; break;
-            case Button3: key = GFX_Key_RightMouseButton; break;
+            case Button1: key = Key_LeftMouseButton; break;
+            case Button2: key = Key_MiddleMouseButton; break;
+            case Button3: key = Key_RightMouseButton; break;
           }
 
-          if (key != GFX_Key_Null)
+          if (key != Key_Null)
           {
-            GFX_Event *e = gfx_event_list_push(arena, &event_list, event.type == ButtonPress ? GFX_EventKind_Press : GFX_EventKind_Release);
+            Win_Event *e = window_event_push(arena, &event_list, event.type == ButtonPress ? Win_Event_Kind_Press : Win_Event_Kind_Release);
             e->window.v[0] = (u64) window;
             e->modifiers = mods;
             e->keycode = key;
@@ -337,7 +340,7 @@ gfx_get_events(Arena *arena)
               event.xbutton.button == 6 ||
               event.xbutton.button == 7)
           {
-            GFX_Event *e = gfx_event_list_push(arena, &event_list, GFX_EventKind_Scroll);
+            Win_Event *e = window_event_push(arena, &event_list, Win_Event_Kind_Scroll);
             e->window.v[0] = (u64) window;
             e->modifiers = mods;
             e->delta = v2f32(.x = event.xbutton.button == 6 ? -120.f : event.xbutton.button == 7 ? +120.f : 0.f,
@@ -352,26 +355,26 @@ gfx_get_events(Arena *arena)
       {
         LNX_GFX_Window *window = lnx_window_from_xwindow(event.xmotion.window);
 
-        GFX_Window win_h  = (GFX_Window) {(u64) window};
+        Win_Handle win_h  = (Win_Handle) {(u64) window};
         Vec2F32 mouse_pos = v2f32((f32) event.xmotion.x, (f32) event.xmotion.y);;
 
-        GFX_Event *e   = gfx_event_list_push(arena, &event_list, GFX_EventKind_MouseMove);
+        Win_Event *e   = window_event_push(arena, &event_list, Win_Event_Kind_MouseMove);
         e->window.v[0] = (u64) window;
         e->pos         = mouse_pos;
 
         b32 in_client = false;
-        GFX_MoveResize moveresize_code = gfx_window_moveresize_code(win_h, mouse_pos, &in_client);
+        Win_Region moveresize_code = window_region_from_pixel(win_h, mouse_pos, &in_client);
 
         if (window->custom_titlebar)
         {
           if (!in_client) 
           {
-            GFX_Cursor cursor = gfx_cursor_from_moveresize(moveresize_code);
+            Win_Cursor cursor = window_region_to_cursor(moveresize_code);
             gfx_set_cursor(cursor);
           }
           else
           {
-            gfx_set_cursor(GFX_Cursor_Pointer);
+            gfx_set_cursor(Win_Cursor_Pointer);
           }
         }
 
@@ -388,7 +391,7 @@ gfx_get_events(Arena *arena)
         if(protocol == lnx_gfx_state->wm_delete_window)
         {
           LNX_GFX_Window *window = lnx_window_from_xwindow(event.xclient.window);
-          GFX_Event *e = gfx_event_list_push(arena, &event_list, GFX_EventKind_WindowClose);
+          Win_Event *e = window_event_push(arena, &event_list, Win_Event_Kind_Close);
           e->window.v[0] = (u64) window;
         }
         else if(protocol == lnx_gfx_state->wm_sync_request)
@@ -423,124 +426,124 @@ lnx_window_from_xwindow(Window window)
   return result;
 }
 
-function GFX_Key
+function Key
 lnx_keycode_from_keysym(KeySym ks)
 {
-  GFX_Key key = GFX_Key_Null;
+  Key key = Key_Null;
   switch(ks)
   {
-    case XK_Escape:       key = GFX_Key_Esc;          break;
+    case XK_Escape:       key = Key_Esc;          break;
 
-    case XK_F1:           key = GFX_Key_F1;           break;
-    case XK_F2:           key = GFX_Key_F2;           break;
-    case XK_F3:           key = GFX_Key_F3;           break;
-    case XK_F4:           key = GFX_Key_F4;           break;
-    case XK_F5:           key = GFX_Key_F5;           break;
-    case XK_F6:           key = GFX_Key_F6;           break;
-    case XK_F7:           key = GFX_Key_F7;           break;
-    case XK_F8:           key = GFX_Key_F8;           break;
-    case XK_F9:           key = GFX_Key_F9;           break;
-    case XK_F10:          key = GFX_Key_F10;          break;
-    case XK_F11:          key = GFX_Key_F11;          break;
-    case XK_F12:          key = GFX_Key_F12;          break;
+    case XK_F1:           key = Key_F1;           break;
+    case XK_F2:           key = Key_F2;           break;
+    case XK_F3:           key = Key_F3;           break;
+    case XK_F4:           key = Key_F4;           break;
+    case XK_F5:           key = Key_F5;           break;
+    case XK_F6:           key = Key_F6;           break;
+    case XK_F7:           key = Key_F7;           break;
+    case XK_F8:           key = Key_F8;           break;
+    case XK_F9:           key = Key_F9;           break;
+    case XK_F10:          key = Key_F10;          break;
+    case XK_F11:          key = Key_F11;          break;
+    case XK_F12:          key = Key_F12;          break;
 
     case XK_grave:
-    case XK_asciitilde:   key = GFX_Key_Tick;         break;
+    case XK_asciitilde:   key = Key_Tick;         break;
 
-    case XK_0:            key = GFX_Key_0;            break;
-    case XK_1:            key = GFX_Key_1;            break;
-    case XK_2:            key = GFX_Key_2;            break;
-    case XK_3:            key = GFX_Key_3;            break;
-    case XK_4:            key = GFX_Key_4;            break;
-    case XK_5:            key = GFX_Key_5;            break;
-    case XK_6:            key = GFX_Key_6;            break;
-    case XK_7:            key = GFX_Key_7;            break;
-    case XK_8:            key = GFX_Key_8;            break;
-    case XK_9:            key = GFX_Key_9;            break;
+    case XK_0:            key = Key_0;            break;
+    case XK_1:            key = Key_1;            break;
+    case XK_2:            key = Key_2;            break;
+    case XK_3:            key = Key_3;            break;
+    case XK_4:            key = Key_4;            break;
+    case XK_5:            key = Key_5;            break;
+    case XK_6:            key = Key_6;            break;
+    case XK_7:            key = Key_7;            break;
+    case XK_8:            key = Key_8;            break;
+    case XK_9:            key = Key_9;            break;
 
     case XK_minus:
-    case XK_underscore:   key = GFX_Key_Minus;        break;
+    case XK_underscore:   key = Key_Minus;        break;
     case XK_equal:
-    case XK_plus:         key = GFX_Key_Equal;        break;
-    case XK_BackSpace:    key = GFX_Key_Backspace;    break;
+    case XK_plus:         key = Key_Equal;        break;
+    case XK_BackSpace:    key = Key_Backspace;    break;
     case XK_Tab:
-    case XK_ISO_Left_Tab: key = GFX_Key_Tab;          break;
+    case XK_ISO_Left_Tab: key = Key_Tab;          break;
 
-    case XK_q: case XK_Q: key = GFX_Key_Q;            break;
-    case XK_w: case XK_W: key = GFX_Key_W;            break;
-    case XK_e: case XK_E: key = GFX_Key_E;            break;
-    case XK_r: case XK_R: key = GFX_Key_R;            break;
-    case XK_t: case XK_T: key = GFX_Key_T;            break;
-    case XK_y: case XK_Y: key = GFX_Key_Y;            break;
-    case XK_u: case XK_U: key = GFX_Key_U;            break;
-    case XK_i: case XK_I: key = GFX_Key_I;            break;
-    case XK_o: case XK_O: key = GFX_Key_O;            break;
-    case XK_p: case XK_P: key = GFX_Key_P;            break;
+    case XK_q: case XK_Q: key = Key_Q;            break;
+    case XK_w: case XK_W: key = Key_W;            break;
+    case XK_e: case XK_E: key = Key_E;            break;
+    case XK_r: case XK_R: key = Key_R;            break;
+    case XK_t: case XK_T: key = Key_T;            break;
+    case XK_y: case XK_Y: key = Key_Y;            break;
+    case XK_u: case XK_U: key = Key_U;            break;
+    case XK_i: case XK_I: key = Key_I;            break;
+    case XK_o: case XK_O: key = Key_O;            break;
+    case XK_p: case XK_P: key = Key_P;            break;
 
     case XK_bracketleft:
-    case XK_braceleft:    key = GFX_Key_LeftBracket;  break;
+    case XK_braceleft:    key = Key_LeftBracket;  break;
     case XK_bracketright:
-    case XK_braceright:   key = GFX_Key_RightBracket; break;
+    case XK_braceright:   key = Key_RightBracket; break;
     case XK_backslash:
-    case XK_bar:          key = GFX_Key_BackSlash;    break;
+    case XK_bar:          key = Key_BackSlash;    break;
 
-    case XK_Caps_Lock:    key = GFX_Key_CapsLock;     break;
+    case XK_Caps_Lock:    key = Key_CapsLock;     break;
 
-    case XK_a: case XK_A: key = GFX_Key_A;            break;
-    case XK_s: case XK_S: key = GFX_Key_S;            break;
-    case XK_d: case XK_D: key = GFX_Key_D;            break;
-    case XK_f: case XK_F: key = GFX_Key_F;            break;
-    case XK_g: case XK_G: key = GFX_Key_G;            break;
-    case XK_h: case XK_H: key = GFX_Key_H;            break;
-    case XK_j: case XK_J: key = GFX_Key_J;            break;
-    case XK_k: case XK_K: key = GFX_Key_K;            break;
-    case XK_l: case XK_L: key = GFX_Key_L;            break;
+    case XK_a: case XK_A: key = Key_A;            break;
+    case XK_s: case XK_S: key = Key_S;            break;
+    case XK_d: case XK_D: key = Key_D;            break;
+    case XK_f: case XK_F: key = Key_F;            break;
+    case XK_g: case XK_G: key = Key_G;            break;
+    case XK_h: case XK_H: key = Key_H;            break;
+    case XK_j: case XK_J: key = Key_J;            break;
+    case XK_k: case XK_K: key = Key_K;            break;
+    case XK_l: case XK_L: key = Key_L;            break;
 
     case XK_semicolon:
-    case XK_colon:        key = GFX_Key_Semicolon;    break;
+    case XK_colon:        key = Key_Semicolon;    break;
     case XK_apostrophe:
-    case XK_quotedbl:     key = GFX_Key_Quote;        break;
+    case XK_quotedbl:     key = Key_Quote;        break;
     case XK_Return:
-    case XK_KP_Enter:     key = GFX_Key_Return;       break;
+    case XK_KP_Enter:     key = Key_Return;       break;
 
     case XK_Shift_L:
-    case XK_Shift_R:      key = GFX_Key_Shift;        break;
+    case XK_Shift_R:      key = Key_Shift;        break;
 
-    case XK_z: case XK_Z: key = GFX_Key_Z;            break;
-    case XK_x: case XK_X: key = GFX_Key_X;            break;
-    case XK_c: case XK_C: key = GFX_Key_C;            break;
-    case XK_v: case XK_V: key = GFX_Key_V;            break;
-    case XK_b: case XK_B: key = GFX_Key_B;            break;
-    case XK_n: case XK_N: key = GFX_Key_N;            break;
-    case XK_m: case XK_M: key = GFX_Key_M;            break;
+    case XK_z: case XK_Z: key = Key_Z;            break;
+    case XK_x: case XK_X: key = Key_X;            break;
+    case XK_c: case XK_C: key = Key_C;            break;
+    case XK_v: case XK_V: key = Key_V;            break;
+    case XK_b: case XK_B: key = Key_B;            break;
+    case XK_n: case XK_N: key = Key_N;            break;
+    case XK_m: case XK_M: key = Key_M;            break;
 
     case XK_comma:
-    case XK_less:         key = GFX_Key_Comma;        break;
+    case XK_less:         key = Key_Comma;        break;
     case XK_period:
-    case XK_greater:      key = GFX_Key_Period;       break;
+    case XK_greater:      key = Key_Period;       break;
     case XK_slash:
-    case XK_question:     key = GFX_Key_Slash;        break;
+    case XK_question:     key = Key_Slash;        break;
 
     case XK_Control_L:
-    case XK_Control_R:    key = GFX_Key_Ctrl;         break;
+    case XK_Control_R:    key = Key_Ctrl;         break;
     case XK_Alt_L:
-    case XK_Alt_R:        key = GFX_Key_Alt;          break;
-    case XK_space:        key = GFX_Key_Space;        break;
-    case XK_Menu:         key = GFX_Key_Menu;         break;
+    case XK_Alt_R:        key = Key_Alt;          break;
+    case XK_space:        key = Key_Space;        break;
+    case XK_Menu:         key = Key_Menu;         break;
 
-    case XK_Scroll_Lock:  key = GFX_Key_ScrollLock;   break;
-    case XK_Pause:        key = GFX_Key_Pause;        break;
-    case XK_Insert:       key = GFX_Key_Insert;       break;
-    case XK_Home:         key = GFX_Key_Home;         break;
-    case XK_Prior:        key = GFX_Key_PageUp;       break;
-    case XK_Delete:       key = GFX_Key_Delete;       break;
-    case XK_End:          key = GFX_Key_End;          break;
-    case XK_Next:         key = GFX_Key_PageDown;     break;
+    case XK_Scroll_Lock:  key = Key_ScrollLock;   break;
+    case XK_Pause:        key = Key_Pause;        break;
+    case XK_Insert:       key = Key_Insert;       break;
+    case XK_Home:         key = Key_Home;         break;
+    case XK_Prior:        key = Key_PageUp;       break;
+    case XK_Delete:       key = Key_Delete;       break;
+    case XK_End:          key = Key_End;          break;
+    case XK_Next:         key = Key_PageDown;     break;
 
-    case XK_Up:           key = GFX_Key_Up;           break;
-    case XK_Left:         key = GFX_Key_Left;         break;
-    case XK_Down:         key = GFX_Key_Down;         break;
-    case XK_Right:        key = GFX_Key_Right;        break;
+    case XK_Up:           key = Key_Up;           break;
+    case XK_Left:         key = Key_Left;         break;
+    case XK_Down:         key = Key_Down;         break;
+    case XK_Right:        key = Key_Right;        break;
 
     default: break;
   }
@@ -548,7 +551,7 @@ lnx_keycode_from_keysym(KeySym ks)
 }
 
 function void 
-gfx_set_cursor(GFX_Cursor cursor)
+gfx_set_cursor(Win_Cursor cursor)
 {
   Window root_window = 0;
   Window child_window = 0;
@@ -565,16 +568,19 @@ gfx_set_cursor(GFX_Cursor cursor)
 }
 
 function b32 
-gfx_key_is_down(GFX_Key key)
+gfx_key_is_down(Key key)
 {
   b32 result = !!(lnx_gfx_state->key_down_state[key >> 6] & ( 1ull << (key & 0x3F)));
   return result;
 }
 
 function Vec2F32 
-gfx_mouse_in_window(GFX_Window win)
+gfx_mouse_in_window(Win_Handle win)
 {
-  if (gfx_window_zero(win)) return v2f32(0,0);
+  if (window_zero(win)) 
+  {
+    return v2f32(0,0);
+  }
 
   LNX_GFX_Window *w = (LNX_GFX_Window *) win.v[0];
   Vec2F32 result = {0};
@@ -588,15 +594,15 @@ gfx_mouse_in_window(GFX_Window win)
   unsigned int mask = 0;
   if(XQueryPointer(lnx_gfx_state->display, w->window, &root_window, &child_window, &root_rel_x, &root_rel_y, &child_rel_x, &child_rel_y, &mask))
   {
-    result.x = child_rel_x;
-    result.y = child_rel_y;
+    result.x = (f32) child_rel_x;
+    result.y = (f32) child_rel_y;
   }
 
   return result;
 }
 
 function void
-gfx_window_set_min_size(GFX_Window win, s32 w, s32 h)
+window_set_min_size(Win_Handle win, s32 w, s32 h)
 {
   LNX_GFX_Window *lnx_win = (LNX_GFX_Window *) win.v[0];
 
@@ -609,21 +615,21 @@ gfx_window_set_min_size(GFX_Window win, s32 w, s32 h)
 }
 
 function void 
-gfx_window_set_background(GFX_Window win, Vec4F32 col)
+window_set_background(Win_Handle win, Vec4F32 col)
 {
   LNX_GFX_Window *lnx_win = (LNX_GFX_Window *) win.v[0];
   lnx_win->bg_color = col;
 }
 
 function Vec2F32
-gfx_window_size(GFX_Window win)
+window_get_size(Win_Handle win)
 {
   LNX_GFX_Window *w = (LNX_GFX_Window *) win.v[0];
-  return v2f32(w->width, w->height);
+  return v2f32((f32) w->width, (f32) w->height);
 }
 
 function void
-gfx_window_set_move_region(GFX_Window win, f32 regions[Edge_COUNT])
+window_set_move_region(Win_Handle win, f32 regions[Edge_COUNT])
 {
   LNX_GFX_Window *w = (LNX_GFX_Window *) win.v[0];
   for EachIndex(i, Edge_COUNT) {
@@ -632,7 +638,7 @@ gfx_window_set_move_region(GFX_Window win, f32 regions[Edge_COUNT])
 }
 
 function Vec4F32  
-gfx_window_move_region(GFX_Window win)
+window_get_move_region(Win_Handle win)
 {
   LNX_GFX_Window *w = (LNX_GFX_Window *) win.v[0];
   Vec4F32 region = {0};
@@ -644,7 +650,7 @@ gfx_window_move_region(GFX_Window win)
 }
 
 function void 
-gfx_window_present(GFX_Window win)
+window_sync_frame(Win_Handle win)
 {
   LNX_GFX_Window *w = (LNX_GFX_Window *) win.v[0];
   if (w == 0 || !w->sync_pending) 

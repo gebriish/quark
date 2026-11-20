@@ -1,4 +1,4 @@
-#include "generated/generated_builtin_font_data.h.gen"
+#include "generated/embed_data.h.gen"
 
 function void
 q_init(void)
@@ -14,9 +14,9 @@ q_init(void)
 
   // creating root window
   {
-    quark_state->root_window = gfx_window_open(S("quark"), v2f32(1280, 800), 0);
-    gfx_window_set_min_size(quark_state->root_window, 120,120);
-    gfx_window_set_background(quark_state->root_window, Color8(0x131314ff));
+    quark_state->root_window = window_open(S("quark"), v2f32(1280, 800), 0);
+    window_set_min_size(quark_state->root_window, 120,120);
+    window_set_background(quark_state->root_window, Color8(0xff00ffff));
     r_window_set_vsync(quark_state->root_window, false);
   }
 
@@ -25,12 +25,12 @@ q_init(void)
     Q_Config config = 
     {
       .ui_font = r_fnt_alloc(open_sans_ttf_data_string, R_FontAllocFlag_NoCopy),
-      .ui_font_size = 15,
+      .ui_font_size = 16,
 
       .code_font = r_fnt_alloc(inconsolata_ttf_data_string, R_FontAllocFlag_NoCopy),
-      .code_font_size = 16,
+      .code_font_size = 18,
 
-      .colors =
+      .colors = 
       {
         [Q_ColorKind_Normal]    = { .fg = Color8(0xD3C6AAFF), .bg = Color8(0x1E2326FF) },
         [Q_ColorKind_Border]    = { .fg = Color8(0x00000000), .bg = Color8(0x475258FF) },
@@ -42,7 +42,7 @@ q_init(void)
     quark_state->config = config;
   }
 
-  q_open_buffer_from_path(S("./src/quark/quark_core.c"));
+  open_buffer_from_path(S("./src/quark/buffer.c"));
 }
 
 
@@ -51,28 +51,28 @@ q_frame(void)
 {
   //---------------------------------------------------------------------------//
 
-  GFX_EventList events = gfx_get_events(r_frame_arena());
-  for EachNode(ev, GFX_Event, events.first) switch (ev->kind)
+  Win_Event_List events = get_window_events(r_frame_arena());
+  for EachNode(ev, Win_Event, events.first) switch (ev->kind)
   {
-    case GFX_EventKind_WindowClose:
+    case Win_Event_Kind_Close:
     {
-      if (gfx_window_matches(quark_state->root_window, ev->window))
+      if (window_matches(quark_state->root_window, ev->window))
       {
         q_push_command(q_command_quit);
       }
       else
       {
-        gfx_window_close(ev->window);
+        window_close(ev->window);
       }
     } break;
 
-    case GFX_EventKind_Press:
+    case Win_Event_Kind_Press:
     {
-      if (ev->keycode == GFX_Key_Semicolon && ev->modifiers == (GFX_Modifier_Shift))
+      if (ev->keycode == Key_Semicolon && ev->modifiers == (Key_Modifier_Shift))
       {
         q_push_command(q_command_command_mode);
       }
-      if (ev->keycode == GFX_Key_Esc)
+      if (ev->keycode == Key_Esc)
       {
         quark_state->mode = Q_Mode_Normal;
       }
@@ -91,7 +91,7 @@ q_frame(void)
 
   WindowFrameScope(quark_state->root_window)
   {
-    Vec2F32 window_size = gfx_window_size(quark_state->root_window);
+    Vec2F32 window_size = window_get_size(quark_state->root_window);
     R_DrawList draw_list = {0};
 
     ui_layout(&draw_list, 
@@ -153,12 +153,12 @@ q_frame(void)
                       .pivot = Pivot_TopCenter)
       {
         UI(.label = S("command_palette"),
-           .flags =  UI_BoxFlag_SmoothY,
+           .flags = UI_BoxFlag_SmoothY,
            .size = { ui_size_percent(.7f), ui_size_percent(.7f) },
            .fill_color = q_color(Q_ColorKind_Floating).bg,
            .shadow_color = Color8(0x00000040),
            .border_color = q_color(Q_ColorKind_Border).bg,
-           .padding = ui_padding(6),
+           .padding = ui_padding(5),
            .layout = Axis2D_Vertical)
         {
           UI(.size = {ui_size_grow(1.f), ui_size_fit()},
@@ -185,6 +185,24 @@ q_frame(void)
   r_frame_end();
 
   return quark_state->quit;
+}
+
+function void 
+q_push_command(Q_CommandHook hook)
+{
+  Q_Command *node = quark_state->free_command_nodes;
+  if (quark_state->free_command_nodes)
+  {
+    SLLStackPop(quark_state->free_command_nodes);
+    MemZeroStruct(node);
+  }
+  else
+  {
+    node = arena_push(quark_state->arena, Q_Command, 1);
+  }
+
+  node->hook = hook;
+  SLLQueuePush(quark_state->first_command, quark_state->last_command, node);
 }
 
 /////////////////////////////////

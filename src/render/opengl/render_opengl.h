@@ -139,8 +139,8 @@ function void   r_ogl_draw_instances(GLuint shader, void *data, s64 count, s64 s
 // @section: target defined functions
 
 function void r_ogl_os_init(void);
-function void r_ogl_select_window(GFX_Window window);
-function void r_ogl_window_swap_buffers(GFX_Window window);
+function void r_ogl_select_window(Win_Handle window);
+function void r_ogl_window_swap_buffers(Win_Handle window);
 function void *r_ogl_os_load_procedure(const char *name);
 function void r_ogl_set_scissor(Rng2S32 rect);
 

@@ -30,8 +30,8 @@ function void   temp_end(Temp temp);
 /////////////////////////
 // @section: allocation macros
 
-#define arena_push(_arr, _T, _c) (_T *) MemZero(arena_alloc((_arr), 0, 0, sizeof(_T) * (_c), align_of(_T)), sizeof(_T) * (_c))
-#define arena_push_non_zero(_arr, _T, _c) (_T *) (arena_alloc((_arr), 0, 0, sizeof(_T) * (_c), align_of(_T)))
+#define arena_push(_arr, _T, _c) (_T *) MemZero(arena_alloc((_arr), 0, 0, (u64) sizeof(_T) * (u64) (_c), (u64) align_of(_T)), (size_t) sizeof(_T) * (size_t) (_c))
+#define arena_push_non_zero(_arr, _T, _c) (_T *) (arena_alloc((_arr), 0, 0, (u64) sizeof(_T) * (u64) (_c), (u64) align_of(_T)))
 
 #define arena_push_slice(_arr, _T, _c) {  \
   .raw = arena_push(_arr, _T, _c),        \

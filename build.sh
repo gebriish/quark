@@ -1,11 +1,14 @@
 #!/bin/bash
 
 MODE="debug"
-FLAGS=(-O0 -g2)
+
+WARN_FLAGS=(-Wconversion -Wsign-conversion -Wshorten-64-to-32 -Wimplicit-int-conversion -Wfloat-conversion)
+
+FLAGS=(-O0 -g2 "${WARN_FLAGS[@]}")
 
 if [ "$1" = "release" ]; then
 	MODE="release"
-	FLAGS=(-O3 -DNDEBUG)
+	FLAGS=(-O3 -DNDEBUG "${WARN_FLAGS[@]}")
 fi
 
 echo "[clang compile]"
@@ -14,7 +17,7 @@ echo "compiling quark..."
 
 mkdir -p bin
 
-if clang ./src/quark/quark_main.c -o ./bin/quark \
+if clang ./src/quark/main.c -o ./bin/quark \
 	-I ./src -I /usr/include/freetype2 \
 	-lm -lfreetype -lX11 -lXext -lGL \
 	"${FLAGS[@]}"; then

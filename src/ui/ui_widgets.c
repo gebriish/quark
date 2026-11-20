@@ -1,4 +1,4 @@
-function void 
+function void
 ui_text(String8 text, R_Font font, u32 size, b32 bold, Vec4F32 color)
 {
   Vec2F32 txt_size = r_measure_text_simple(font, text, size, 2);
@@ -17,13 +17,13 @@ ui_image(R_Handle tex)
 {
   Vec2S32 size = r_tex_size(tex);
   UI(
-    .size = { ui_size_fixed(size.x), ui_size_fixed(size.y) },
+    .size = { ui_size_fixed((f32) size.x), ui_size_fixed((f32) size.y) },
     .fill_color = Color8(0xffffffff),
     .texture = tex,
   );
 }
 
-function void 
+function void
 ui_image_grown(R_Handle tex)
 {
   Vec2S32 size = r_tex_size(tex);
@@ -35,9 +35,9 @@ ui_image_grown(R_Handle tex)
   );
 }
 
-function b32 ui_button( String8 label, 
-                        R_Font font, 
-                        u32 size, 
+function b32 ui_button( String8 label,
+                        R_Font font,
+                        u32 size,
                         Vec4F32 fg,
                         Vec4F32 bg )
 {
@@ -45,7 +45,7 @@ function b32 ui_button( String8 label,
   ui_fit(.label = label,
          .fill_color = bg,
          .padding = ui_padding(5),
-         .radii = Radius4(4.f)) 
+         .radii = Radius4(4.f))
   {
     UI_Box *box = ui_get_current_box();
     UI_Signal signal = ui_get_signal_from_box(box);
@@ -69,7 +69,7 @@ function b32 ui_button( String8 label,
   return ok;
 }
 
-function UI_Size 
+function UI_Size
 ui_layout_aligned_size(UI_SizeAxis along, UI_SizeAxis perp)
 {
   UI_Box *box = ui_state->call_list;

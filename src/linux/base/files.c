@@ -1,61 +1,4 @@
 
-//////////////////////////////
-// @section: linux memory hooks
-
-
-function void *
-memory_reserve(u64 size)
-{
-  void *result = mmap(0, (size_t)size, PROT_NONE, MAP_PRIVATE|MAP_ANONYMOUS|MAP_NORESERVE, -1, 0);
-  if (result == MAP_FAILED)
-  {
-    result = 0;
-  }
-  return(result);
-}
-
-function b32
-memory_commit(void *ptr, u64 size)
-{
-  return (mprotect(ptr, (size_t)size, PROT_READ|PROT_WRITE) == 0);
-}
-
-function b32
-memory_decommit(void *ptr, u64 size)
-{
-  madvise(ptr, (size_t)size, MADV_DONTNEED);
-  return (mprotect(ptr, (size_t)size, PROT_NONE) == 0);
-}
-
-function void 
-memory_release(void *ptr, u64 size)
-{
-  munmap(ptr, (size_t)size);
-}
-
-//////////////////////////////
-// @section: linux timing
-
-function Time 
-time_now(void)
-{
-  struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-  return (uint64_t)ts.tv_sec * 1000000000ULL + (uint64_t)ts.tv_nsec;
-}
-
-function void 
-time_sleep_ns(Time ns)
-{
-  struct timespec ts = {0};
-  ts.tv_sec = ns / 1000000000LL;
-  ts.tv_nsec = ns % 1000000000LL; 
-  nanosleep(&ts, 0);
-}
-
-//////////////////////////////
-// @section: files
-
 function void
 lnx_file_info_from_stat(struct stat st, File_Info *info)
 {
@@ -191,14 +134,19 @@ create_directory(String8 path)
   return ok;
 }
 
-//////////////////////////////
-// @section: startup
-
-int 
-main(int argc, char **argv)
+function String8
+file_name_from_path(String8 path)
 {
-  Thread_Ctx *tctx = tctx_alloc();
-  tctx_select(tctx);
-  main_thread_base_entry_point(argc, argv);
+  String8 result = path;
+  s64 i = path.len;
+  for(; i > 0; i -= 1)
+  {
+    if(path.raw[i - 1] == '/')
+    {
+      break;
+    }
+  }
+  result.raw += i;
+  result.len -= i;
+  return(result);
 }
-

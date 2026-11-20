@@ -48,9 +48,9 @@ function void ui_text(String8 text, R_Font font, u32 size, b32 bold, Vec4F32 col
 function void ui_image(R_Handle tex);
 function void ui_image_grown(R_Handle tex);
 
-function b32 ui_button(String8 label, 
-                       R_Font font, 
-                       u32 size, 
+function b32 ui_button(String8 label,
+                       R_Font font,
+                       u32 size,
                        Vec4F32 fg,
                        Vec4F32 bg);
 

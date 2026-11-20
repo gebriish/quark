@@ -17,7 +17,7 @@ read_only global String8 q_mode_strings[Q_Mode_COUNT] =
 {
   [Q_Mode_Normal]  = S("normal"),
   [Q_Mode_Insert]  = S("insert"),
-  [Q_Mode_Command] = S(":"),
+  [Q_Mode_Command] = S("command"),
 };
 
 typedef u32 Q_ActionKind;
@@ -124,7 +124,7 @@ struct Q_State
   Arena *modal_arena;
 
   Q_Mode mode;
-  GFX_Window root_window;
+  Win_Handle root_window;
 
   Q_BufferHashSlot buffer_table[1024];
   Q_Buffer *first_buffer;

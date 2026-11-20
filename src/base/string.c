@@ -108,7 +108,7 @@ str8_cstring(u8 *cstring)
 {
   String8 result = {0};
   result.raw = cstring;
-  result.len = strlen((char *) cstring);
+  result.len = (s64) strlen((char *) cstring);
   return result;
 }
 
@@ -128,7 +128,7 @@ str8_slice(String8 src, s64 begin, s64 end)
 function const u8 *
 str8_push_cstring(Arena *arena, String8 src)
 {
-  u8 *str = arena_push(arena, u8, src.len + 1);
+  u8 *str = arena_push(arena, u8, src.len + (s64) 1);
   MemMove(str, src.raw, src.len);
   str[src.len] = 0;
   return str;
@@ -138,7 +138,7 @@ str8_push_cstring(Arena *arena, String8 src)
 function b32 
 str8_matches(String8 a, String8 b)
 {
-  return (a.len == b.len) && (memcmp(a.raw, b.raw, a.len) == 0);
+  return (a.len == b.len) && (memcmp(a.raw, b.raw, (size_t) a.len) == 0);
 }
 
 function String8 
@@ -212,7 +212,7 @@ str8_format(Arena *arena, const char *fmt_string, ...)
 	u8 *buf = arena_push(arena, u8, len + 1);
 
 	va_start(args, fmt_string);
-	vsnprintf((char *)buf, len + 1, fmt_string, args);
+	vsnprintf((char *)buf, (size_t) len + (size_t) 1, fmt_string, args);
 	va_end(args);
 
 	return str8(buf, len);

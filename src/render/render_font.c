@@ -81,13 +81,13 @@ r_fnt_get_glyph(R_Font font, u32 size, b32 bold, u32 index)
 
       r_tex_update(r_fnt_state->texture, range, img.data);
       r_fnt_state->cursor.x += img.dim.x + 1;
-      r_fnt_state->row_height = Max(r_fnt_state->row_height, img.dim.y);
+      r_fnt_state->row_height = Max(r_fnt_state->row_height, (s16) img.dim.y);
 
       glyph.offset = img.offset;
       glyph.advance = img.advance;
       glyph.rect = (Rng2S16) {
-        .min = { range.min.x, range.min.y },
-        .max = { range.max.x, range.max.y },
+        .min = { (s16) range.min.x, (s16) range.min.y },
+        .max = { (s16) range.max.x, (s16) range.max.y },
       };
     }
 
@@ -126,7 +126,7 @@ r_push_text_simple(R_DrawList *list, R_Font font, String8 text, Vec2F32 pos, u32
   f32 y = floorf(pos.y);
 
   s32 incr;
-  f32 tab_size_px = tab_width * space_width;
+  f32 tab_size_px = (f32) tab_width * space_width;
   for (s64 i=0; i<text.len; i += (s64) Max(incr, 1))
   {
     u32 codep = utf8_decode(text, i, &incr);

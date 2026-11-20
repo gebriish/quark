@@ -98,11 +98,24 @@ typedef  int32_t s32;
 typedef uint64_t u64;
 typedef  int64_t s64;
 
-typedef struct u128 u128;
-struct u128
+typedef union u128 u128;
+union u128
 {
-  u64 lo;
-  u64 hi;
+  struct
+  {
+    u64 lo;
+    u64 hi;
+  };
+  struct
+  {
+    u32 lo32[2];
+    u32 hi32[2];
+  };
+  struct
+  {
+    u16 lo16[4];
+    u16 hi16[4];
+  };
 };
 
 typedef float  f32;
@@ -134,8 +147,8 @@ typedef u32 b32;
 #define Megabytes(x) (u64) ((u64)(x) << 20)
 #define Gigabytes(x) (u64) ((u64)(x) << 30)
 
-#define MemMove(dst, src, len) memmove((dst), (src), (len))
-#define MemZero(dst, len)      memset((dst), 0x0, (len))
+#define MemMove(dst, src, len) memmove((dst), (src), (size_t) (len))
+#define MemZero(dst, len)      memset((dst), 0x0, (size_t) (len))
 #define MemZeroStruct(ptr)     MemZero(ptr, sizeof(*ptr))
 
 #if COMPILER_CL

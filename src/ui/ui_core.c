@@ -153,7 +153,7 @@ ui_close(void)
     content_dim.xy[layout_perp] = Max(content_dim.xy[layout_perp], child->final_dim.xy[layout_perp]);
   }
 
-  f32 gap_size = Max(box->child_count - 1, 0) * box->gap;
+  f32 gap_size = (f32) Max(box->child_count - (s64) 1, 0) * box->gap;
 
   content_dim.xy[layout_axis] += gap_size;
 
@@ -198,7 +198,7 @@ ui_grow_layout_pass(UI_Box *box)
   };
 
   Vec2F32 available = vec2_sub(box->final_dim, padding_sum);
-  f32 gap_size = Max(box->child_count - 1, 0) * box->gap;
+  f32 gap_size = (f32) Max(box->child_count - (s64) 1, 0) * box->gap;
 
   // pass 1: resolve percent sizes, smooth non-grow axes, measure occupied space
   f32 occupied = gap_size;
@@ -500,14 +500,14 @@ ui_size_fit(void)
 }
 
 function UI_Padding
-ui_padding(f32 v)
+ui_padding(u16 v)
 {
   UI_Padding pad = { v, v, v, v };
   return pad;
 }
 
 function UI_Padding
-ui_padding_xy(f32 x, f32 y)
+ui_padding_xy(u16 x, u16 y)
 {
   UI_Padding pad;
   pad.values[Edge_Left]   = x;
@@ -583,8 +583,8 @@ ui_get_signal_from_box(UI_Box *box)
 
   if (box->persist)
   {
-    sig.hovered  = ui_key_matches(ui_state->hot, box->persist->key);
-    sig.active   = ui_key_matches(ui_state->active, box->persist->key);
+    sig.hovered  = (u8) ui_key_matches(ui_state->hot, box->persist->key);
+    sig.active   = (u8) ui_key_matches(ui_state->active, box->persist->key);
     sig.pressed  = sig.active && sig.hovered && ui_state->curr_input.mouse_down;
     sig.clicked  = sig.hovered && (ui_state->curr_input.mouse_down && !ui_state->last_input.mouse_down);
     sig.released = sig.hovered && (!ui_state->curr_input.mouse_down && ui_state->last_input.mouse_down);
