@@ -143,7 +143,7 @@ window_open(String8 title, Vec2F32 resolution, Win_Flags flags)
     {Win_Cursor_HandGrab,            XC_hand1},
     {Win_Cursor_Disabled,            XC_X_cursor},
   };
-  for EachIndex(idx, Win_Cursor_COUNT)
+  for each_index(idx, Win_Cursor_COUNT)
   {
     lnx_gfx_state->xcursors[map[idx].cursor] = XCreateFontCursor(display, map[idx].id);
   }
@@ -177,6 +177,7 @@ get_window_events(Arena *arena)
     XEvent event = {0};
     XNextEvent(lnx_gfx_state->display, &event);
 
+    b32 set_mouse_cursor = false;
     switch (event.type)
     {
       default: {} break;
@@ -186,7 +187,8 @@ get_window_events(Arena *arena)
         LNX_GFX_Window *window = lnx_window_from_xwindow(event.xcrossing.window);
         if (window != 0 && window->custom_titlebar)
         {
-          gfx_set_cursor(Win_Cursor_Pointer);
+          set_mouse_cursor = true;
+          set_cursor_icon(Win_Cursor_Pointer);
         }
       } break;
 
@@ -334,6 +336,18 @@ get_window_events(Arena *arena)
             e->modifiers = mods;
             e->keycode = key;
             e->pos = button_pos;
+
+            if (event.type == ButtonPress)
+            {
+              lnx_gfx_state->modifiers |= mods;
+              lnx_gfx_state->key_down_state[key >> 6] |= (1uLL << (key & 0x3F));
+            }
+            else
+            {
+              lnx_gfx_state->modifiers &= ~mods;
+              lnx_gfx_state->key_down_state[key >> 6] &= ~(1uLL << (key & 0x3F));
+            }
+
           }
           else if (event.xbutton.button == Button4 ||
               event.xbutton.button == Button5 ||
@@ -362,19 +376,20 @@ get_window_events(Arena *arena)
         e->window.v[0] = (u64) window;
         e->pos         = mouse_pos;
 
+        set_mouse_cursor = true;
+
         b32 in_client = false;
         Win_Region moveresize_code = window_region_from_pixel(win_h, mouse_pos, &in_client);
-
         if (window->custom_titlebar)
         {
           if (!in_client) 
           {
             Win_Cursor cursor = window_region_to_cursor(moveresize_code);
-            gfx_set_cursor(cursor);
+            set_cursor_icon(cursor);
           }
           else
           {
-            gfx_set_cursor(Win_Cursor_Pointer);
+            set_cursor_icon(Win_Cursor_Pointer);
           }
         }
 
@@ -407,6 +422,22 @@ get_window_events(Arena *arena)
         }
       } break;
     }
+
+    if (set_mouse_cursor)
+    {
+      Window root_window = 0;
+      Window child_window = 0;
+      int root_rel_x = 0;
+      int root_rel_y = 0;
+      int child_rel_x = 0;
+      int child_rel_y = 0;
+      unsigned int mask = 0;
+      if(XQueryPointer(lnx_gfx_state->display, XDefaultRootWindow(lnx_gfx_state->display), &root_window, &child_window, &root_rel_x, &root_rel_y, &child_rel_x, &child_rel_y, &mask))
+      {
+        XDefineCursor(lnx_gfx_state->display, root_window, lnx_gfx_state->xcursors[lnx_gfx_state->last_set_cursor]);
+        XFlush(lnx_gfx_state->display);
+      }
+    }
   }
   return event_list;
 }
@@ -415,7 +446,7 @@ function LNX_GFX_Window *
 lnx_window_from_xwindow(Window window)
 {
   LNX_GFX_Window *result = 0;
-  for EachNode(node, LNX_GFX_Window, lnx_gfx_state->windows.first)
+  for each_node(node, LNX_GFX_Window, lnx_gfx_state->windows.first)
   {
     if (node->window == window) 
     {
@@ -551,31 +582,20 @@ lnx_keycode_from_keysym(KeySym ks)
 }
 
 function void 
-gfx_set_cursor(Win_Cursor cursor)
+set_cursor_icon(Win_Cursor cursor)
 {
-  Window root_window = 0;
-  Window child_window = 0;
-  int root_rel_x = 0;
-  int root_rel_y = 0;
-  int child_rel_x = 0;
-  int child_rel_y = 0;
-  unsigned int mask = 0;
-  if(XQueryPointer(lnx_gfx_state->display, XDefaultRootWindow(lnx_gfx_state->display), &root_window, &child_window, &root_rel_x, &root_rel_y, &child_rel_x, &child_rel_y, &mask))
-  {
-    XDefineCursor(lnx_gfx_state->display, root_window, lnx_gfx_state->xcursors[cursor]);
-    XFlush(lnx_gfx_state->display);
-  }
+  lnx_gfx_state->last_set_cursor = cursor;
 }
 
 function b32 
-gfx_key_is_down(Key key)
+key_is_down(Key key)
 {
   b32 result = !!(lnx_gfx_state->key_down_state[key >> 6] & ( 1ull << (key & 0x3F)));
   return result;
 }
 
 function Vec2F32 
-gfx_mouse_in_window(Win_Handle win)
+get_mouse_in_window(Win_Handle win)
 {
   if (window_zero(win)) 
   {
@@ -632,7 +652,7 @@ function void
 window_set_move_region(Win_Handle win, f32 regions[Edge_COUNT])
 {
   LNX_GFX_Window *w = (LNX_GFX_Window *) win.v[0];
-  for EachIndex(i, Edge_COUNT) {
+  for each_index(i, Edge_COUNT) {
     w->move_hit_region[i] = regions[i];
   }
 }
@@ -642,7 +662,7 @@ window_get_move_region(Win_Handle win)
 {
   LNX_GFX_Window *w = (LNX_GFX_Window *) win.v[0];
   Vec4F32 region = {0};
-  for EachIndex(i, Edge_COUNT)
+  for each_index(i, Edge_COUNT)
   {
     region.xyzw[i] = w->move_hit_region[i];
   }

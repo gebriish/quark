@@ -4,20 +4,20 @@
 /////////////////////////////////
 // @section: types
 
-typedef u32 Q_Mode;
+typedef u32 Edit_Mode;
 enum
 {
-  Q_Mode_Normal,
-  Q_Mode_Insert,
-  Q_Mode_Command,
-  Q_Mode_COUNT,
+  Edit_Mode_Normal,
+  Edit_Mode_Insert,
+  Edit_Mode_Command,
+  Edit_Mode_COUNT,
 };
 
-read_only global String8 q_mode_strings[Q_Mode_COUNT] =
+read_only global String8 edit_mode_string[Edit_Mode_COUNT] =
 {
-  [Q_Mode_Normal]  = S("normal"),
-  [Q_Mode_Insert]  = S("insert"),
-  [Q_Mode_Command] = S("command"),
+  [Edit_Mode_Normal]  = S("normal"),
+  [Edit_Mode_Insert]  = S("insert"),
+  [Edit_Mode_Command] = S("command"),
 };
 
 typedef u32 Q_ActionKind;
@@ -36,6 +36,7 @@ enum
   Q_ColorKind_Cursor,
   Q_ColorKind_Floating,
   Q_ColorKind_TextBox,
+  Q_ColorKind_FileName,
   Q_ColorKind_COUNT,
 };
 
@@ -49,8 +50,8 @@ struct Q_Color
 typedef struct Q_Config Q_Config;
 struct Q_Config
 {
-  R_Font ui_font;
-  R_Font code_font;
+  Fnt_Handle ui_font;
+  Fnt_Handle code_font;
   u32 ui_font_size;
   u32 code_font_size;
   Q_Color colors[Q_ColorKind_COUNT];
@@ -123,7 +124,7 @@ struct Q_State
   Arena *arena;
   Arena *modal_arena;
 
-  Q_Mode mode;
+  Edit_Mode mode;
   Win_Handle root_window;
 
   Q_BufferHashSlot buffer_table[1024];

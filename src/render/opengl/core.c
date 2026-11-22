@@ -1,13 +1,13 @@
 
 function void
-r_init(void)
+rndr_init(void)
 {
   // setting up the opengl context
-  r_ogl_os_init();
+  opengl_os_init();
 
   // loading opengl procedures from os
-#define X(name, r, p) name = (name##_FunctionType *)r_ogl_os_load_procedure(#name);
-  R_OGL_ProcedureXList
+#define X(name, r, p) name = (name##_FunctionType *)opengl_os_load_procedure(#name);
+  Opengl_Proc_List
 #undef X
 
   glEnable(GL_BLEND);
@@ -18,19 +18,19 @@ r_init(void)
   Arena *arena = arena_reserve(Megabytes(4));
   Arena *frame = arena_reserve(Megabytes(4));
 
-  r_ogl_state = arena_push(arena, R_OGL_State, 1);
-  r_ogl_state->arena = arena;
-  r_ogl_state->frame_arena = frame;
+  opengl_state = arena_push(arena, Opengl_State, 1);
+  opengl_state->arena = arena;
+  opengl_state->frame_arena = frame;
 
   // setup quad batch buffer
 
   {
-    glGenVertexArrays(1, &r_ogl_state->gen_purpose_vao);
+    glGenVertexArrays(1, &opengl_state->gen_purpose_vao);
 
-    glGenBuffers(1, &r_ogl_state->scratch_vbo);
-    glBindBufferScope(GL_ARRAY_BUFFER, r_ogl_state->scratch_vbo)
+    glGenBuffers(1, &opengl_state->scratch_vbo);
+    glBindBufferScope(GL_ARRAY_BUFFER, opengl_state->scratch_vbo)
     {
-      glBufferData(GL_ARRAY_BUFFER, QUAD_BATCH_SIZE * sizeof(R_Quad), 0, GL_DYNAMIC_DRAW);
+      glBufferData(GL_ARRAY_BUFFER, QUAD_BATCH_SIZE * sizeof(Quad_Inst), 0, GL_DYNAMIC_DRAW);
     }
   }
 
@@ -39,42 +39,42 @@ r_init(void)
     struct { String8 vert; String8 frag; } 
     shaders_src[] = 
     {
-      {r_ogl_quad_vertex_glsl,       r_ogl_quad_fragment_glsl},
-      {r_ogl_blur_vertex_glsl,       r_ogl_blur_fragment_glsl},
-      {r_ogl_text_vertex_glsl,       r_ogl_text_fragment_glsl},
+      {opengl_quad_vertex_glsl,       opengl_quad_fragment_glsl},
+      {opengl_blur_vertex_glsl,       opengl_blur_fragment_glsl},
+      {opengl_text_vertex_glsl,       opengl_text_fragment_glsl},
     };
 
-    for EachIndex(i, CArrayLength(shaders_src))
+    for each_index(i, CArrayLength(shaders_src))
     {
-      r_ogl_state->shaders[i] = r_ogl_compile_shader(shaders_src[i].vert, shaders_src[i].frag);
+      opengl_state->shaders[i] = opengl_compile_shader(shaders_src[i].vert, shaders_src[i].frag);
     }
   }
 
   // texture initialization
   {
     u32 white = 0xffffffff;
-    R_Image white_img = {
+    Image white_img = {
       .data = (u8 *) &white,
       .dim = { 1, 1 },
-      .fmt = R_TexFormat_RGBA8,
+      .fmt = Pixel_Format_RGBA8,
     };
-    r_ogl_state->white_tex = r_tex_alloc(white_img);
+    opengl_state->white_tex = texture_alloc(white_img);
   }
 
-  r_fnt_init();
+  fnt_init();
 }
 
 function void 
-r_window_begin_frame(Win_Handle win)
+window_frame_begin(Win_Handle win)
 {
-  r_ogl_select_window(win);
+  opengl_select_window(win);
 
   Vec2F32 size = window_get_size(win);
 
-  r_ogl_target_generate(&r_ogl_state->targets[0], (s32)size.x, (s32)size.y);
-  r_ogl_target_generate(&r_ogl_state->targets[1], (s32)size.x, (s32)size.y);
+  opengl_target_generate(&opengl_state->targets[0], (s32)size.x, (s32)size.y);
+  opengl_target_generate(&opengl_state->targets[1], (s32)size.x, (s32)size.y);
 
-  glBindFramebuffer(GL_FRAMEBUFFER, r_ogl_state->targets[0].fbo);
+  glBindFramebuffer(GL_FRAMEBUFFER, opengl_state->targets[0].fbo);
   glViewport(0, 0, (s32)size.x, (s32)size.y);
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -85,95 +85,95 @@ r_window_begin_frame(Win_Handle win)
   };
   Mat4x4F32 proj = mat4_ortho(view_box);
 
-  for EachIndex(i, R_OGL_ShaderKind_COUNT)
+  for each_index(i, OGL_Shader_Kind_COUNT)
   {
-    glUseProgramScope(r_ogl_state->shaders[i])
+    glUseProgramScope(opengl_state->shaders[i])
     {
-      GLint proj_loc = glGetUniformLocation(r_ogl_state->shaders[i], "projection");
+      GLint proj_loc = glGetUniformLocation(opengl_state->shaders[i], "projection");
       glUniformMatrix4fv(proj_loc, 1, GL_FALSE, proj.raw);
     }
   }
 }
 
 function void 
-r_window_end_frame(Win_Handle win)
+window_frame_end(Win_Handle win)
 {
   Vec2F32 size = window_get_size(win);
-  glBindFramebuffer(GL_READ_FRAMEBUFFER, r_ogl_state->targets[0].fbo);
+  glBindFramebuffer(GL_READ_FRAMEBUFFER, opengl_state->targets[0].fbo);
   glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
   glBlitFramebuffer(0, 0, (s32)size.x, (s32)size.y, 0, 0, (s32)size.x, (s32)size.y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
   glBindFramebuffer(GL_FRAMEBUFFER, 0);
-  r_ogl_window_swap_buffers(win);
+  opengl_window_swap_buffers(win);
 }
 
 function void 
-r_window_submit_frame(R_DrawList list)
+submit_draw_list(Draw_List list)
 {
   Temp scratch = scratch_begin(0, 0);
   glEnable(GL_SCISSOR_TEST);
 
-  R_OGL_ClipRect *clip_stack = arena_push(scratch.arena, R_OGL_ClipRect, 1);
-  clip_stack->rect.max.x = r_ogl_state->targets[0].w;
-  clip_stack->rect.max.y = r_ogl_state->targets[0].h;
-  r_ogl_set_scissor(clip_stack->rect);
+  Clip_Rect *clip_stack = arena_push(scratch.arena, Clip_Rect, 1);
+  clip_stack->rect.max.x = opengl_state->targets[0].w;
+  clip_stack->rect.max.y = opengl_state->targets[0].h;
+  opengl_set_scissor(clip_stack->rect);
 
-  for EachNode(draw, R_Draw, list.first) switch (draw->kind)
+  for each_node(draw, Draw_Call, list.first) switch (draw->kind)
   {
-    case R_DrawKind_ClipPush:
+    case Draw_Kind_ClipPush:
     {
-      R_OGL_ClipRect *node = arena_push(scratch.arena, R_OGL_ClipRect, 1);
+      Clip_Rect *node = arena_push(scratch.arena, Clip_Rect, 1);
       node->rect = draw->rect;
       SLLStackPush(clip_stack, node);
-      r_ogl_set_scissor(node->rect);
+      opengl_set_scissor(node->rect);
     } break;
 
-    case R_DrawKind_ClipPop:
+    case Draw_Kind_ClipPop:
     {
       SLLStackPop(clip_stack);
-      r_ogl_set_scissor(clip_stack->rect);
+      opengl_set_scissor(clip_stack->rect);
     } break;
 
-    case R_DrawKind_Quads:
+    case Draw_Kind_Quads:
     {
-      R_QuadBatch *b = &draw->quad_batch;
+      Quad_Batch *b = &draw->quad_batch;
       if(b->len == 0) break;
-      R_OGL_Attr attrs[] = 
+      OGL_Attr attrs[] = 
       {
-        {4, offsetof(R_Quad, dst)      }, {4, offsetof(R_Quad, src)      },
-        {4, offsetof(R_Quad, col)      }, {4, offsetof(R_Quad, radii)    },
-        {1, offsetof(R_Quad, thickness)}, {1, offsetof(R_Quad, edge_blur)},
+        {4, offsetof(Quad_Inst, dst)      }, {4, offsetof(Quad_Inst, src)      },
+        {4, offsetof(Quad_Inst, col)      }, {4, offsetof(Quad_Inst, radii)    },
+        {1, offsetof(Quad_Inst, thickness)}, {1, offsetof(Quad_Inst, edge_blur)},
       };
-      r_ogl_draw_instances(r_ogl_state->shaders[R_OGL_ShaderKind_Quad], b->raw, b->len, sizeof(R_Quad), attrs, CArrayLength(attrs), b->tex);
+      opengl_draw_instances(opengl_state->shaders[OGL_Shader_Kind_Quad], b->raw, b->len, sizeof(Quad_Inst), attrs, CArrayLength(attrs), b->tex);
     } break;
 
-    case R_DrawKind_Text:
+    case Draw_Kind_Text:
     {
-      R_TextBatch *b = &draw->text_batch;
+      Text_Batch *b = &draw->text_batch;
       if(b->len == 0) break;
 
-      GLuint shader = r_ogl_state->shaders[R_OGL_ShaderKind_Text];
+      GLuint shader = opengl_state->shaders[OGL_Shader_Kind_Text];
       glBlendFuncSeparate(GL_ONE, GL_ONE_MINUS_SRC1_COLOR, 
                           GL_ONE, GL_ONE_MINUS_SRC1_ALPHA);
 
-      R_OGL_Attr attrs[] =
+      OGL_Attr attrs[] =
       {
-        {4, offsetof(R_TextQuad, dst)},
-        {4, offsetof(R_TextQuad, src)},
-        {4, offsetof(R_TextQuad, fg)},
+        {4, offsetof(Quad_Text, dst)},
+        {4, offsetof(Quad_Text, src)},
+        {4, offsetof(Quad_Text, fg)},
       };
-      r_ogl_draw_instances(shader, b->raw, b->len, sizeof(R_TextQuad), attrs, CArrayLength(attrs), b->tex);
+      opengl_draw_instances(shader, b->raw, b->len, sizeof(Quad_Text), attrs, CArrayLength(attrs), b->tex);
 
       glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, 
                           GL_ONE,       GL_ONE_MINUS_SRC_ALPHA);
     } break;
 
-    case R_DrawKind_Blur:
+    case Draw_Kind_Blur:
     {
-      R_Blur *params = &draw->blur;
-      Vec2F32 viewport_dim = v2f32((f32) r_ogl_state->targets[0].w, (f32) r_ogl_state->targets[0].h);
-      GLuint shader = r_ogl_state->shaders[R_OGL_ShaderKind_Blur];
+      Quad_Blur *params = &draw->blur;
+      Vec2F32 viewport_dim = v2f32((f32) opengl_state->targets[0].w, (f32) opengl_state->targets[0].h);
+      GLuint shader = opengl_state->shaders[OGL_Shader_Kind_Blur];
 
-      glUseProgramScope(shader) glBindVertexArrayScope(r_ogl_state->gen_purpose_vao)
+      glUseProgramScope(shader) glBindVertexArrayScope(opengl_state->gen_purpose_vao)
       {
         // making the blur kernel
         Vec4F32 kernel[64] = {0};
@@ -224,8 +224,8 @@ r_window_submit_frame(R_DrawList list)
         glActiveTexture(GL_TEXTURE0);
 
         // first pass
-        glBindFramebuffer(GL_FRAMEBUFFER, r_ogl_state->targets[1].fbo);
-        glBindTextureScope(GL_TEXTURE_2D, r_ogl_state->targets[0].tex)
+        glBindFramebuffer(GL_FRAMEBUFFER, opengl_state->targets[1].fbo);
+        glBindTextureScope(GL_TEXTURE_2D, opengl_state->targets[0].tex)
         {
           glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
           glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -234,8 +234,8 @@ r_window_submit_frame(R_DrawList list)
         }
 
         // second pass
-        glBindFramebuffer(GL_FRAMEBUFFER, r_ogl_state->targets[0].fbo);
-        glBindTextureScope(GL_TEXTURE_2D, r_ogl_state->targets[1].tex)
+        glBindFramebuffer(GL_FRAMEBUFFER, opengl_state->targets[0].fbo);
+        glBindTextureScope(GL_TEXTURE_2D, opengl_state->targets[1].tex)
         {
           glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
           glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -246,7 +246,7 @@ r_window_submit_frame(R_DrawList list)
     } break;
   }
 
-  for EachNode(buf, R_OGL_Buffer, r_ogl_state->flush_buffers)
+  for each_node(buf, OGL_Buffer, opengl_state->flush_buffers)
   {
     glDeleteBuffers(1, &buf->id);
   }
@@ -256,29 +256,29 @@ r_window_submit_frame(R_DrawList list)
 }
 
 function Arena *
-r_frame_arena(void)
+frame_arena(void)
 {
-  return r_ogl_state->frame_arena;
+  return opengl_state->frame_arena;
 }
 
 function void 
-r_frame_end(void)
+frame_end(void)
 {
-  r_fnt_frame();
-  arena_free(r_ogl_state->frame_arena, false);
+  fnt_frame();
+  arena_free(opengl_state->frame_arena, false);
 }
 
-function R_Handle 
-r_tex_alloc(R_Image image)
+function Rndr_Handle 
+texture_alloc(Image image)
 {
-  R_OGL_Texture *tex = r_ogl_state->texture_free;
-  if (r_ogl_state->texture_free)
+  OGL_Texture *tex = opengl_state->texture_free;
+  if (opengl_state->texture_free)
   {
-    SLLStackPop(r_ogl_state->texture_free);
+    SLLStackPop(opengl_state->texture_free);
   }
   else
   {
-    tex = arena_push_non_zero(r_ogl_state->arena, R_OGL_Texture, 1);
+    tex = arena_push_non_zero(opengl_state->arena, OGL_Texture, 1);
   }
 
   MemZeroStruct(tex);
@@ -291,10 +291,10 @@ r_tex_alloc(R_Image image)
     struct { GLint internal; GLenum format; }
     fmt_map[] = 
     {
-      [R_TexFormat_R8]    = { GL_R8,    GL_RED  },
-      [R_TexFormat_RG8]   = { GL_RG8,   GL_RG   },
-      [R_TexFormat_RGB8]  = { GL_RGB8,  GL_RGB  },
-      [R_TexFormat_RGBA8] = { GL_RGBA8, GL_RGBA },
+      [Pixel_Format_R8]    = { GL_R8,    GL_RED  },
+      [Pixel_Format_RG8]   = { GL_RG8,   GL_RG   },
+      [Pixel_Format_RGB8]  = { GL_RGB8,  GL_RGB  },
+      [Pixel_Format_RGBA8] = { GL_RGBA8, GL_RGBA },
     };
 
     GLint  internal = fmt_map[image.fmt].internal;
@@ -309,33 +309,33 @@ r_tex_alloc(R_Image image)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   }
 
-  R_Handle result = {0};
+  Rndr_Handle result = {0};
   result.v[0] = (u64) tex;
   return result;
 }
 
 function Vec2S32
-r_tex_size(R_Handle h)
+texture_size(Rndr_Handle h)
 {
-	R_OGL_Texture *tex = (R_OGL_Texture *) h.v[0];
+	OGL_Texture *tex = (OGL_Texture *) h.v[0];
 	return tex->dim;
 }
 
 function void
-r_tex_free(R_Handle h)
+texture_free(Rndr_Handle h)
 {
-	R_OGL_Texture *t = (R_OGL_Texture *)h.v[0];
+	OGL_Texture *t = (OGL_Texture *)h.v[0];
 	if (t != 0 && t->id != 0)
 	{
 		glDeleteTextures(1, &t->id);
-		SLLStackPush(r_ogl_state->texture_free, t);
+		SLLStackPush(opengl_state->texture_free, t);
 	}
 }
 
 function void
-r_tex_update(R_Handle h, Rng2S32 range, u8 *data)
+texture_update(Rndr_Handle h, Rng2S32 range, u8 *data)
 {
-	R_OGL_Texture *tex = (R_OGL_Texture *) h.v[0];
+	OGL_Texture *tex = (OGL_Texture *) h.v[0];
 
 	s32 x = range.begin[0];
 	s32 y = range.begin[1];
@@ -347,10 +347,10 @@ r_tex_update(R_Handle h, Rng2S32 range, u8 *data)
 	{
 		GLenum fmt_map[] = 
 		{
-			[R_TexFormat_R8]    = GL_RED,
-			[R_TexFormat_RG8]   = GL_RG,
-			[R_TexFormat_RGB8]  = GL_RGB,
-			[R_TexFormat_RGBA8] = GL_RGBA,
+			[Pixel_Format_R8]    = GL_RED,
+			[Pixel_Format_RG8]   = GL_RG,
+			[Pixel_Format_RGB8]  = GL_RGB,
+			[Pixel_Format_RGBA8] = GL_RGBA,
 		};
 		GLenum format = fmt_map[tex->fmt];
 		glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, width, height, format, GL_UNSIGNED_BYTE, (void *) data);
@@ -358,14 +358,14 @@ r_tex_update(R_Handle h, Rng2S32 range, u8 *data)
 }
 
 function void *
-r_ogl_os_load_procedure(const char *name)
+opengl_os_load_procedure(const char *name)
 {
   void *result = (void *) glXGetProcAddressARB((u8 *) name);
   return result;
 }
 
 function GLuint 
-r_ogl_compile_shader(String8 vert, String8 frag)
+opengl_compile_shader(String8 vert, String8 frag)
 {
 	GLuint vs_id = glCreateShader(GL_VERTEX_SHADER);
 	char *vs_src = (char *)vert.raw;
@@ -391,23 +391,23 @@ r_ogl_compile_shader(String8 vert, String8 frag)
 }
 
 function GLuint 
-r_ogl_instance_buffer_from_size(u64 size)
+opengl_instance_buffer_from_size(u64 size)
 {
-	GLuint buf = r_ogl_state->scratch_vbo;
-	if(size > QUAD_BATCH_SIZE * sizeof(R_Quad))
+	GLuint buf = opengl_state->scratch_vbo;
+	if(size > QUAD_BATCH_SIZE * sizeof(Quad_Inst))
 	{
 		glGenBuffers(1, &buf);
 		glBindBuffer(GL_ARRAY_BUFFER, buf);
 		glBufferData(GL_ARRAY_BUFFER, (ptrdiff_t) size, 0, GL_DYNAMIC_DRAW);
-		R_OGL_Buffer *node = arena_push(r_frame_arena(), R_OGL_Buffer, 1);
+		OGL_Buffer *node = arena_push(frame_arena(), OGL_Buffer, 1);
 		node->id = buf;
-		SLLStackPush(r_ogl_state->flush_buffers, node);
+		SLLStackPush(opengl_state->flush_buffers, node);
 	}
 	return buf;
 }
 
 function void 
-r_ogl_target_generate(R_OGL_Target *t, s32 w, s32 h)
+opengl_target_generate(OGL_Target *t, s32 w, s32 h)
 {
 	if(t->fbo && t->w == w && t->h == h) 
 	{
@@ -432,20 +432,20 @@ r_ogl_target_generate(R_OGL_Target *t, s32 w, s32 h)
 }
 
 function void 
-r_ogl_draw_instances(GLuint shader, void *data, s64 count, s64 stride, R_OGL_Attr *attrs, s64 attr_count, R_Handle tex_h)
+opengl_draw_instances(GLuint shader, void *data, s64 count, s64 stride, OGL_Attr *attrs, s64 attr_count, Rndr_Handle tex_h)
 {
 	s64 bytes = count * stride;
-	R_OGL_Texture *tex = (R_OGL_Texture *) tex_h.v[0];
-	if(tex == 0) tex = (R_OGL_Texture *) r_ogl_state->white_tex.v[0];
+	OGL_Texture *tex = (OGL_Texture *) tex_h.v[0];
+	if(tex == 0) tex = (OGL_Texture *) opengl_state->white_tex.v[0];
 
 	glUseProgramScope(shader)
 	{
-		GLuint buf = r_ogl_instance_buffer_from_size((u64) bytes);
-		glBindVertexArrayScope(r_ogl_state->gen_purpose_vao)
+		GLuint buf = opengl_instance_buffer_from_size((u64) bytes);
+		glBindVertexArrayScope(opengl_state->gen_purpose_vao)
 		glBindBufferScope(GL_ARRAY_BUFFER, buf)
 		{
 			glBufferSubData(GL_ARRAY_BUFFER, 0, bytes, data);
-			for EachIndex(i, attr_count)
+			for each_index(i, attr_count)
 			{
 				glEnableVertexAttribArray((GLuint) i);
 				glVertexAttribPointer((GLuint) i, attrs[i].n, GL_FLOAT, GL_FALSE, (GLsizei)stride, (void *) attrs[i].off);
@@ -463,9 +463,9 @@ r_ogl_draw_instances(GLuint shader, void *data, s64 count, s64 stride, R_OGL_Att
 }
 
 function void 
-r_ogl_set_scissor(Rng2S32 rect)
+opengl_set_scissor(Rng2S32 rect)
 {
-	s32 h = r_ogl_state->targets[0].h;
+	s32 h = opengl_state->targets[0].h;
 	glScissor(rect.min.x,
 	          h - rect.max.y,
 	          rect.max.x - rect.min.x,

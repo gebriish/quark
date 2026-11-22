@@ -42,7 +42,7 @@ tctx_get_scratch(Arena **conflicts, u64 count)
   Thread_Ctx *tctx = tctx_selected();
   Arena *result = 0;
   Arena **arena_ptr = tctx->arenas;
-  for EachIndex(i, CArrayLength(tctx->arenas))
+  for each_index(i, CArrayLength(tctx->arenas))
   {
     Arena **conflict_ptr = conflicts;
     b32 has_conflict = 0;
@@ -93,7 +93,7 @@ main_thread_base_entry_point(int argc, char **argv)
   cmd.exe_name = str8_cstring((u8 *) argv[0]);
 
   Temp scratch = scratch_begin(0, 0);
-  for EachRange(i, 1, argc-1)
+  for each_index(i, argc)
   {
     String8 arg = str8_cstring((u8 *) argv[i]);
     String8_List *category = 0;
@@ -118,7 +118,7 @@ main_thread_base_entry_point(int argc, char **argv)
 #endif
 
 #if defined(RENDER_CORE_H)
-  r_init();
+  rndr_init();
 #endif
 
 #if defined(UI_CORE_H)

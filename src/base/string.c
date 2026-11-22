@@ -38,7 +38,7 @@ utf8_decode(String8 text, s64 index, s32 *out_incr)
       }
       if(i == len)
       {
-        global u32 min_cp[5] = { 0, 0, 0x80, 0x800, 0x10000 };
+        local_persist u32 min_cp[5] = { 0, 0, 0x80, 0x800, 0x10000 };
         if(c >= min_cp[len] && c <= 0x10FFFF && (c < 0xD800 || c > 0xDFFF))
         {
           codepoint = c;
@@ -296,14 +296,14 @@ str8_list_join(Arena *arena, String8_List *list, u8 sep)
     b32 sep_exist = (sep != 0);
     s64 buf_size = (list->len - 1) * sep_exist;
 
-    for EachNode(node, String8_Node, list->first) 
+    for each_node(node, String8_Node, list->first) 
     {
       buf_size += node->data.len;
     }
     result.raw = arena_push_non_zero(arena, u8, buf_size);
 
     s64 stack_top = 0;
-    for EachNode(node, String8_Node, list->first) 
+    for each_node(node, String8_Node, list->first) 
     {
       String8 string = node->data;
       MemMove(result.raw + stack_top, string.raw, string.len);

@@ -32,7 +32,7 @@ ui_begin_layout(UI_FrameInput input)
 }
 
 function void
-ui_end_layout(R_DrawList *draw_list)
+ui_end_layout(Draw_List *draw_list)
 {
   UI_Box *root_node = ui_state->root;
 
@@ -49,24 +49,39 @@ ui_end_layout(R_DrawList *draw_list)
   // start from root only for grow layout pass.
   ui_grow_layout_pass(root_node);
 
-  // handle hot and active nodes
-  {
-    UI_Key hot = ui_state->hot;
-
-    if (!ui_key_zero(hot))
-    {
-      UI_Box *box = ui_get_persist_node(hot)->box;
-    }
-  }
-
-  for EachNode(node, UI_Box, root_node->first)
+  for each_node(node, UI_Box, root_node->first)
   {
     ui_position_layout_pass(node);
     ui_draw_layout_pass(node, draw_list);
   }
 
+  {
+    UI_Key hot = ui_state->hot;
+    if (!ui_key_zero(hot))
+    {
+      UI_Box *box = ui_get_persist_node(hot)->box;
+      if (box->flags & UI_BoxFlag_Clickable)
+      {
+        set_cursor_icon(Win_Cursor_HandPoint);
+      }
+      else if (box->flags & UI_BoxFlag_Text)
+      {
+        set_cursor_icon(Win_Cursor_IBar);
+      }
+      else
+      {
+        set_cursor_icon(Win_Cursor_Pointer);
+      }
+    }
+    else
+    {
+      set_cursor_icon(Win_Cursor_Pointer);
+    }
+
+  }
+
   // run persist gc
-  for EachIndex(i, CArrayLength(ui_state->persist_buckets))
+  for each_index(i, CArrayLength(ui_state->persist_buckets))
   {
     UI_Persist *next = 0;
     for (UI_Persist *p = ui_state->persist_buckets[i]; p; p = next)
@@ -126,9 +141,15 @@ ui_box_configure(UI_Config *config)
     persist->box = box;
     box->persist = persist;
     SLLStackPush(ui_state->persist_stack, persist);
-    if (box->flags & UI_BoxFlag_AutoActive)
+    b32 fresh_alloc = (persist->spawn_t <= ui_state->curr_input.delta_time);
+    if (fresh_alloc)
     {
-      ui_state->active = key;
+      Vec2F32 offset = pivot_offsets[box->parent->pivot];
+      persist->last_pos = vec2_mul(ui_state->curr_input.resolution, offset);
+      if (box->flags & UI_BoxFlag_AutoActive)
+      {
+        ui_state->active = key;
+      }
     }
   }
 
@@ -147,7 +168,7 @@ ui_close(void)
   // By now , all the children with UI_SizeKind_Fixed, UI_SizeKind_Fit are
   // resolved, so we can use those to compute [box]'s UI_SizeKind_Fit sizing.
 
-  for EachNode(child, UI_Box, box->first)
+  for each_node(child, UI_Box, box->first)
   {
     content_dim.xy[layout_axis] += child->final_dim.xy[layout_axis];
     content_dim.xy[layout_perp] = Max(content_dim.xy[layout_perp], child->final_dim.xy[layout_perp]);
@@ -178,7 +199,7 @@ ui_close(void)
 function void
 ui_grow_layout_pass(UI_Box *box)
 {
-  f32 k = 1.f - expf(-40.f * ui_state->curr_input.delta_time);
+  f32 k = 1.f - expf(-60.f * ui_state->curr_input.delta_time);
 
   if (box->persist)
   {
@@ -203,7 +224,7 @@ ui_grow_layout_pass(UI_Box *box)
   // pass 1: resolve percent sizes, smooth non-grow axes, measure occupied space
   f32 occupied = gap_size;
   f32 grow_weight = 0.f;
-  for EachNode(child, UI_Box, box->first)
+  for each_node(child, UI_Box, box->first)
   {
     UI_Persist *p = child->persist;
     UI_SizeAxis *w_size = &child->size.width;
@@ -241,7 +262,7 @@ ui_grow_layout_pass(UI_Box *box)
 
   // pass 2: resolve grow axes, smooth them, accumulate smoothed content size
   Vec2F32 content_dim = {0};
-  for EachNode(child, UI_Box, box->first)
+  for each_node(child, UI_Box, box->first)
   {
     UI_Persist *p = child->persist;
     UI_SizeAxis size = child->size.axes[layout_axis];
@@ -277,7 +298,7 @@ ui_grow_layout_pass(UI_Box *box)
   box->content_dim = content_dim;
 
   // recurse: children's final_dim is already smoothed
-  for EachNode(child, UI_Box, box->first)
+  for each_node(child, UI_Box, box->first)
   {
     ui_grow_layout_pass(child);
   }
@@ -340,7 +361,7 @@ ui_position_layout_pass(UI_Box *box)
     }
   }
 
-  for EachNode(child, UI_Box, box->first)
+  for each_node(child, UI_Box, box->first)
   {
     Vec2F32 pos = cursor; // @todo: scroll offset
     pos.xy[layout_perp] += (inner_dim.xy[layout_perp] - child->final_dim.xy[layout_perp]) * offset.xy[layout_perp];
@@ -353,7 +374,7 @@ ui_position_layout_pass(UI_Box *box)
 }
 
 function void
-ui_draw_layout_pass(UI_Box *box, R_DrawList *draw_list)
+ui_draw_layout_pass(UI_Box *box, Draw_List *draw_list)
 {
   // precompute stuff.
   Rng2F32 box_rect =
@@ -383,54 +404,54 @@ ui_draw_layout_pass(UI_Box *box, R_DrawList *draw_list)
   {
     if (box->blur_radius >= 2.f)
     {
-      r_push_blur(draw_list,
-                  .blur = box->blur_radius,
-                  .rect = box_rect,
-                  .tint = box->fill_color,
-                  .radii = box->radii);
+      push_blur(draw_list,
+                .blur = box->blur_radius,
+                .rect = box_rect,
+                .tint = box->fill_color,
+                .radii = box->radii);
     }
     else
     {
-      r_push_quad(draw_list, 
-                  box->texture,
-                  .dst = box_rect,
-                  .src = { .min = {0,0}, .max = {1,1} },
-                  .col = box->fill_color,
-                  .radii = box->radii);
+      push_quad(draw_list, 
+                box->texture,
+                .dst = box_rect,
+                .src = { .min = {0,0}, .max = {1,1} },
+                .col = box->fill_color,
+                .radii = box->radii);
     }
   }
 
   // draw border rect
   if (box->border_color.a >= 1e-5f)
   {
-    r_push_quad(draw_list, r_empty_handle(),
-        .dst = box_rect,
-        .col = box->border_color,
-        .thickness = Max(1.f, box->border_thickness),
-        .radii = box->radii);
+    push_quad(draw_list, r_empty_handle(),
+              .dst = box_rect,
+              .col = box->border_color,
+              .thickness = Max(1.f, box->border_thickness),
+              .radii = box->radii);
   }
 
   if (box->flags & UI_BoxFlag_Clip)
   {
-    r_push_clip(draw_list, inner_rect);
+    push_clip(draw_list, inner_rect);
   }
 
   // draw text
   if (box->text_color.a >= 1e-5f && box->text.len > 0 &&
-      !r_fnt_zero(box->font) && box->text_size > 0)
+      !fnt_handle_zero(box->font) && box->text_size > 0)
   {
-    r_push_text_simple(draw_list,
-        box->font,
-        box->text,
-        inner_rect.min,
-        box->text_size,
-        2,
-        box->text_bold,
-        box->text_color);;
+    push_text_simple(draw_list,
+                     box->font,
+                     box->text,
+                     inner_rect.min,
+                     box->text_size,
+                     2,
+                     box->text_bold,
+                     box->text_color);;
   }
 
   // recurse
-  for EachNode(child, UI_Box, box->first)
+  for each_node(child, UI_Box, box->first)
   {
     if (child->shadow_color.a > 0.05f)
     {
@@ -438,16 +459,16 @@ ui_draw_layout_pass(UI_Box *box, R_DrawList *draw_list)
       const f32 shadow_offset = 30.f;
       Rng2F32 shadow_rect =
       {
-        .min = vec2_sub(child->final_pos, v2f32(shadow_offset,shadow_offset)),
+        .min = vec2_sub(child->final_pos, v2f32(shadow_offset,shadow_offset - 10.f)),
         .max = vec2_add(vec2_add(child->final_pos, child->final_dim), v2f32(shadow_offset,shadow_offset)),
       };
 
-      r_push_quad(draw_list, r_empty_handle(),
-                  .dst = shadow_rect,
-                  .edge_blur = shadow_blur,
-                  .src = { .min = {0,0}, .max = {1,1} },
-                  .col = child->shadow_color,
-                  .radii = v4f32(shadow_blur, shadow_blur, shadow_blur, shadow_blur));
+      push_quad(draw_list, r_empty_handle(),
+                .dst = shadow_rect,
+                .edge_blur = shadow_blur,
+                .src = { .min = {0,0}, .max = {1,1} },
+                .col = child->shadow_color,
+                .radii = v4f32(shadow_blur, shadow_blur, shadow_blur, shadow_blur));
     }
 
     ui_draw_layout_pass(child, draw_list);
@@ -455,7 +476,7 @@ ui_draw_layout_pass(UI_Box *box, R_DrawList *draw_list)
 
   if (box->flags & UI_BoxFlag_Clip)
   {
-    r_pop_clip(draw_list);
+    pop_clip(draw_list);
   }
 }
 

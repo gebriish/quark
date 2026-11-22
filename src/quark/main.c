@@ -1,12 +1,12 @@
 #include "base/inc.h"
 #include "gfx/inc.h"
-#include "render/render_inc.h"
+#include "render/inc.h"
 #include "ui/ui_inc.h"
 #include "quark/inc.h"
 
 #include "base/inc.c"
 #include "gfx/inc.c"
-#include "render/render_inc.c"
+#include "render/inc.c"
 #include "ui/ui_inc.c"
 #include "quark/inc.c"
 

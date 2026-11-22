@@ -4,7 +4,7 @@
 //////////////////////////////////////
 // @section: opengl proc list
 
-#define R_OGL_ProcedureXList \
+#define Opengl_Proc_List \
   X(glGenBuffers, void, (GLsizei n, GLuint *buffers))\
   X(glBindBuffer, void, (GLenum target, GLuint buffer))\
   X(glDeleteBuffers, void, (GLsizei n, GLuint *buffers))\
@@ -53,34 +53,34 @@
   X(glBlitFramebuffer, void, (GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter))\
 
 #define X(name, r, p) typedef r name##_FunctionType p;
-R_OGL_ProcedureXList
+Opengl_Proc_List
 #undef X
 
 #define X(name, r, p) global name##_FunctionType *name = 0;
-R_OGL_ProcedureXList
+Opengl_Proc_List
 #undef X
 
 //////////////////////////////////////
 // @section: types
 
-typedef u32 R_OGL_ShaderKind;
+typedef u32 OGL_Shader_Kind;
 enum
 {
-  R_OGL_ShaderKind_Quad,
-  R_OGL_ShaderKind_Blur,
-  R_OGL_ShaderKind_Text,
-  R_OGL_ShaderKind_COUNT,
+  OGL_Shader_Kind_Quad,
+  OGL_Shader_Kind_Blur,
+  OGL_Shader_Kind_Text,
+  OGL_Shader_Kind_COUNT,
 };
 
-typedef struct R_OGL_Buffer R_OGL_Buffer;
-struct R_OGL_Buffer
+typedef struct OGL_Buffer OGL_Buffer;
+struct OGL_Buffer
 {
   GLuint id;
-  R_OGL_Buffer *next;
+  OGL_Buffer *next;
 };
 
-typedef struct R_OGL_Target R_OGL_Target;
-struct R_OGL_Target
+typedef struct OGL_Target OGL_Target;
+struct OGL_Target
 {
   GLuint fbo;
   GLuint tex;
@@ -88,61 +88,54 @@ struct R_OGL_Target
   s32 h;
 };
 
-typedef struct R_OGL_Texture R_OGL_Texture;
-struct R_OGL_Texture
+typedef struct OGL_Texture OGL_Texture;
+struct OGL_Texture
 {
   GLuint id;
-  R_TexFormat fmt;
+  Pixel_Format fmt;
   Vec2S32 dim;
-  R_OGL_Texture *next;
+  OGL_Texture *next;
 };
 
-typedef struct R_OGL_Attr R_OGL_Attr;
-struct R_OGL_Attr 
+typedef struct OGL_Attr OGL_Attr;
+struct OGL_Attr 
 { 
   GLint n; 
   size_t off; 
 };
 
-typedef struct R_OGL_State R_OGL_State;
-struct R_OGL_State
+typedef struct Opengl_State Opengl_State;
+struct Opengl_State
 {
   Arena *arena;
   Arena *frame_arena;
   GLuint gen_purpose_vao;
   GLuint scratch_vbo;
-  GLuint shaders[R_OGL_ShaderKind_COUNT];
-  R_OGL_Buffer *flush_buffers;
-  R_OGL_Target targets[2];
-  R_OGL_Texture *texture_free;
-  R_Handle white_tex;
+  GLuint shaders[OGL_Shader_Kind_COUNT];
+  OGL_Buffer *flush_buffers;
+  OGL_Target targets[2];
+  OGL_Texture *texture_free;
+  Rndr_Handle white_tex;
 };
 
-typedef struct R_OGL_ClipRect R_OGL_ClipRect;
-struct R_OGL_ClipRect
-{
-  Rng2S32 rect;
-  R_OGL_ClipRect *next;
-};
-
-global R_OGL_State *r_ogl_state = 0;
+global Opengl_State *opengl_state = 0;
 
 //////////////////////////////////////
 // @section: ogl helper functions
 
-function GLuint r_ogl_compile_shader(String8 vert, String8 frag);
-function GLuint r_ogl_instance_buffer_from_size(u64 size);
-function void   r_ogl_target_generate(R_OGL_Target *t, s32 w, s32 h);
-function void   r_ogl_draw_instances(GLuint shader, void *data, s64 count, s64 stride, R_OGL_Attr *attrs, s64 attr_count, R_Handle tex);
+function GLuint opengl_compile_shader(String8 vert, String8 frag);
+function GLuint opengl_instance_buffer_from_size(u64 size);
+function void   opengl_target_generate(OGL_Target *t, s32 w, s32 h);
+function void   opengl_draw_instances(GLuint shader, void *data, s64 count, s64 stride, OGL_Attr *attrs, s64 attr_count, Rndr_Handle tex);
 
 //////////////////////////////////////
 // @section: target defined functions
 
-function void r_ogl_os_init(void);
-function void r_ogl_select_window(Win_Handle window);
-function void r_ogl_window_swap_buffers(Win_Handle window);
-function void *r_ogl_os_load_procedure(const char *name);
-function void r_ogl_set_scissor(Rng2S32 rect);
+function void  opengl_os_init(void);
+function void  opengl_select_window(Win_Handle window);
+function void  opengl_window_swap_buffers(Win_Handle window);
+function void *opengl_os_load_procedure(const char *name);
+function void  opengl_set_scissor(Rng2S32 rect);
 
 //////////////////////////////////////
 // @section: macros
@@ -156,7 +149,7 @@ function void r_ogl_set_scissor(Rng2S32 rect);
 //////////////////////////////////////
 // @section: glsl shaders
 
-global read_only String8 r_ogl_quad_vertex_glsl = S(
+global read_only String8 opengl_quad_vertex_glsl = S(
 "#version 330 core\n"
 
 "layout(location = 0) in vec4  dst;"
@@ -196,7 +189,7 @@ global read_only String8 r_ogl_quad_vertex_glsl = S(
 "}"
 );
 
-global read_only String8 r_ogl_quad_fragment_glsl = S(
+global read_only String8 opengl_quad_fragment_glsl = S(
 "#version 330 core\n"
 
 "in VS_OUT {"
@@ -240,7 +233,7 @@ global read_only String8 r_ogl_quad_fragment_glsl = S(
 );
 
 
-global read_only String8 r_ogl_blur_vertex_glsl = S(
+global read_only String8 opengl_blur_vertex_glsl = S(
 "#version 330 core\n"
 
 "out VS_OUT {"
@@ -270,7 +263,7 @@ global read_only String8 r_ogl_blur_vertex_glsl = S(
 "}"
 );
 
-global read_only String8 r_ogl_blur_fragment_glsl = S(
+global read_only String8 opengl_blur_fragment_glsl = S(
 "#version 330 core\n"
 
 "in VS_OUT {"
@@ -314,7 +307,7 @@ global read_only String8 r_ogl_blur_fragment_glsl = S(
 "}"
 );
 
-global read_only String8 r_ogl_text_vertex_glsl = S(
+global read_only String8 opengl_text_vertex_glsl = S(
 "#version 330 core\n"
 "layout(location = 0) in vec4 dst;"
 "layout(location = 1) in vec4 src;"
@@ -335,7 +328,7 @@ global read_only String8 r_ogl_text_vertex_glsl = S(
 "}"
 );
 
-global read_only String8 r_ogl_text_fragment_glsl = S(
+global read_only String8 opengl_text_fragment_glsl = S(
 "#version 330 core\n"
 "in VS_OUT { vec2 uv; vec4 fg; } fs_in;"
 

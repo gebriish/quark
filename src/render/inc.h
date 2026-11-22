@@ -8,18 +8,18 @@
 # define RENDER_BACKEND RENDER_BACKEND_OPENGL 
 #endif
 
-#include "render_core.h"
-#include "render_font.h"
-#include "freetype/render_freetype.h"
+#include "core.h"
+#include "font.h"
+#include "freetype/core.h"
 
 #if OS_LINUX
-# include "linux/render/linux_render.h"
+# include "linux/render/inc.h"
 #else
 # error "platform render layer missing"
 #endif
 
 #if RENDER_BACKEND == RENDER_BACKEND_OPENGL
-# include "opengl/render_opengl.h"
+# include "opengl/core.h"
 #else
 # error "render backend missing"
 #endif

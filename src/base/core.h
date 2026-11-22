@@ -75,6 +75,7 @@
 
 #define function static
 #define global   static
+#define local_persist static
 
 ///////////////////////////
 // @section: base includes
@@ -134,9 +135,8 @@ typedef u32 b32;
 
 #define DeferLoop(begin, end) for(int _i_ = ((begin), 0); !_i_; _i_ += 1, (end))
 
-#define EachIndex(itr, n) (s64 (itr)=0; (itr) < (s64)(n); ++(itr))
-#define EachRange(itr, b, e) (s64 (itr)=b; (itr) <= (s64)(e); ++(itr))
-#define EachNode(it, T, first) (T *it = first; it != 0; it = it->next)
+#define each_index(itr, n) (s64 (itr)=0; (itr) < (s64)(n); ++(itr))
+#define each_node(it, T, first) (T *it = first; it != 0; it = it->next)
 
 #define Max(a, b) ((a) > (b) ? (a) : (b))
 #define Min(a, b) ((a) < (b) ? (a) : (b))

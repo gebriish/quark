@@ -15,6 +15,6 @@
 typedef GLXContext (*glXCreateContextAttribsARBProc)(Display*, GLXFBConfig, GLXContext, Bool, const int*);
 typedef void (*R_GLXSwapIntervalEXT)(Display *, GLXDrawable, int);
 
-global GLXContext r_ogl_lnx_ctx = 0;
+global GLXContext opengl_lnx_ctx = 0;
 global R_GLXSwapIntervalEXT r_glXSwapIntervalEXT = 0;
 

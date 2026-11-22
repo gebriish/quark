@@ -17,25 +17,26 @@ q_init(void)
     quark_state->root_window = window_open(S("quark"), v2f32(1280, 800), 0);
     window_set_min_size(quark_state->root_window, 120,120);
     window_set_background(quark_state->root_window, Color8(0xff00ffff));
-    r_window_set_vsync(quark_state->root_window, false);
+    render_window_vsync(quark_state->root_window, false);
   }
 
   // @todo(gaureesh): load from a config file
   {
     Q_Config config = 
     {
-      .ui_font = r_fnt_alloc(open_sans_ttf_data_string, R_FontAllocFlag_NoCopy),
-      .ui_font_size = 16,
+      .ui_font = fnt_alloc(open_sans_ttf_data_string, Font_Alloc_Flag_NoCopy),
+      .ui_font_size = 14,
 
-      .code_font = r_fnt_alloc(inconsolata_ttf_data_string, R_FontAllocFlag_NoCopy),
-      .code_font_size = 18,
+      .code_font = fnt_alloc(inconsolata_ttf_data_string, Font_Alloc_Flag_NoCopy),
+      .code_font_size = 16,
 
       .colors = 
       {
         [Q_ColorKind_Normal]    = { .fg = Color8(0xD3C6AAFF), .bg = Color8(0x1E2326FF) },
-        [Q_ColorKind_Border]    = { .fg = Color8(0x00000000), .bg = Color8(0x475258FF) },
+        [Q_ColorKind_Border]    = { .fg = Color8(0xA7C080FF), .bg = Color8(0x00000000) },
         [Q_ColorKind_Cursor]    = { .fg = Color8(0x2D353BFF), .bg = Color8(0xA7C080FF) },
         [Q_ColorKind_Floating]  = { .fg = Color8(0x7A8478FF), .bg = Color8(0x272E33FF) },
+        [Q_ColorKind_FileName]  = { .fg = Color8(0xDBBB7EFF), .bg = Color8(0x7A8478FF) },
         [Q_ColorKind_TextBox]   = { .fg = Color8(0x7A8478FF), .bg = Color8(0x1E2326FF) },
       },
     };
@@ -51,8 +52,8 @@ q_frame(void)
 {
   //---------------------------------------------------------------------------//
 
-  Win_Event_List events = get_window_events(r_frame_arena());
-  for EachNode(ev, Win_Event, events.first) switch (ev->kind)
+  Win_Event_List events = get_window_events(frame_arena());
+  for each_node(ev, Win_Event, events.first) switch (ev->kind)
   {
     case Win_Event_Kind_Close:
     {
@@ -68,13 +69,27 @@ q_frame(void)
 
     case Win_Event_Kind_Press:
     {
-      if (ev->keycode == Key_Semicolon && ev->modifiers == (Key_Modifier_Shift))
+      Key_Map cmd_key = {
+        Key_Semicolon,
+        Key_Modifier_Shift,
+      };
+      Key_Map esc_key = {
+        Key_Esc,
+        0,
+      };
+
+      Key_Map input = {
+        .keycode = ev->keycode,
+        .mods = ev->modifiers,
+      };
+      
+      if (keymap_matches(input, cmd_key))
       {
-        q_push_command(q_command_command_mode);
+        quark_state->mode = Edit_Mode_Command;
       }
-      if (ev->keycode == Key_Esc)
+      if (keymap_matches(input, esc_key))
       {
-        quark_state->mode = Q_Mode_Normal;
+        quark_state->mode = Edit_Mode_Normal;
       }
     } break;
   }
@@ -87,17 +102,17 @@ q_frame(void)
 
   //---------------------------------------------------------------------------//
 
-  f32 delta_time = r_frame_begin();
+  f32 delta_time = frame_begin();
 
   WindowFrameScope(quark_state->root_window)
   {
     Vec2F32 window_size = window_get_size(quark_state->root_window);
-    R_DrawList draw_list = {0};
+    Draw_List draw_list = {0};
 
     ui_layout(&draw_list, 
               .resolution = window_size, 
-              .mouse_down = false,
-              .mouse_pos  = gfx_mouse_in_window(quark_state->root_window),
+              .mouse_down = key_is_down(Key_LeftMouseButton),
+              .mouse_pos  = get_mouse_in_window(quark_state->root_window),
               .delta_time = delta_time)
     {
       ui_fullscreen(.fill_color = q_color(Q_ColorKind_Normal).bg,
@@ -121,12 +136,13 @@ q_frame(void)
            .pivot = Pivot_MidLeft,
            .fill_color = q_color(Q_ColorKind_Floating).bg)
         {
+
           ui_text(
             quark_state->first_buffer->name,
             quark_state->config.ui_font,
             quark_state->config.ui_font_size,
             true,
-            Color8(0xDBBB7EFF)
+            q_color(Q_ColorKind_FileName).fg
           );
 
           ui_text(
@@ -134,7 +150,7 @@ q_frame(void)
             quark_state->config.ui_font,
             quark_state->config.ui_font_size,
             true,
-            Color8(0xDBBB7EFF)
+            q_color(Q_ColorKind_FileName).fg
           );
 
           ui_text(
@@ -142,37 +158,66 @@ q_frame(void)
             quark_state->config.ui_font,
             quark_state->config.ui_font_size,
             false,
-            Color8(0x7A8478FF)
+            q_color(Q_ColorKind_Floating).fg
           );
         }
       }
 
-      if (quark_state->mode == Q_Mode_Command)
-        ui_fullscreen(.padding = ui_padding(20.f),
+      if (quark_state->mode == Edit_Mode_Command)
+        ui_fullscreen(.padding = ui_padding(0.f),
                       .layout = Axis2D_Vertical,
-                      .pivot = Pivot_TopCenter)
+                      .pivot = Pivot_LowRight)
       {
         UI(.label = S("command_palette"),
-           .flags = UI_BoxFlag_SmoothY,
-           .size = { ui_size_percent(.7f), ui_size_percent(.7f) },
+           .flags = UI_BoxFlag_SmoothHeight,
+           .size = { ui_size_percent(.3f), ui_size_percent(.6f) },
+           .radii = { 6, 0, 0, 0 },
+           .pivot = Pivot_TopRight,
            .fill_color = q_color(Q_ColorKind_Floating).bg,
-           .shadow_color = Color8(0x00000040),
+           .shadow_color = Color8(0x00000022),
            .border_color = q_color(Q_ColorKind_Border).bg,
-           .padding = ui_padding(5),
            .layout = Axis2D_Vertical)
         {
-          UI(.size = {ui_size_grow(1.f), ui_size_fit()},
-             .padding = ui_padding(4),
-             .flags = UI_BoxFlag_Clip | UI_BoxFlag_Text,
-             .label = S("command_form"),
-             .border_color = q_color(Q_ColorKind_Border).fg,
-             .fill_color = q_color(Q_ColorKind_TextBox).bg)
+          ui_flood(.flags = UI_BoxFlag_Clip,
+                   .gap = 5,
+                   .padding = { .values = {5,5,0,5} },
+                   .layout = Axis2D_Vertical)
           {
-            ui_text(S("Run Command..."),
-                    quark_state->config.ui_font,
-                    quark_state->config.ui_font_size,
-                    false,
-                    q_color(Q_ColorKind_TextBox).fg);
+            for each_index(i, 10)
+            {
+              String8 label = str8_format(frame_arena(), "button %ld", i);
+              if (ui_button(label, quark_state->config.code_font, quark_state->config.code_font_size, q_color(Q_ColorKind_Floating).fg, q_color(Q_ColorKind_Floating).bg))
+              {
+              }
+            }
+          }
+
+          UI(.padding = ui_padding(8),
+             .gap = 8.f,
+             .pivot = Pivot_MidLeft,
+             .size = { ui_size_grow(1.f), ui_size_fit() })
+          {
+            UI(.size = {ui_size_grow(1.f), ui_size_fit()},
+               .padding = ui_padding(4),
+               .flags = UI_BoxFlag_Clip | UI_BoxFlag_Text | UI_BoxFlag_AutoActive,
+               .label = S("command_form"),
+               .radii = Radius4(4),
+               .border_color = q_color(Q_ColorKind_Border).bg,
+               .fill_color = q_color(Q_ColorKind_TextBox).bg)
+            {
+              UI_Box *this_box = ui_get_current_box();
+              UI_Signal sig = ui_get_signal_from_box(this_box);
+              if (sig.active)
+              {
+                this_box->border_color = q_color(Q_ColorKind_Border).fg;
+              }
+              ui_text(S("Run Command..."),
+                      quark_state->config.ui_font,
+                      quark_state->config.ui_font_size,
+                      false,
+                      q_color(Q_ColorKind_TextBox).fg);
+
+            }
           }
         }
       }
@@ -180,10 +225,9 @@ q_frame(void)
 
     }
 
-    r_window_submit_frame(draw_list);
+    submit_draw_list(draw_list);
   }
-  r_frame_end();
-
+  frame_end();
   return quark_state->quit;
 }
 
@@ -212,13 +256,6 @@ function b32
 q_command_quit(Q_State *quark)
 {
   quark->quit = true;
-  return true;
-}
-
-function b32 
-q_command_command_mode(Q_State *quark)
-{
-  quark->mode = Q_Mode_Command;
   return true;
 }
 

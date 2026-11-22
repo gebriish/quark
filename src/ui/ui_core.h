@@ -12,16 +12,16 @@ struct UI_Key
 typedef u32 UI_BoxFlags;
 enum
 {
-  UI_BoxFlag_Clip         = (1u << 0),
-  UI_BoxFlag_ScrollX      = (1u << 1),
-  UI_BoxFlag_ScrollY      = (1u << 2),
-  UI_BoxFlag_AutoActive   = (1u << 3),
-  UI_BoxFlag_SmoothWidth  = (1u << 4),
-  UI_BoxFlag_SmoothHeight = (1u << 5),
-  UI_BoxFlag_SmoothX      = (1u << 6),
-  UI_BoxFlag_SmoothY      = (1u << 7),
-  UI_BoxFlag_Text         = (1u << 8),
-  UI_BoxFlag_Clickable    = (1u << 9),
+  UI_BoxFlag_Clip         = (1u <<  0),
+  UI_BoxFlag_ScrollX      = (1u <<  1),
+  UI_BoxFlag_ScrollY      = (1u <<  2),
+  UI_BoxFlag_AutoActive   = (1u <<  3),
+  UI_BoxFlag_SmoothWidth  = (1u <<  4),
+  UI_BoxFlag_SmoothHeight = (1u <<  5),
+  UI_BoxFlag_SmoothX      = (1u <<  6),
+  UI_BoxFlag_SmoothY      = (1u <<  7),
+  UI_BoxFlag_Text         = (1u <<  8),
+  UI_BoxFlag_Clickable    = (1u <<  9),
 };
 
 typedef u32 UI_SizeKind;
@@ -48,10 +48,9 @@ union UI_Size
   UI_SizeAxis axes[2];
 };
 
-typedef union UI_Padding UI_Padding;
-union UI_Padding
+typedef struct UI_Padding UI_Padding;
+struct UI_Padding
 {
-  struct { u16 v0, v1, v2, v3; };
   u16 values[Edge_COUNT];
 };
 
@@ -67,7 +66,7 @@ typedef void (*UI_BoxDrawProc)(UI_Box *box);
   X(UI_Padding,  padding) \
   X(f32,         gap) \
   X(f32,         scroll_scale) \
-  X(R_Font,      font) \
+  X(Fnt_Handle,  font) \
   X(String8,     text) \
   X(u32,         text_size) \
   X(b32,         text_bold) \
@@ -78,7 +77,7 @@ typedef void (*UI_BoxDrawProc)(UI_Box *box);
   X(Vec4F32,     border_color) \
   X(f32,         border_thickness) \
   X(Vec4F32,     radii) \
-  X(R_Handle,    texture) \
+  X(Rndr_Handle, texture) \
 
 typedef struct UI_Persist UI_Persist;
 struct UI_Persist
@@ -182,7 +181,7 @@ function b32 ui_key_matches(UI_Key a, UI_Key b);
 function void ui_init(void);
 
 function void ui_begin_layout(UI_FrameInput input);
-function void ui_end_layout(R_DrawList *draw_list);
+function void ui_end_layout(Draw_List *draw_list);
 
 ////////////////////
 // @section: low level component functions
@@ -198,7 +197,7 @@ function void ui_box_configure(UI_Config *config);
 
 function void ui_grow_layout_pass(UI_Box *box);
 function void ui_position_layout_pass(UI_Box *box);
-function void ui_draw_layout_pass(UI_Box *box, R_DrawList *pass);
+function void ui_draw_layout_pass(UI_Box *box, Draw_List *pass);
 
 ////////////////////
 // @section: persistent data

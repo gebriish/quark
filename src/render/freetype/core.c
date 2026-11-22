@@ -1,7 +1,7 @@
 #define R_FNT_BUCKET_COUNT 16
 
 function void
-r_fnt_provider_init(void)
+fnt_provider_init(void)
 {
   Arena *arena = arena_reserve(Kilobytes(16));
   r_ft_state = arena_push(arena, R_FT_State, 1);
@@ -11,8 +11,8 @@ r_fnt_provider_init(void)
   r_ft_state->fonts = arena_push(arena, R_FT_Bucket, R_FNT_BUCKET_COUNT);
 }
 
-function R_Font
-r_fnt_alloc(String8 data, R_FontAllocFlags flags)
+function Fnt_Handle
+fnt_alloc(String8 data, Font_Alloc_Flags flags)
 {
   u64 hash  = str8_hash(data);
   u64 index = hash & (R_FNT_BUCKET_COUNT - 1);
@@ -42,7 +42,7 @@ r_fnt_alloc(String8 data, R_FontAllocFlags flags)
 
     font->hash = hash;
 
-    if (flags & R_FontAllocFlag_NoCopy)
+    if (flags & Font_Alloc_Flag_NoCopy)
     {
       font->data      = data;
       font->owns_data = 0;
@@ -50,7 +50,7 @@ r_fnt_alloc(String8 data, R_FontAllocFlags flags)
     else
     {
       R_FT_FreeNode *node = 0;
-      for EachNode(itr, R_FT_FreeNode, r_ft_state->data_free_list.first)
+      for each_node(itr, R_FT_FreeNode, r_ft_state->data_free_list.first)
       {
         if (itr->size >= data.len)
         {
@@ -80,7 +80,7 @@ r_fnt_alloc(String8 data, R_FontAllocFlags flags)
     if (err != 0)
     {
       r_ft_fnt_release_font_storage(font);
-      return (R_Font) {0};
+      return (Fnt_Handle) {0};
     }
 
     DLLPushBack_N(r_ft_state->fonts[index].first, r_ft_state->fonts[index].last,
@@ -89,13 +89,13 @@ r_fnt_alloc(String8 data, R_FontAllocFlags flags)
 
   font->ref_count += 1;
 
-  R_Font result = {0};
+  Fnt_Handle result = {0};
   result.v[0] = (u64) font;
   return result;
 }
 
 function void
-r_fnt_free(R_Font font)
+fnt_free(Fnt_Handle font)
 {
   R_FT_Font *ft_font = (R_FT_Font *) font.v[0];
   if (ft_font == 0) return;
@@ -129,20 +129,20 @@ r_ft_fnt_release_font_storage(R_FT_Font *font)
 }
 
 function u32
-r_fnt_glyph_index(R_Font font, u32 codepoint)
+get_glyph_index(Fnt_Handle font, u32 codepoint)
 {
   R_FT_Font *f = (R_FT_Font *) font.v[0];
   return FT_Get_Char_Index(f->face, codepoint);
 }
 
-function R_FontMetrics
-r_fnt_metrics(R_Font font, u32 size)
+function Fnt_Metrics
+fnt_metrics(Fnt_Handle font, u32 size)
 {
   R_FT_Font *f = (R_FT_Font *) font.v[0];
   FT_Set_Pixel_Sizes(f->face, 0, (FT_UInt) (size));
   FT_Size_Metrics *m = &f->face->size->metrics;
 
-  R_FontMetrics result = {
+  Fnt_Metrics result = {
     .ascent      =  (f32) m->ascender  / 64.f,
     .descent     = -(f32) m->descender / 64.f,
     .line_height =  (f32) m->height    / 64.f,
@@ -151,13 +151,13 @@ r_fnt_metrics(R_Font font, u32 size)
   return result;
 }
 
-function R_FontRaster 
-r_fnt_raster(R_Font font, u32 size, u32 index, b32 bold, Arena *arena)
+function Font_Raster 
+rasterize_glyph(Fnt_Handle font, u32 size, u32 index, b32 bold, Arena *arena)
 {
   R_FT_Font *f = (R_FT_Font *) font.v[0];
   FT_Set_Pixel_Sizes(f->face, 0, (FT_UInt) size);
 
-  R_FontRaster result = {0};
+  Font_Raster result = {0};
 
   if (FT_Load_Glyph(f->face, index, FT_LOAD_TARGET_LCD) != 0) return result;
 
@@ -182,7 +182,7 @@ r_fnt_raster(R_Font font, u32 size, u32 index, b32 bold, Arena *arena)
     {
       result.data = arena_push(arena, u8, (s64) bmp->width * bmp->rows);
 
-      for EachIndex(y, bmp->rows)
+      for each_index(y, bmp->rows)
       {
         MemMove(result.data + (s64) y * bmp->width,
                 bmp->buffer + (s64) y * bmp->pitch,
@@ -191,5 +191,16 @@ r_fnt_raster(R_Font font, u32 size, u32 index, b32 bold, Arena *arena)
     }
   }
   return result;
+}
+
+function f32
+get_kerning(Fnt_Handle font, u32 size, u32 left, u32 right)
+{
+  R_FT_Font *f = (R_FT_Font *) font.v[0];
+  FT_Set_Pixel_Sizes(f->face, 0, (FT_UInt) size);
+
+  FT_Vector delta = {0};
+  FT_Get_Kerning(f->face, left, right, FT_KERNING_DEFAULT, &delta);
+  return (f32) delta.x / 64.f;
 }
 

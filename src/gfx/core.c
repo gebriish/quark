@@ -11,6 +11,12 @@ window_matches(Win_Handle a, Win_Handle b)
   return a.v[0] == b.v[0];
 }
 
+function b32 
+keymap_matches(Key_Map a, Key_Map b)
+{
+  return a.keycode == b.keycode && a.mods == b.mods;
+}
+
 function Win_Event *
 window_event_push(Arena *arena, Win_Event_List *list, Win_Event_Kind kind)
 {

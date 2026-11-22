@@ -1,38 +1,38 @@
-function R_Handle 
+function Rndr_Handle 
 r_empty_handle(void)
 {
-  R_Handle h = {0};
+  Rndr_Handle h = {0};
   return h;
 }
 
 function b32 
-r_handle_zero(R_Handle h)
+r_handle_zero(Rndr_Handle h)
 {
   return (h.v[0] == 0);
 }
 
 function b32 
-r_handle_matches(R_Handle a, R_Handle b)
+r_handle_matches(Rndr_Handle a, Rndr_Handle b)
 {
   return (a.v[0] == b.v[0]);
 }
 
 function void 
-r_push_quad_(R_DrawList *list, R_Handle tex, R_Quad *quad)
+push_quad_(Draw_List *list, Rndr_Handle tex, Quad_Inst *quad)
 {
-  Arena *arena = r_frame_arena();
+  Arena *arena = frame_arena();
 
-  R_Draw *draw = list->last;
+  Draw_Call *draw = list->last;
 
-  b32 can_batch = draw && draw->kind == R_DrawKind_Quads &&
+  b32 can_batch = draw && draw->kind == Draw_Kind_Quads &&
                   r_handle_matches(draw->quad_batch.tex, tex) &&
                   draw->quad_batch.len < QUAD_BATCH_SIZE;
 
   if (can_batch == false) 
   {
-    draw = arena_push(arena, R_Draw, 1);
-    draw->kind = R_DrawKind_Quads;
-    draw->quad_batch.raw = arena_push_non_zero(arena, R_Quad, QUAD_BATCH_SIZE);
+    draw = arena_push(arena, Draw_Call, 1);
+    draw->kind = Draw_Kind_Quads;
+    draw->quad_batch.raw = arena_push_non_zero(arena, Quad_Inst, QUAD_BATCH_SIZE);
     draw->quad_batch.tex = tex;
     SLLQueuePush(list->first, list->last, draw);
     list->len += 1;
@@ -43,11 +43,11 @@ r_push_quad_(R_DrawList *list, R_Handle tex, R_Quad *quad)
 }
 
 function void 
-r_push_blur_(R_DrawList *list, R_Blur *blur)
+push_blur_(Draw_List *list, Quad_Blur *blur)
 {
-  Arena *arena = r_frame_arena();
-  R_Draw *draw = arena_push(arena, R_Draw, 1);
-  draw->kind = R_DrawKind_Blur;
+  Arena *arena = frame_arena();
+  Draw_Call *draw = arena_push(arena, Draw_Call, 1);
+  draw->kind = Draw_Kind_Blur;
   draw->blur = *blur;
 
   SLLQueuePush(list->first, list->last, draw);
@@ -55,17 +55,17 @@ r_push_blur_(R_DrawList *list, R_Blur *blur)
 }
 
 function void
-r_push_text_quad_(R_DrawList *list, R_Handle tex, R_TextQuad *q)
+push_text_quad_(Draw_List *list, Rndr_Handle tex, Quad_Text *q)
 {
-  R_Draw *draw = list->last;
-  b32 can_batch = draw && draw->kind == R_DrawKind_Text &&
+  Draw_Call *draw = list->last;
+  b32 can_batch = draw && draw->kind == Draw_Kind_Text &&
                   r_handle_matches(draw->text_batch.tex, tex) &&
                   draw->text_batch.len < QUAD_BATCH_SIZE;
   if(!can_batch)
   {
-    draw = arena_push(r_frame_arena(), R_Draw, 1);
-    draw->kind = R_DrawKind_Text;
-    draw->text_batch.raw = arena_push_non_zero(r_frame_arena(), R_TextQuad, QUAD_BATCH_SIZE);
+    draw = arena_push(frame_arena(), Draw_Call, 1);
+    draw->kind = Draw_Kind_Text;
+    draw->text_batch.raw = arena_push_non_zero(frame_arena(), Quad_Text, QUAD_BATCH_SIZE);
     draw->text_batch.tex = tex;
     SLLQueuePush(list->first, list->last, draw);
     list->len += 1;
@@ -75,11 +75,11 @@ r_push_text_quad_(R_DrawList *list, R_Handle tex, R_TextQuad *q)
 }
 
 function void 
-r_push_clip(R_DrawList *list, Rng2F32 rect)
+push_clip(Draw_List *list, Rng2F32 rect)
 {
-  Arena *arena = r_frame_arena();
-  R_Draw *draw = arena_push(arena, R_Draw, 1);
-  draw->kind = R_DrawKind_ClipPush;
+  Arena *arena = frame_arena();
+  Draw_Call *draw = arena_push(arena, Draw_Call, 1);
+  draw->kind = Draw_Kind_ClipPush;
 
   draw->rect.min.x = (s32) rect.min.x;
   draw->rect.min.y = (s32) rect.min.y;
@@ -91,28 +91,17 @@ r_push_clip(R_DrawList *list, Rng2F32 rect)
 }
 
 function void 
-r_pop_clip(R_DrawList *list)
+pop_clip(Draw_List *list)
 {
-  Arena *arena = r_frame_arena();
-  R_Draw *draw = arena_push(arena, R_Draw, 1);
-  draw->kind = R_DrawKind_ClipPop;
+  Arena *arena = frame_arena();
+  Draw_Call *draw = arena_push(arena, Draw_Call, 1);
+  draw->kind = Draw_Kind_ClipPop;
   SLLQueuePush(list->first, list->last, draw);
   list->len += 1;
 }
 
-function R_Image
-r_blank_image(R_TexFormat fmt, Vec2S32 dim)
-{
-  R_Image image = {
-    .data = 0,
-    .dim = dim,
-    .fmt = fmt
-  };
-  return image;
-}
-
 function f32
-r_frame_begin(void)
+frame_begin(void)
 {
   static Time prev = 0;
   Time curr = time_now();

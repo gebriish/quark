@@ -1,0 +1,34 @@
+//
+// [ ] : ToDo
+// [^] : Currently Doing
+// [*] : Done
+//
+
+[ ] Add multi threading abstraction to `base` layer.
+[^] Project-wide code cleanup
+    - Rename some functions, types etc.
+    - Pull out some code into functions.
+
+[ ] Improvement to glyph hashing
+    - Preferably I should move to like a LRU cache based glyph table.
+    - Current implementation is a fixed non evicting cache that can and will
+      overflow.
+    - Also, try to remove seperate global states for Font Table and Freetype.
+      I might be able to move it inside the general render state, or maybe
+      just one `Fnt_State`.
+
+[ ] UI Layer performance improvements.
+    - Adding some caching perhaps to improve text shaping / wrapping.
+    - I have to figure out a system anyways for code wrapping, so might as well
+      start with regular text.
+
+[ ] Properly think through how commands work in the Editor.
+[ ] Implement a piece tree / gap buffer.
+    - I have been thinking over which datastructure would be best for months now.
+      Have implemented quite a few of them too but I am very confused on which to
+      finally pick for the editor. 
+    - Should measure stuff, especially for parsing the code when it is in said 
+      datastructure form.
+    - Should have CRLF support.
+
+[ ] Port everything implemented till now to windows.

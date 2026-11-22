@@ -2,13 +2,13 @@
 const s64 R_FNT_ATLAS_DIM = 512;
 
 function b32 
-r_fnt_zero(R_Font f)
+fnt_handle_zero(Fnt_Handle f)
 {
   return (f.v[0] == 0);
 }
 
 function b32 
-r_fnt_matches(R_Font a, R_Font b)
+fnt_handle_matches(Fnt_Handle a, Fnt_Handle b)
 {
   return (a.v[0] == b.v[0]);
 }
@@ -18,18 +18,23 @@ r_fnt_matches(R_Font a, R_Font b)
 //
 
 function void
-r_fnt_init(void)
+fnt_init(void)
 {
+  fnt_provider_init();
+
   Arena *arena = arena_reserve(Megabytes(4));
-  r_fnt_state = arena_push(arena, R_FontState, 1);
-  r_fnt_state->arena = arena;
-  r_fnt_state->texture = r_tex_alloc(r_blank_image(R_TexFormat_RGB8, (Vec2S32) { R_FNT_ATLAS_DIM, R_FNT_ATLAS_DIM }));
-  //  initialize the font provider backend
-  r_fnt_provider_init();
+  fnt_state = arena_push(arena, Fnt_State, 1);
+  fnt_state->arena = arena;
+  Image blank = {
+    .data = 0,
+    .fmt = Pixel_Format_RGB8,
+    .dim = v2s32(R_FNT_ATLAS_DIM, R_FNT_ATLAS_DIM)
+  };
+  fnt_state->texture = texture_alloc(blank);
 }
 
-function R_Glyph 
-r_fnt_get_glyph(R_Font font, u32 size, b32 bold, u32 index)
+function Glyph_Rect 
+fnt_get_glyph(Fnt_Handle font, u32 size, b32 bold, u32 index)
 {
   u128 key = {0};
 
@@ -37,11 +42,11 @@ r_fnt_get_glyph(R_Font font, u32 size, b32 bold, u32 index)
   key.hi = (u64) size << 32 | (u64) index | (u64) bold << 63;
 
   u64 hash = u128_hash(key);
-  u64 hash_index = hash & (CArrayLength(r_fnt_state->slots) - 1);
+  u64 hash_index = hash & (CArrayLength(fnt_state->slots) - 1);
 
-  R_GlyphNode *glyph_node = 0;
-  R_GlyphHashBucket bucket = r_fnt_state->slots[hash_index];
-  for (R_GlyphNode *node = bucket.first; node; node = node->hash_next)
+  Glyph_Node *glyph_node = 0;
+  Glyph_Hash_Bucket bucket = fnt_state->slots[hash_index];
+  for each_node(node, Glyph_Node, bucket.first)
   {
     if (u128_matches(node->key, key)) 
     {
@@ -52,36 +57,36 @@ r_fnt_get_glyph(R_Font font, u32 size, b32 bold, u32 index)
 
   if (!glyph_node)
   {
-    glyph_node = r_fnt_state->free_glyphs;
-    if (r_fnt_state->free_glyphs)
+    glyph_node = fnt_state->free_glyphs;
+    if (fnt_state->free_glyphs)
     {
-      SLLStackPop_N(r_fnt_state->free_glyphs, free_next);
+      SLLStackPop(fnt_state->free_glyphs);
       MemZeroStruct(glyph_node);
     }
     else
     {
-      glyph_node = arena_push(r_fnt_state->arena, R_GlyphNode, 1);
+      glyph_node = arena_push(fnt_state->arena, Glyph_Node, 1);
     }
 
-    R_Glyph glyph = {0};
+    Glyph_Rect glyph = {0};
     ScratchScope(scratch, 0, 0)
     {
-      R_FontRaster img = r_fnt_raster(font, size, index, bold, scratch.arena);
+      Font_Raster img = rasterize_glyph(font, size, index, bold, scratch.arena);
 
-      if (r_fnt_state->cursor.x + img.dim.x >= R_FNT_ATLAS_DIM)
+      if (fnt_state->cursor.x + img.dim.x >= R_FNT_ATLAS_DIM)
       {
-        r_fnt_state->cursor.x = 0;
-        r_fnt_state->cursor.y += r_fnt_state->row_height + 1;
+        fnt_state->cursor.x = 0;
+        fnt_state->cursor.y += fnt_state->row_height + 1;
       }
 
       Rng2S32 range = {
-        .min = r_fnt_state->cursor,
-        .max = { r_fnt_state->cursor.x + img.dim.x, r_fnt_state->cursor.y + img.dim.y },
+        .min = fnt_state->cursor,
+        .max = { fnt_state->cursor.x + img.dim.x, fnt_state->cursor.y + img.dim.y },
       };
 
-      r_tex_update(r_fnt_state->texture, range, img.data);
-      r_fnt_state->cursor.x += img.dim.x + 1;
-      r_fnt_state->row_height = Max(r_fnt_state->row_height, (s16) img.dim.y);
+      texture_update(fnt_state->texture, range, img.data);
+      fnt_state->cursor.x += img.dim.x + 1;
+      fnt_state->row_height = Max(fnt_state->row_height, (s16) img.dim.y);
 
       glyph.offset = img.offset;
       glyph.advance = img.advance;
@@ -93,16 +98,16 @@ r_fnt_get_glyph(R_Font font, u32 size, b32 bold, u32 index)
 
     glyph_node->glyph = glyph;
     glyph_node->key = key;
-    DLLPushBack_N(r_fnt_state->slots[hash_index].first,
-                  r_fnt_state->slots[hash_index].last,
-                  glyph_node, hash_next, hash_prev);
+    DLLPushBack(fnt_state->slots[hash_index].first,
+                fnt_state->slots[hash_index].last,
+                glyph_node);
   }
 
   return glyph_node->glyph;
 }
 
 function void 
-r_fnt_frame(void)
+fnt_frame(void)
 {
   
 }
@@ -111,15 +116,15 @@ r_fnt_frame(void)
 // @section: pushing draw commands
 
 function Vec2F32 
-r_push_text_simple(R_DrawList *list, R_Font font, String8 text, Vec2F32 pos, u32 size, s32 tab_width, b32 bold, Vec4F32 fg)
+push_text_simple(Draw_List *list, Fnt_Handle font, String8 text, Vec2F32 pos, u32 size, s32 tab_width, b32 bold, Vec4F32 fg)
 {
   Vec2F32 result = {0};
 
-  R_FontMetrics metrics = r_fnt_metrics(font, size);
-  u32 missing_char = r_fnt_glyph_index(font, 0xFFFD);
+  Fnt_Metrics metrics = fnt_metrics(font, size);
+  u32 missing_char = get_glyph_index(font, 0xFFFD);
 
-  u32 space_char = r_fnt_glyph_index(font, ' ');
-  f32 space_width = r_fnt_raster(font, size, space_char, false, 0).advance;
+  u32 space_char = get_glyph_index(font, ' ');
+  f32 space_width = rasterize_glyph(font, size, space_char, false, 0).advance;
   b32 should_draw = fg.w > 1e-5f;
 
   f32 x = floorf(pos.x);
@@ -127,6 +132,7 @@ r_push_text_simple(R_DrawList *list, R_Font font, String8 text, Vec2F32 pos, u32
 
   s32 incr;
   f32 tab_size_px = (f32) tab_width * space_width;
+  u32 prev_glyph = 0;
   for (s64 i=0; i<text.len; i += (s64) Max(incr, 1))
   {
     u32 codep = utf8_decode(text, i, &incr);
@@ -136,25 +142,34 @@ r_push_text_simple(R_DrawList *list, R_Font font, String8 text, Vec2F32 pos, u32
       case ' ':
       {
         x += space_width;
+        prev_glyph = 0;
       } break;
       case '\t':
       {
         f32 rel = x - pos.x;
         f32 next_stop = (floorf(rel / tab_size_px) + 1.f) * tab_size_px;
         x = pos.x + next_stop;
+        prev_glyph = 0;
       } break;
       case '\n':
       {
         x = pos.x;
         y += metrics.line_height;
         result.y += metrics.line_height;
+        prev_glyph = 0;
       } break;
       default:
       {
-        u32 glyph_index = r_fnt_glyph_index(font, codep);
+        u32 glyph_index = get_glyph_index(font, codep);
         glyph_index = (glyph_index == 0) ? missing_char : glyph_index;
-        R_Glyph glyph = r_fnt_get_glyph(font, size, bold, glyph_index);
 
+        if (prev_glyph != 0)
+        {
+          x -= get_kerning(font, size, prev_glyph, glyph_index);
+        }
+        prev_glyph = glyph_index;
+
+        Glyph_Rect glyph = fnt_get_glyph(font, size, bold, glyph_index);
         if (should_draw) 
         {
           Rng2S16 rect = glyph.rect;
@@ -169,14 +184,13 @@ r_push_text_simple(R_DrawList *list, R_Font font, String8 text, Vec2F32 pos, u32
             .min = vec2_scale(v2f32(rect.min.x, rect.min.y), 1.f / R_FNT_ATLAS_DIM),
             .max = vec2_scale(v2f32(rect.max.x, rect.max.y), 1.f / R_FNT_ATLAS_DIM),
           };
-          R_TextQuad text_quad = {
+          Quad_Text text_quad = {
             .dst = dst,
             .src = src,
             .fg = fg,
           };
-          r_push_text_quad_(list, r_fnt_state->texture, &text_quad);
+          push_text_quad_(list, fnt_state->texture, &text_quad);
         }
-
         x += glyph.advance;
         result.x = Max(result.x, x - pos.x);
       } break;

@@ -44,12 +44,12 @@ do                                                        \
 ////////////////////////////
 // @section: function components
 
-function void ui_text(String8 text, R_Font font, u32 size, b32 bold, Vec4F32 color);
-function void ui_image(R_Handle tex);
-function void ui_image_grown(R_Handle tex);
+function void ui_text(String8 text, Fnt_Handle font, u32 size, b32 bold, Vec4F32 color);
+function void ui_image(Rndr_Handle tex);
+function void ui_image_grown(Rndr_Handle tex);
 
 function b32 ui_button(String8 label,
-                       R_Font font,
+                       Fnt_Handle font,
                        u32 size,
                        Vec4F32 fg,
                        Vec4F32 bg);

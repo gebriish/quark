@@ -56,6 +56,7 @@ struct LNX_GFX_State
   Key_Modifiers modifiers;
   u64 key_down_state[(Key_COUNT + 63) / 64];
   Cursor xcursors[Win_Cursor_COUNT];
+  Win_Cursor last_set_cursor;
 };
 
 global LNX_GFX_State *lnx_gfx_state = 0;

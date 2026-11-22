@@ -53,7 +53,7 @@ enum
   Win_Cursor_COUNT,
 };
 
-typedef u32 Key_Modifiers;
+typedef u8 Key_Modifiers;
 enum
 {
   Key_Modifier_Ctrl  = 1 << 0,
@@ -61,7 +61,7 @@ enum
   Key_Modifier_Alt   = 1 << 2,
 };
 
-typedef u32 Key;
+typedef u8 Key;
 enum
 {
   Key_Null,
@@ -152,6 +152,13 @@ enum
   Key_COUNT,
 };
 
+typedef struct Key_Map Key_Map;
+struct Key_Map
+{
+  Key keycode;
+  Key_Modifiers mods;
+};
+
 typedef u32 Win_Region;
 enum
 {
@@ -197,9 +204,10 @@ function void gfx_init(void);
 function Win_Event_List get_window_events(Arena *arena);
 function Win_Event *window_event_push(Arena *arena, Win_Event_List *list, Win_Event_Kind kind);
 
-function b32 gfx_key_is_down(Key key);
-function Vec2F32 gfx_mouse_in_window(Win_Handle win);
-function void gfx_set_cursor(Win_Cursor cursor);
+function b32 key_is_down(Key key);
+function Vec2F32 get_mouse_in_window(Win_Handle win);
+function void set_cursor_icon(Win_Cursor cursor);
+function b32 keymap_matches(Key_Map a, Key_Map b);
 
 ///////////////////////////
 // @section: window creation procedures

@@ -1,7 +1,7 @@
 function void
-ui_text(String8 text, R_Font font, u32 size, b32 bold, Vec4F32 color)
+ui_text(String8 text, Fnt_Handle font, u32 size, b32 bold, Vec4F32 color)
 {
-  Vec2F32 txt_size = r_measure_text_simple(font, text, size, 2);
+  Vec2F32 txt_size = measure_text_simple(font, text, size, 2);
   UI(
     .size = { ui_size_fixed(txt_size.x), ui_size_fixed(txt_size.y) },
     .text = text,
@@ -13,9 +13,9 @@ ui_text(String8 text, R_Font font, u32 size, b32 bold, Vec4F32 color)
 }
 
 function void
-ui_image(R_Handle tex)
+ui_image(Rndr_Handle tex)
 {
-  Vec2S32 size = r_tex_size(tex);
+  Vec2S32 size = texture_size(tex);
   UI(
     .size = { ui_size_fixed((f32) size.x), ui_size_fixed((f32) size.y) },
     .fill_color = Color8(0xffffffff),
@@ -24,9 +24,9 @@ ui_image(R_Handle tex)
 }
 
 function void
-ui_image_grown(R_Handle tex)
+ui_image_grown(Rndr_Handle tex)
 {
-  Vec2S32 size = r_tex_size(tex);
+  Vec2S32 size = texture_size(tex);
   UI_Size proportional_size = ui_grow_proportional((f32) size.x / (f32) size.y);
   UI(
     .size = proportional_size,
@@ -35,15 +35,13 @@ ui_image_grown(R_Handle tex)
   );
 }
 
-function b32 ui_button( String8 label,
-                        R_Font font,
-                        u32 size,
-                        Vec4F32 fg,
-                        Vec4F32 bg )
+function b32 
+ui_button(String8 label, Fnt_Handle font, u32 size, Vec4F32 fg, Vec4F32 bg)
 {
   b32 ok = false;
   ui_fit(.label = label,
          .fill_color = bg,
+         .flags = UI_BoxFlag_Clickable,
          .padding = ui_padding(5),
          .radii = Radius4(4.f))
   {
@@ -63,7 +61,7 @@ function b32 ui_button( String8 label,
       ok = true;
     }
 
-    ui_text(label, font, size, signal.pressed, fg);
+    ui_text(label, font, size, false, fg);
   }
 
   return ok;
