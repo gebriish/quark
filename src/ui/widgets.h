@@ -20,7 +20,7 @@
 ////////////////////////////
 // @section: macro components
 
-#define ui_layout(l, ...) DeferLoop(ui_begin_layout((UI_FrameInput) {__VA_ARGS__}), ui_end_layout(l))
+#define ui_layout(l, ...) DeferLoop(ui_begin_layout((UI_Frame_Input) {__VA_ARGS__}), ui_end_layout(l))
 
 #define ui_floating(...) \
 for (int _i_ = (ui_open(ui_state->root), 0); \
@@ -57,7 +57,7 @@ function b32 ui_button(String8 label,
 ////////////////////////////
 // @section: components making helpers
 
-function UI_Size ui_layout_aligned_size(UI_SizeAxis along, UI_SizeAxis perp);
+function UI_Size ui_layout_aligned_size(UI_Size_Axis along, UI_Size_Axis perp);
 function UI_Size ui_grow_proportional(f32 aspect_ratio);
 
 #endif // UI_WIDGETS_H

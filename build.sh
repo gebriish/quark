@@ -17,7 +17,7 @@ echo "compiling quark..."
 
 mkdir -p bin
 
-if clang ./src/quark/main.c -o ./bin/quark \
+if clang ./src/editor/main.c -o ./bin/quark \
 	-I ./src -I /usr/include/freetype2 \
 	-lm -lfreetype -lX11 -lXext -lGL \
 	"${FLAGS[@]}"; then

@@ -20,7 +20,7 @@ ui_init(void)
 }
 
 function void
-ui_begin_layout(UI_FrameInput input)
+ui_begin_layout(UI_Frame_Input input)
 {
   arena_free(ui_state->build_arena, false);
   ui_state->frame_index += 1;
@@ -60,11 +60,11 @@ ui_end_layout(Draw_List *draw_list)
     if (!ui_key_zero(hot))
     {
       UI_Box *box = ui_get_persist_node(hot)->box;
-      if (box->flags & UI_BoxFlag_Clickable)
+      if (box->flags & UI_Box_Flag_Clickable)
       {
         set_cursor_icon(Win_Cursor_HandPoint);
       }
-      else if (box->flags & UI_BoxFlag_Text)
+      else if (box->flags & UI_Box_Flag_Text)
       {
         set_cursor_icon(Win_Cursor_IBar);
       }
@@ -126,10 +126,10 @@ ui_box_configure(UI_Config *config)
 
   // Fixed sized axes can be finalized here itself.
 
-  if (box->size.width.kind == UI_SizeKind_Fixed)
+  if (box->size.width.kind == UI_Size_Kind_Fixed)
     box->final_dim.x = box->size.width.value;
 
-  if (box->size.height.kind == UI_SizeKind_Fixed)
+  if (box->size.height.kind == UI_Size_Kind_Fixed)
     box->final_dim.y = box->size.height.value;
 
   // Persistent Node
@@ -146,7 +146,7 @@ ui_box_configure(UI_Config *config)
     {
       Vec2F32 offset = pivot_offsets[box->parent->pivot];
       persist->last_pos = vec2_mul(ui_state->curr_input.resolution, offset);
-      if (box->flags & UI_BoxFlag_AutoActive)
+      if (box->flags & UI_Box_Flag_AutoActive)
       {
         ui_state->active = key;
       }
@@ -160,13 +160,13 @@ ui_close(void)
 {
   UI_Box *box = ui_state->call_list;
 
-  Axis2D layout_axis = box->layout;
-  Axis2D layout_perp = axis2d_flip(layout_axis);
+  Axis_2D layout_axis = box->layout;
+  Axis_2D layout_perp = axis2d_flip(layout_axis);
 
   Vec2F32 content_dim = {0};
 
-  // By now , all the children with UI_SizeKind_Fixed, UI_SizeKind_Fit are
-  // resolved, so we can use those to compute [box]'s UI_SizeKind_Fit sizing.
+  // By now , all the children with UI_Size_Kind_Fixed, UI_Size_Kind_Fit are
+  // resolved, so we can use those to compute [box]'s UI_Size_Kind_Fit sizing.
 
   for each_node(child, UI_Box, box->first)
   {
@@ -186,8 +186,8 @@ ui_close(void)
     box->padding.values[Edge_Top] + box->padding.values[Edge_Bottom],
   };
 
-  if (box->size.width.kind == UI_SizeKind_Fit) box->final_dim.x = content_dim.x + padding_sum.x;
-  if (box->size.height.kind == UI_SizeKind_Fit) box->final_dim.y = content_dim.y + padding_sum.y;
+  if (box->size.width.kind == UI_Size_Kind_Fit) box->final_dim.x = content_dim.x + padding_sum.x;
+  if (box->size.height.kind == UI_Size_Kind_Fit) box->final_dim.y = content_dim.y + padding_sum.y;
 
   SLLStackPop_N(ui_state->call_list, call_prev);
   if (box->persist)
@@ -199,18 +199,13 @@ ui_close(void)
 function void
 ui_grow_layout_pass(UI_Box *box)
 {
-  f32 k = 1.f - expf(-60.f * ui_state->curr_input.delta_time);
+  f32 k = 1.f - expf(-40.f * ui_state->curr_input.delta_time);
 
-  if (box->persist)
-  {
-    box->persist->last_blur = Lerp(box->persist->last_blur, box->blur_radius, 1.f);
-  }
+  Axis_2D layout_axis = box->layout;
+  Axis_2D layout_perp = axis2d_flip(layout_axis);
 
-  Axis2D layout_axis = box->layout;
-  Axis2D layout_perp = axis2d_flip(layout_axis);
-
-  u64 layout_flag = (layout_axis == Axis2D_Horizontal) ? UI_BoxFlag_SmoothWidth  : UI_BoxFlag_SmoothHeight;
-  u64 perp_flag   = (layout_axis == Axis2D_Horizontal) ? UI_BoxFlag_SmoothHeight : UI_BoxFlag_SmoothWidth;
+  u64 layout_flag = (layout_axis == Axis_2D_Horizontal) ? UI_Box_Flag_SmoothWidth  : UI_Box_Flag_SmoothHeight;
+  u64 perp_flag   = (layout_axis == Axis_2D_Horizontal) ? UI_Box_Flag_SmoothHeight : UI_Box_Flag_SmoothWidth;
 
   Vec2F32 padding_sum =
   {
@@ -227,28 +222,28 @@ ui_grow_layout_pass(UI_Box *box)
   for each_node(child, UI_Box, box->first)
   {
     UI_Persist *p = child->persist;
-    UI_SizeAxis *w_size = &child->size.width;
-    UI_SizeAxis *h_size = &child->size.height;
+    UI_Size_Axis *w_size = &child->size.width;
+    UI_Size_Axis *h_size = &child->size.height;
 
-    if (w_size->kind == UI_SizeKind_Percent) child->final_dim.x = available.x * w_size->value;
-    if (h_size->kind == UI_SizeKind_Percent) child->final_dim.y = available.y * h_size->value;
+    if (w_size->kind == UI_Size_Kind_Percent) child->final_dim.x = available.x * w_size->value;
+    if (h_size->kind == UI_Size_Kind_Percent) child->final_dim.y = available.y * h_size->value;
 
-    if (p && w_size->kind != UI_SizeKind_Grow)
+    if (p && w_size->kind != UI_Size_Kind_Grow)
     {
-      f32 s = (child->flags & UI_BoxFlag_SmoothWidth) ? k : 1.f;
+      f32 s = (child->flags & UI_Box_Flag_SmoothWidth) ? k : 1.f;
       p->last_dim.x += (child->final_dim.x - p->last_dim.x) * s;
       child->final_dim.x = p->last_dim.x;
     }
 
-    if (p && h_size->kind != UI_SizeKind_Grow)
+    if (p && h_size->kind != UI_Size_Kind_Grow)
     {
-      f32 s = (child->flags & UI_BoxFlag_SmoothHeight) ? k : 1.f;
+      f32 s = (child->flags & UI_Box_Flag_SmoothHeight) ? k : 1.f;
       p->last_dim.y += (child->final_dim.y - p->last_dim.y) * s;
       child->final_dim.y = p->last_dim.y;
     }
 
-    UI_SizeAxis size = child->size.axes[layout_axis];
-    if (size.kind == UI_SizeKind_Grow)
+    UI_Size_Axis size = child->size.axes[layout_axis];
+    if (size.kind == UI_Size_Kind_Grow)
     {
       grow_weight += size.value;
     }
@@ -265,9 +260,9 @@ ui_grow_layout_pass(UI_Box *box)
   for each_node(child, UI_Box, box->first)
   {
     UI_Persist *p = child->persist;
-    UI_SizeAxis size = child->size.axes[layout_axis];
+    UI_Size_Axis size = child->size.axes[layout_axis];
 
-    if (size.kind == UI_SizeKind_Grow)
+    if (size.kind == UI_Size_Kind_Grow)
     {
       child->final_dim.xy[layout_axis] = (grow_weight > 0.f) ? remaining * size.value / grow_weight : 0.f;
 
@@ -279,7 +274,7 @@ ui_grow_layout_pass(UI_Box *box)
       }
     }
 
-    if (child->size.axes[layout_perp].kind == UI_SizeKind_Grow)
+    if (child->size.axes[layout_perp].kind == UI_Size_Kind_Grow)
     {
       child->final_dim.xy[layout_perp] = available.xy[layout_perp];
 
@@ -313,15 +308,15 @@ ui_position_layout_pass(UI_Box *box)
     f32 k = 1.f - expf(-30.f * ui_state->curr_input.delta_time);
     Vec2F32 scale = v2f32(1.f, 1.f);
 
-    if (box->flags & UI_BoxFlag_SmoothX) scale.x = k;
-    if (box->flags & UI_BoxFlag_SmoothY) scale.y = k;
+    if (box->flags & UI_Box_Flag_SmoothX) scale.x = k;
+    if (box->flags & UI_Box_Flag_SmoothY) scale.y = k;
 
     p->last_pos = vec2_add(p->last_pos, vec2_mul(vec2_sub(box->final_pos, p->last_pos), scale));
     box->final_pos = p->last_pos;
   }
 
-  Axis2D layout_axis = box->layout;
-  Axis2D layout_perp = axis2d_flip(box->layout);
+  Axis_2D layout_axis = box->layout;
+  Axis_2D layout_perp = axis2d_flip(box->layout);
 
   Vec2F32 inner_min =
   {
@@ -424,14 +419,14 @@ ui_draw_layout_pass(UI_Box *box, Draw_List *draw_list)
   // draw border rect
   if (box->border_color.a >= 1e-5f)
   {
-    push_quad(draw_list, r_empty_handle(),
+    push_quad(draw_list, (Rndr_Handle) {0},
               .dst = box_rect,
               .col = box->border_color,
               .thickness = Max(1.f, box->border_thickness),
               .radii = box->radii);
   }
 
-  if (box->flags & UI_BoxFlag_Clip)
+  if (box->flags & UI_Box_Flag_Clip)
   {
     push_clip(draw_list, inner_rect);
   }
@@ -463,7 +458,7 @@ ui_draw_layout_pass(UI_Box *box, Draw_List *draw_list)
         .max = vec2_add(vec2_add(child->final_pos, child->final_dim), v2f32(shadow_offset,shadow_offset)),
       };
 
-      push_quad(draw_list, r_empty_handle(),
+      push_quad(draw_list, (Rndr_Handle) {0},
                 .dst = shadow_rect,
                 .edge_blur = shadow_blur,
                 .src = { .min = {0,0}, .max = {1,1} },
@@ -474,47 +469,47 @@ ui_draw_layout_pass(UI_Box *box, Draw_List *draw_list)
     ui_draw_layout_pass(child, draw_list);
   }
 
-  if (box->flags & UI_BoxFlag_Clip)
+  if (box->flags & UI_Box_Flag_Clip)
   {
     pop_clip(draw_list);
   }
 }
 
-function UI_SizeAxis
+function UI_Size_Axis
 ui_size_fixed(f32 x)
 {
-  UI_SizeAxis size = {
-    .kind = UI_SizeKind_Fixed,
+  UI_Size_Axis size = {
+    .kind = UI_Size_Kind_Fixed,
     .value = x
   };
   return size;
 }
 
-function UI_SizeAxis
+function UI_Size_Axis
 ui_size_percent(f32 x)
 {
-  UI_SizeAxis size = {
-    .kind = UI_SizeKind_Percent,
+  UI_Size_Axis size = {
+    .kind = UI_Size_Kind_Percent,
     .value = x
   };
   return size;
 }
 
-function UI_SizeAxis
+function UI_Size_Axis
 ui_size_grow(f32 x)
 {
-  UI_SizeAxis size = {
-    .kind = UI_SizeKind_Grow,
+  UI_Size_Axis size = {
+    .kind = UI_Size_Kind_Grow,
     .value = x
   };
   return size;
 }
 
-function UI_SizeAxis
+function UI_Size_Axis
 ui_size_fit(void)
 {
-  UI_SizeAxis size = {
-    .kind = UI_SizeKind_Fit,
+  UI_Size_Axis size = {
+    .kind = UI_Size_Kind_Fit,
     .value = 0.f
   };
   return size;

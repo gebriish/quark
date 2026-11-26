@@ -20,3 +20,26 @@ load_entire_file(Arena *arena, String8 path)
   load_file_to_buffer(path, raw, size);
   return str8(raw, size);
 }
+
+function String8
+parent_relative_diretory_from_absolute(String8 parent, String8 dir) 
+{
+  String8 result = {0};
+  if (str8_starts_with(dir, parent))
+  {
+    result = str8_skip(dir, parent.len + 1); 
+  }
+  else
+  {
+    String8 home = get_home_directory();
+    if (str8_starts_with(dir, home))
+    {
+      result = str8_skip(dir, home.len + 1);
+    }
+    else
+    {
+      result = dir;
+    }
+  }
+  return result;
+}

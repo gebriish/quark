@@ -5,7 +5,7 @@
 //
 
 [ ] Add multi threading abstraction to `base` layer.
-[^] Project-wide code cleanup
+[*] Project-wide code cleanup
     - Rename some functions, types etc.
     - Pull out some code into functions.
 

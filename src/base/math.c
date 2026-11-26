@@ -192,9 +192,9 @@ mat4_look_at(Vec3F32 eye, Vec3F32 target, Vec3F32 up)
   return m;
 }
 
-function Axis2D 
-axis2d_flip(Axis2D axis)
+function Axis_2D 
+axis2d_flip(Axis_2D axis)
 {
-  return (Axis2D) !(axis);
+  return (Axis_2D) !(axis);
 }
 

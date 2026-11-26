@@ -1,3 +1,6 @@
+#ifndef RENDER_INC_H
+#define RENDER_INC_H
+
 // rn Im only gonna support OpenGL
 
 #define RENDER_BACKEND_OPENGL 1
@@ -23,3 +26,5 @@
 #else
 # error "render backend missing"
 #endif
+
+#endif // RENDER_INC_H

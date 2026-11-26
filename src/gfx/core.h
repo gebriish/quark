@@ -152,13 +152,6 @@ enum
   Key_COUNT,
 };
 
-typedef struct Key_Map Key_Map;
-struct Key_Map
-{
-  Key keycode;
-  Key_Modifiers mods;
-};
-
 typedef u32 Win_Region;
 enum
 {
@@ -205,12 +198,10 @@ function Win_Event_List get_window_events(Arena *arena);
 function Win_Event *window_event_push(Arena *arena, Win_Event_List *list, Win_Event_Kind kind);
 
 function b32 key_is_down(Key key);
-function Vec2F32 get_mouse_in_window(Win_Handle win);
 function void set_cursor_icon(Win_Cursor cursor);
-function b32 keymap_matches(Key_Map a, Key_Map b);
 
 ///////////////////////////
-// @section: window creation procedures
+// @section: window handling procedures
 
 function b32 window_zero(Win_Handle w);
 function b32 window_matches(Win_Handle a, Win_Handle b);
@@ -223,6 +214,7 @@ function void window_set_min_size(Win_Handle win, s32 w, s32 h);
 function void window_set_move_region(Win_Handle win, f32 regions[Edge_COUNT]);
 function void window_set_background(Win_Handle win, Vec4F32 col);
 
+function Vec2F32    get_mouse_in_window(Win_Handle win);
 function Vec2F32    window_get_size(Win_Handle win);
 function Win_Region window_region_from_pixel(Win_Handle win, Vec2F32 pos, b32 *in_client);
 function Win_Cursor window_region_to_cursor(Win_Region code);

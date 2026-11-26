@@ -115,9 +115,8 @@ struct Clip_Rect
 /////////////////////////////
 // @section: handles
 
-function Rndr_Handle r_empty_handle(void);
-function b32 r_handle_zero(Rndr_Handle h);
-function b32 r_handle_matches(Rndr_Handle a, Rndr_Handle b);
+function b32 rndr_handle_zero(Rndr_Handle h);
+function b32 rndr_handle_matches(Rndr_Handle a, Rndr_Handle b);
 
 /////////////////////////////
 // @section: state functions

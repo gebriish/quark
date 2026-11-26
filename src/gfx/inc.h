@@ -1,3 +1,5 @@
+#ifndef GFX_INC_H
+#define GFX_INC_H
 
 #include "core.h"
 
@@ -6,3 +8,5 @@
 #else
 # error "platform gfx layer missing"
 #endif
+
+#endif // GFX_INC_H

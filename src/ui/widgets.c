@@ -41,7 +41,7 @@ ui_button(String8 label, Fnt_Handle font, u32 size, Vec4F32 fg, Vec4F32 bg)
   b32 ok = false;
   ui_fit(.label = label,
          .fill_color = bg,
-         .flags = UI_BoxFlag_Clickable,
+         .flags = UI_Box_Flag_Clickable,
          .padding = ui_padding(5),
          .radii = Radius4(4.f))
   {
@@ -68,12 +68,12 @@ ui_button(String8 label, Fnt_Handle font, u32 size, Vec4F32 fg, Vec4F32 bg)
 }
 
 function UI_Size
-ui_layout_aligned_size(UI_SizeAxis along, UI_SizeAxis perp)
+ui_layout_aligned_size(UI_Size_Axis along, UI_Size_Axis perp)
 {
   UI_Box *box = ui_state->call_list;
 
-  Axis2D layout_axis = box->layout;
-  Axis2D layout_perp = axis2d_flip(layout_axis);
+  Axis_2D layout_axis = box->layout;
+  Axis_2D layout_perp = axis2d_flip(layout_axis);
 
   UI_Size size;
   size.axes[layout_axis] = along;
@@ -87,8 +87,8 @@ ui_grow_proportional(f32 aspect_ratio)
   UI_Size size = {0};
   UI_Box *parent = ui_state->call_list;
 
-  Axis2D layout_axis = parent->layout;
-  Axis2D layout_perp = axis2d_flip(layout_axis);
+  Axis_2D layout_axis = parent->layout;
+  Axis_2D layout_perp = axis2d_flip(layout_axis);
 
   size.axes[layout_axis] = ui_size_grow(1.f);
   size.axes[layout_perp] = ui_size_grow(1.f);

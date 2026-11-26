@@ -52,4 +52,13 @@ function b32     write_file_to_path(String8 data, String8 path);
 function b32     create_directory(String8 path);
 function String8 file_name_from_path(String8 path);
 
+///////////////////////////////
+// @section: paths
+
+function b32 set_current_working_directory(String8 path);
+function String8 get_current_working_directory(Arena *arena);
+function String8 get_absolute_directory(Arena *arena, String8 rel);
+function String8 get_home_directory(void);
+function String8 parent_relative_diretory_from_absolute(String8 path, String8 dir);
+
 #endif // BASE_FILES_H

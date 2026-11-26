@@ -9,43 +9,43 @@ struct UI_Key
   u64 v[1];
 };
 
-typedef u32 UI_BoxFlags;
+typedef u32 UI_Box_Flags;
 enum
 {
-  UI_BoxFlag_Clip         = (1u <<  0),
-  UI_BoxFlag_ScrollX      = (1u <<  1),
-  UI_BoxFlag_ScrollY      = (1u <<  2),
-  UI_BoxFlag_AutoActive   = (1u <<  3),
-  UI_BoxFlag_SmoothWidth  = (1u <<  4),
-  UI_BoxFlag_SmoothHeight = (1u <<  5),
-  UI_BoxFlag_SmoothX      = (1u <<  6),
-  UI_BoxFlag_SmoothY      = (1u <<  7),
-  UI_BoxFlag_Text         = (1u <<  8),
-  UI_BoxFlag_Clickable    = (1u <<  9),
+  UI_Box_Flag_Clip         = (1u <<  0),
+  UI_Box_Flag_ScrollX      = (1u <<  1),
+  UI_Box_Flag_ScrollY      = (1u <<  2),
+  UI_Box_Flag_AutoActive   = (1u <<  3),
+  UI_Box_Flag_SmoothWidth  = (1u <<  4),
+  UI_Box_Flag_SmoothHeight = (1u <<  5),
+  UI_Box_Flag_SmoothX      = (1u <<  6),
+  UI_Box_Flag_SmoothY      = (1u <<  7),
+  UI_Box_Flag_Text         = (1u <<  8),
+  UI_Box_Flag_Clickable    = (1u <<  9),
 };
 
-typedef u32 UI_SizeKind;
+typedef u32 UI_Size_Kind;
 enum
 {
-  UI_SizeKind_Fixed,
-  UI_SizeKind_Percent,
-  UI_SizeKind_Grow,
-  UI_SizeKind_Fit,
-  UI_SizeKind_COUNT,
+  UI_Size_Kind_Fixed,
+  UI_Size_Kind_Percent,
+  UI_Size_Kind_Grow,
+  UI_Size_Kind_Fit,
+  UI_Size_Kind_COUNT,
 };
 
-typedef struct UI_SizeAxis UI_SizeAxis;
-struct UI_SizeAxis
+typedef struct UI_Size_Axis UI_Size_Axis;
+struct UI_Size_Axis
 {
-  UI_SizeKind kind;
+  UI_Size_Kind kind;
   f32 value;
 };
 
 typedef union UI_Size UI_Size;
 union UI_Size
 {
-  struct { UI_SizeAxis width, height; };
-  UI_SizeAxis axes[2];
+  struct { UI_Size_Axis width, height; };
+  UI_Size_Axis axes[2];
 };
 
 typedef struct UI_Padding UI_Padding;
@@ -54,30 +54,28 @@ struct UI_Padding
   u16 values[Edge_COUNT];
 };
 
-typedef void (*UI_BoxDrawProc)(UI_Box *box);
-
 #define X_BOX_CONFIG_FIELDS \
-  X(String8,     label) \
-  X(UI_BoxFlags, flags) \
-  X(Vec2F32,     position) \
-  X(Pivot,       pivot) \
-  X(Axis2D,      layout) \
-  X(UI_Size,     size) \
-  X(UI_Padding,  padding) \
-  X(f32,         gap) \
-  X(f32,         scroll_scale) \
-  X(Fnt_Handle,  font) \
-  X(String8,     text) \
-  X(u32,         text_size) \
-  X(b32,         text_bold) \
-  X(Vec4F32,     text_color) \
-  X(f32,         blur_radius) \
-  X(Vec4F32,     fill_color) \
-  X(Vec4F32,     shadow_color) \
-  X(Vec4F32,     border_color) \
-  X(f32,         border_thickness) \
-  X(Vec4F32,     radii) \
-  X(Rndr_Handle, texture) \
+  X(String8,      label) \
+  X(UI_Box_Flags, flags) \
+  X(Vec2F32,      position) \
+  X(Pivot,        pivot) \
+  X(Axis_2D,      layout) \
+  X(UI_Size,      size) \
+  X(UI_Padding,   padding) \
+  X(f32,          gap) \
+  X(f32,          scroll_scale) \
+  X(Fnt_Handle,   font) \
+  X(String8,      text) \
+  X(u32,          text_size) \
+  X(b32,          text_bold) \
+  X(Vec4F32,      text_color) \
+  X(f32,          blur_radius) \
+  X(Vec4F32,      fill_color) \
+  X(Vec4F32,      shadow_color) \
+  X(Vec4F32,      border_color) \
+  X(f32,          border_thickness) \
+  X(Vec4F32,      radii) \
+  X(Rndr_Handle,  texture) \
 
 typedef struct UI_Persist UI_Persist;
 struct UI_Persist
@@ -128,8 +126,8 @@ struct UI_Config
 
 #define UI_BOX_BUCKET_COUNT 2048
 
-typedef struct UI_FrameInput UI_FrameInput;
-struct UI_FrameInput
+typedef struct UI_Frame_Input UI_Frame_Input;
+struct UI_Frame_Input
 {
   Vec2F32 resolution;
   b32 mouse_down;
@@ -153,8 +151,8 @@ struct UI_State
   UI_Key hot;
   UI_Key active;
 
-  UI_FrameInput last_input;
-  UI_FrameInput curr_input;
+  UI_Frame_Input last_input;
+  UI_Frame_Input curr_input;
 };
 
 typedef struct UI_Signal UI_Signal;
@@ -180,7 +178,7 @@ function b32 ui_key_matches(UI_Key a, UI_Key b);
 
 function void ui_init(void);
 
-function void ui_begin_layout(UI_FrameInput input);
+function void ui_begin_layout(UI_Frame_Input input);
 function void ui_end_layout(Draw_List *draw_list);
 
 ////////////////////
@@ -209,10 +207,10 @@ function UI_Signal ui_get_signal_from_box(UI_Box *box);
 ////////////////////
 // @section: config utilities
 
-function UI_SizeAxis ui_size_fixed(f32 x);
-function UI_SizeAxis ui_size_percent(f32 x);
-function UI_SizeAxis ui_size_grow(f32 x);
-function UI_SizeAxis ui_size_fit(void);
+function UI_Size_Axis ui_size_fixed(f32 x);
+function UI_Size_Axis ui_size_percent(f32 x);
+function UI_Size_Axis ui_size_grow(f32 x);
+function UI_Size_Axis ui_size_fit(void);
 
 function UI_Padding ui_padding(u16 v);
 function UI_Padding ui_padding_xy(u16 x, u16 y);

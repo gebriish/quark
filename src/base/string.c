@@ -5,7 +5,7 @@ char_is_space(u8 c)
   return (c >= '\t' && c <= '\r') || c == ' ';
 }
 
-read_only u8 len_table[32] = 
+read_only global u8 utf8_len_table[32] = 
 {
   1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,   // 0xxxxxxx
   0,0,0,0,0,0,0,0,                   // 10xxxxxx (invalid lead)
@@ -26,7 +26,7 @@ utf8_decode(String8 text, s64 index, s32 *out_incr)
   if(0 <= index && index < (s64)text.len)
   {
     u8 *p   = text.raw + index;
-    s32 len = len_table[p[0] >> 3];
+    s32 len = utf8_len_table[p[0] >> 3];
 
     if(len && index + len <= text.len)
     {
@@ -260,6 +260,17 @@ str8_find_last(String8 string, u32 cp)
 		i = pos;
 	}
 	return -1;
+}
+
+function b32
+str8_starts_with(String8 src, String8 pre)
+{
+  b32 result = false;
+  if (src.len >= pre.len)
+  {
+    result = (memcmp(src.raw, pre.raw, (size_t) pre.len) == 0);
+  }
+  return result;
 }
 
 // @section: string8 array

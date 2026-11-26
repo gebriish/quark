@@ -149,7 +149,7 @@ function void  opengl_set_scissor(Rng2S32 rect);
 //////////////////////////////////////
 // @section: glsl shaders
 
-global read_only String8 opengl_quad_vertex_glsl = S(
+read_only global String8 opengl_quad_vertex_glsl = S(
 "#version 330 core\n"
 
 "layout(location = 0) in vec4  dst;"
@@ -189,7 +189,7 @@ global read_only String8 opengl_quad_vertex_glsl = S(
 "}"
 );
 
-global read_only String8 opengl_quad_fragment_glsl = S(
+read_only global String8 opengl_quad_fragment_glsl = S(
 "#version 330 core\n"
 
 "in VS_OUT {"
@@ -233,7 +233,7 @@ global read_only String8 opengl_quad_fragment_glsl = S(
 );
 
 
-global read_only String8 opengl_blur_vertex_glsl = S(
+read_only global String8 opengl_blur_vertex_glsl = S(
 "#version 330 core\n"
 
 "out VS_OUT {"
@@ -263,7 +263,7 @@ global read_only String8 opengl_blur_vertex_glsl = S(
 "}"
 );
 
-global read_only String8 opengl_blur_fragment_glsl = S(
+read_only global String8 opengl_blur_fragment_glsl = S(
 "#version 330 core\n"
 
 "in VS_OUT {"
@@ -307,7 +307,7 @@ global read_only String8 opengl_blur_fragment_glsl = S(
 "}"
 );
 
-global read_only String8 opengl_text_vertex_glsl = S(
+read_only global String8 opengl_text_vertex_glsl = S(
 "#version 330 core\n"
 "layout(location = 0) in vec4 dst;"
 "layout(location = 1) in vec4 src;"
@@ -328,7 +328,7 @@ global read_only String8 opengl_text_vertex_glsl = S(
 "}"
 );
 
-global read_only String8 opengl_text_fragment_glsl = S(
+read_only global String8 opengl_text_fragment_glsl = S(
 "#version 330 core\n"
 "in VS_OUT { vec2 uv; vec4 fg; } fs_in;"
 

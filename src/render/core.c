@@ -1,18 +1,11 @@
-function Rndr_Handle 
-r_empty_handle(void)
-{
-  Rndr_Handle h = {0};
-  return h;
-}
-
 function b32 
-r_handle_zero(Rndr_Handle h)
+rndr_handle_zero(Rndr_Handle h)
 {
   return (h.v[0] == 0);
 }
 
 function b32 
-r_handle_matches(Rndr_Handle a, Rndr_Handle b)
+rndr_handle_matches(Rndr_Handle a, Rndr_Handle b)
 {
   return (a.v[0] == b.v[0]);
 }
@@ -25,7 +18,7 @@ push_quad_(Draw_List *list, Rndr_Handle tex, Quad_Inst *quad)
   Draw_Call *draw = list->last;
 
   b32 can_batch = draw && draw->kind == Draw_Kind_Quads &&
-                  r_handle_matches(draw->quad_batch.tex, tex) &&
+                  rndr_handle_matches(draw->quad_batch.tex, tex) &&
                   draw->quad_batch.len < QUAD_BATCH_SIZE;
 
   if (can_batch == false) 
@@ -59,7 +52,7 @@ push_text_quad_(Draw_List *list, Rndr_Handle tex, Quad_Text *q)
 {
   Draw_Call *draw = list->last;
   b32 can_batch = draw && draw->kind == Draw_Kind_Text &&
-                  r_handle_matches(draw->text_batch.tex, tex) &&
+                  rndr_handle_matches(draw->text_batch.tex, tex) &&
                   draw->text_batch.len < QUAD_BATCH_SIZE;
   if(!can_batch)
   {

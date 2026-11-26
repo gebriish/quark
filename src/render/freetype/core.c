@@ -3,7 +3,7 @@
 function void
 fnt_provider_init(void)
 {
-  Arena *arena = arena_reserve(Kilobytes(16));
+  Arena *arena = arena_reserve(Megabytes(16));
   r_ft_state = arena_push(arena, R_FT_State, 1);
   r_ft_state->arena = arena;
   FT_Init_FreeType(&r_ft_state->ft_lib);

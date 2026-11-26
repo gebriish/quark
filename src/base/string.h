@@ -57,6 +57,7 @@ function b32 str8_matches(String8 a, String8 b);
 function String8 str8_push_copy(Arena *arena, String8 src);
 function u64 str8_hash(String8 string);
 function String8 str8_format(Arena *arena, const char *fmt_string, ...); /* returns a null terminated string */
+function b32 str8_starts_with(String8 src, String8 pre);
 
 ////////////////////////////////////
 // @section: string8 slicing

@@ -93,7 +93,7 @@ main_thread_base_entry_point(int argc, char **argv)
   cmd.exe_name = str8_cstring((u8 *) argv[0]);
 
   Temp scratch = scratch_begin(0, 0);
-  for each_index(i, argc)
+  for (s32 i=1; i<argc; ++i)
   {
     String8 arg = str8_cstring((u8 *) argv[i]);
     String8_List *category = 0;

@@ -104,11 +104,11 @@ enum
   Edge_COUNT,
 };
 
-typedef u32 Axis2D;
+typedef u32 Axis_2D;
 enum
 {
-  Axis2D_Horizontal = 0,
-  Axis2D_Vertical   = 1,
+  Axis_2D_Horizontal = 0,
+  Axis_2D_Vertical   = 1,
 };
 
 typedef struct Rng1F32 Rng1F32;
@@ -195,7 +195,7 @@ union Rng3F32
    (v)[1] >= (rng).begin[1] && (v)[1] <= (rng).end[1] && \
    (v)[2] >= (rng).begin[2] && (v)[2] <= (rng).end[2])
 
-function Axis2D axis2d_flip(Axis2D axis);
+function Axis_2D axis2d_flip(Axis_2D axis);
 
 ////////////////////////////////////
 // @section: 4x4 Matrix

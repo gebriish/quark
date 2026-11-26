@@ -150,3 +150,66 @@ file_name_from_path(String8 path)
   result.len -= i;
   return(result);
 }
+
+///////////////////////////////
+// @section: paths
+
+function b32 
+set_current_working_directory(String8 path)
+{
+  b32 success = false;
+  Temp scratch = scratch_begin(0, 0);
+  const char *path_cstring = (char *) str8_push_cstring(scratch.arena, path);
+  success = (chdir(path_cstring) == 0);
+  scratch_end(scratch);
+  return success;
+}
+
+function String8 
+get_home_directory(void)
+{
+  char *home = getenv("HOME");
+  if(home == 0 || home[0] == 0)
+  {
+    struct passwd *pw = getpwuid(getuid());
+    if(pw != 0)
+    {
+      home = pw->pw_dir;
+    }
+  }
+  return str8_cstring((u8 *) home);
+}
+
+function String8
+get_absolute_directory(Arena *arena, String8 rel)
+{
+  Temp   scratch = scratch_begin(&arena, 1);
+  String8 result = {0};
+
+  const char *path = (char *) str8_push_cstring(scratch.arena, rel);
+  char *absolute = realpath( path, 0);
+
+  if(absolute != 0)
+  {
+    result = str8_push_copy(arena, str8_cstring((u8 *) absolute));
+    free(absolute);
+  }
+
+  scratch_end(scratch);
+  return result;
+}
+
+function String8
+get_current_working_directory(Arena *arena)
+{
+  String8 result = {0};
+
+  char *cwd = getcwd(0, 0);
+  if(cwd != 0)
+  {
+    result = str8_push_copy(arena, str8_cstring((u8 *)cwd));
+    free(cwd);
+  }
+
+  return result;
+}
